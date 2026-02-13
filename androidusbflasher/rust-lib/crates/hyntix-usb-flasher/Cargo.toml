@@ -1,0 +1,23 @@
+[package]
+name = "hyntix-usb-flasher"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "hyntix_usb_flasher"
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[dependencies]
+hyntix-common = { workspace = true }
+hyntix-iso = { workspace = true }
+hyntix-fat32 = { workspace = true }
+hyntix-usb = { workspace = true }
+hyntix-linux = { workspace = true }
+log.workspace = true
+sha2.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+env_logger.workspace = true

@@ -1,0 +1,11 @@
+[package]
+name = "hyntix-linux"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+hyntix-common = { workspace = true }
+hyntix-iso = { workspace = true }
+log.workspace = true

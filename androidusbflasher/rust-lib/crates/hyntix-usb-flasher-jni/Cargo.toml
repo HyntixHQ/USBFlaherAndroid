@@ -1,0 +1,23 @@
+[package]
+name = "hyntix-usb-flasher-jni"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "hyntix_usb_flasher_jni"
+crate-type = ["cdylib"]
+
+[dependencies]
+hyntix-usb-flasher = { workspace = true }
+hyntix-usb = { workspace = true }
+hyntix-common = { workspace = true }
+log.workspace = true
+android_logger.workspace = true
+uniffi = { version = "0.31.0", features = ["cli"] }
+thiserror.workspace = true
+libc.workspace = true
+
+[build-dependencies]
+uniffi = { version = "0.31.0", features = ["build"] }

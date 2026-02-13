@@ -1,0 +1,13 @@
+[package]
+name = "hyntix-iso"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+hyntix-common = { workspace = true }
+nom.workspace = true
+byteorder.workspace = true
+log.workspace = true
+unicode-normalization.workspace = true
