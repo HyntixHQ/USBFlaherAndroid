@@ -5,7 +5,7 @@ plugins {
 android {
     namespace = "com.hyntix.lib.androidusbflasher"
     compileSdk = 36
-    ndkVersion = "29.0.14206865"
+    ndkVersion = "30.0.14904198"
 
     defaultConfig {
         minSdk = 33
@@ -43,19 +43,19 @@ dependencies {
 tasks.register<Exec>("cargoBuild") {
     val workspaceRoot = project.projectDir.resolve("rust-lib")
     val jniLibsDir = project.file("src/main/jniLibs/arm64-v8a")
-    
+
     val sdkDir = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT") ?: "/home/raja/Android/Sdk"
-    val ndkPath = "$sdkDir/ndk/29.0.14206865"
+    val ndkPath = "$sdkDir/ndk/30.0.14904198"
     val linkerPath = "$ndkPath/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
 
     doFirst {
         jniLibsDir.mkdirs()
     }
-    
+
     workingDir(workspaceRoot)
     environment("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER", linkerPath)
     commandLine("cargo", "build", "--release", "--target", "aarch64-linux-android")
-    
+
     doLast {
         val builtLib = workspaceRoot.resolve("target/aarch64-linux-android/release/libhyntix_usb_flasher_jni.so")
         if (!builtLib.exists()) {
@@ -71,7 +71,7 @@ tasks.register<Exec>("generateBindings") {
     val workspaceRoot = project.projectDir.resolve("rust-lib")
     val builtLib = workspaceRoot.resolve("target/aarch64-linux-android/release/libhyntix_usb_flasher_jni.so")
     val outDir = project.layout.buildDirectory.dir("generated/uniffi").get().asFile
-    
+
     doFirst {
         outDir.mkdirs()
     }
@@ -83,7 +83,7 @@ tasks.register<Exec>("generateBindings") {
         val generatedFile = outDir.resolve("uniffi/hyntix_usb_flasher_jni/hyntix_usb_flasher_jni.kt")
         if (generatedFile.exists()) {
              val destFile = project.file("src/main/java/com/hyntix/lib/androidusbflasher/UsbFlasherNative.kt")
-             
+
              var content = generatedFile.readText()
              // Ensure it has our package name
              val packageLine = "package com.hyntix.lib.androidusbflasher"
@@ -92,7 +92,7 @@ tasks.register<Exec>("generateBindings") {
              } else {
                  "$packageLine\n\n$content"
              }
-             
+
              destFile.writeText(content)
              println("Generated bindings copied to $destFile")
         } else {

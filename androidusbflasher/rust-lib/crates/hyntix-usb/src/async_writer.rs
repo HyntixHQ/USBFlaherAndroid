@@ -146,10 +146,12 @@ impl AsyncUsbWriter {
                         );
                     }
 
-                    // Recycle buffer if it's our standard size
-                    // Use try_send to avoid blocking - if pool is full, just drop the buffer
-                    if write_job.buffer.len() == BUFFER_SIZE {
-                        let _ = buffer_tx.try_send(write_job.buffer);
+                    // Recycle buffer based on capacity rather than used length to reclaim
+                    // partially-filled chunks back to the pool.
+                    if write_job.buffer.capacity() >= BUFFER_SIZE {
+                        let mut reclaimed = write_job.buffer;
+                        reclaimed.clear();
+                        let _ = buffer_tx.try_send(reclaimed);
                     }
                 }
                 Job::Sync(done_tx) => {
@@ -197,12 +199,10 @@ impl AsyncUsbWriter {
             return Ok(());
         }
 
-        let mut next_buffer = if let Ok(mut buf) = self.buffer_rx.try_recv() {
-            buf.clear();
-            buf
-        } else {
-            Vec::with_capacity(BUFFER_SIZE)
-        };
+        let mut next_buffer = self.buffer_rx.recv().map_err(|_| {
+            std::io::Error::new(std::io::ErrorKind::Other, "Buffer pool channel closed")
+        })?;
+        next_buffer.clear();
 
         // Swap pending buffer with the fresh one
         std::mem::swap(&mut self.pending_buffer, &mut next_buffer);

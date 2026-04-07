@@ -5,7 +5,7 @@
 set -e
 
 # Configuration
-ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$HOME/Android/Sdk/ndk/29.0.14206865}"
+ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$HOME/Android/Sdk/ndk/30.0.14904198}"
 TARGET="aarch64-linux-android"
 API_LEVEL="26"
 

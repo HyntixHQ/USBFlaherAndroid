@@ -3,6 +3,7 @@ use hyntix_iso::reader::IsoReader;
 use hyntix_usb::async_writer::AsyncUsbWriter;
 use hyntix_usb::UsbMassStorage;
 use log::info;
+use sha2::Digest;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -81,6 +82,7 @@ impl Flasher {
         // (64MB / 2MB URB = 32 URBs per SCSI command).
         let mut buf = vec![0u8; hyntix_usb::config::READ_CHUNK_SIZE];
         let mut total_written: u64 = 0;
+        let mut source_hasher = sha2::Sha256::new();
 
         loop {
             if self.cancelled.load(Ordering::Relaxed) {
@@ -105,6 +107,8 @@ impl Flasher {
             if bytes_in_buf == 0 {
                 break;
             }
+
+            source_hasher.update(&buf[..bytes_in_buf]);
 
             // Write to the async USB pipeline (this enqueues the job and returns quickly
             // thanks to the double-buffered channel architecture)
@@ -135,17 +139,16 @@ impl Flasher {
         if verify {
             info!("Verifying integrity...");
             progress(FlashPhase::Verifying, 0, total_size);
-            source
-                .seek(SeekFrom::Start(0))
-                .map_err(|e| hyntix_common::Error::Io(e))?;
 
             // Seek the writer back to the beginning to read from LBA 0
             writer
                 .seek(SeekFrom::Start(0))
                 .map_err(|e| hyntix_common::Error::Io(e))?;
 
+            let expected_hash = source_hasher.finalize();
+            let mut dest_hasher = sha2::Sha256::new();
+
             let mut verified_bytes: u64 = 0;
-            let mut file_buf = vec![0u8; hyntix_usb::config::READ_CHUNK_SIZE];
             let mut device_buf = vec![0u8; hyntix_usb::config::READ_CHUNK_SIZE];
 
             while verified_bytes < total_size {
@@ -155,11 +158,6 @@ impl Flasher {
 
                 let remaining = (total_size - verified_bytes) as usize;
                 let chunk_size = remaining.min(hyntix_usb::config::READ_CHUNK_SIZE);
-
-                // Read from source file
-                source
-                    .read_exact(&mut file_buf[..chunk_size])
-                    .map_err(|e| hyntix_common::Error::Io(e))?;
 
                 // Read from USB device via SCSI READ(10)
                 let n = writer
@@ -174,16 +172,18 @@ impl Flasher {
                     });
                 }
 
-                // Compare
-                if file_buf[..chunk_size] != device_buf[..chunk_size] {
-                    return Err(hyntix_common::Error::Io(std::io::Error::new(
-                        std::io::ErrorKind::InvalidData,
-                        "Verification Failed: Data mismatch",
-                    )));
-                }
+                dest_hasher.update(&device_buf[..chunk_size]);
 
                 verified_bytes += chunk_size as u64;
                 progress(FlashPhase::Verifying, verified_bytes, total_size);
+            }
+
+            let final_dest_hash = dest_hasher.finalize();
+            if expected_hash != final_dest_hash {
+                return Err(hyntix_common::Error::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Verification Failed: SHA-256 data mismatch",
+                )));
             }
         }
 

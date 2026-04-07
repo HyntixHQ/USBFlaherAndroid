@@ -183,6 +183,7 @@ impl NativeUsbBackend {
         let mut total_sent = 0usize;
         let mut submit_offset = 0usize;
         let mut in_flight: VecDeque<Box<UsbDevFsUrb>> = VecDeque::with_capacity(URB_PIPELINE_DEPTH);
+        let mut success_count = 0usize;
 
         while submit_offset < data.len() || !in_flight.is_empty() {
             // ── Submit phase: fill pipeline up to depth ──────────────────
@@ -196,9 +197,23 @@ impl NativeUsbBackend {
                     Ok(()) => {
                         submit_offset += this_chunk;
                         in_flight.push_back(urb);
+                        
+                        // Adaptive: upsize if host performs sustainably without ENOMEM
+                        success_count += 1;
+                        if success_count > 64 && chunk_size < INITIAL_URB_CHUNK_SIZE {
+                            let new_size = (chunk_size * 2).min(INITIAL_URB_CHUNK_SIZE);
+                            info!(
+                                "Success threshold reached, increasing OUT chunk to {}KB",
+                                new_size / 1024
+                            );
+                            chunk_size = new_size;
+                            self.adaptive_out_chunk.store(new_size, Ordering::Relaxed);
+                            success_count = 0;
+                        }
                     }
                     Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
                         // Adaptive: halve chunk size
+                        success_count = 0;
                         let new_size = (chunk_size / 2).max(MIN_URB_CHUNK_SIZE);
                         if new_size < chunk_size {
                             info!(
@@ -288,6 +303,7 @@ impl NativeUsbBackend {
         let mut total_read = 0usize;
         let mut submit_offset = 0usize;
         let mut in_flight: VecDeque<Box<UsbDevFsUrb>> = VecDeque::with_capacity(URB_PIPELINE_DEPTH);
+        let mut success_count = 0usize;
 
         while submit_offset < data.len() || !in_flight.is_empty() {
             // ── Submit phase ─────────────────────────────────────────────
@@ -301,8 +317,22 @@ impl NativeUsbBackend {
                     Ok(()) => {
                         submit_offset += this_chunk;
                         in_flight.push_back(urb);
+
+                        // Adaptive: upsize if host performs sustainably without ENOMEM
+                        success_count += 1;
+                        if success_count > 64 && chunk_size < INITIAL_URB_CHUNK_SIZE {
+                            let new_size = (chunk_size * 2).min(INITIAL_URB_CHUNK_SIZE);
+                            info!(
+                                "Success threshold reached, increasing IN chunk to {}KB",
+                                new_size / 1024
+                            );
+                            chunk_size = new_size;
+                            self.adaptive_in_chunk.store(new_size, Ordering::Relaxed);
+                            success_count = 0;
+                        }
                     }
                     Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
+                        success_count = 0;
                         let new_size = (chunk_size / 2).max(MIN_URB_CHUNK_SIZE);
                         if new_size < chunk_size {
                             info!(

@@ -8,7 +8,7 @@ The project is an atomic workspace combining Android (Kotlin/Compose) and Rust (
 
 ### Prerequisites
 - **Android Studio**: Ladybug or later.
-- **Android SDK & NDK**: Version 29.0.14206865 is specified in `build.gradle.kts`.
+- **Android SDK & NDK**: Version 30.0.14904198 is specified in `build.gradle.kts`.
 - **Rust Toolchain**: 1.75+ installed via [rustup](https://rustup.rs/).
 - **Rust Android Target**: 
   ```bash

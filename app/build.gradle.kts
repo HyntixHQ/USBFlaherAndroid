@@ -8,7 +8,7 @@ plugins {
 android {
     namespace = "com.hyntix.android.usbflasher"
     compileSdk = 36
-    ndkVersion = "29.0.14206865"
+    ndkVersion = "30.0.14904198"
 
     defaultConfig {
         applicationId = "com.hyntix.android.usbflasher"
@@ -99,4 +99,3 @@ dependencies {
     implementation(libs.phosphor.compose)
     implementation(project(":androidusbflasher"))
 }
-
