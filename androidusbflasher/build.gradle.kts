@@ -77,7 +77,8 @@ tasks.register<Exec>("generateBindings") {
     }
 
     workingDir(workspaceRoot)
-    commandLine("uniffi-bindgen", "generate", builtLib.absolutePath, "--language", "kotlin", "--out-dir", outDir.absolutePath, "--no-format")
+    val userHome = System.getProperty("user.home")
+    commandLine("$userHome/.cargo/bin/uniffi-bindgen", "generate", builtLib.absolutePath, "--language", "kotlin", "--out-dir", outDir.absolutePath, "--no-format")
 
     doLast {
         val generatedFile = outDir.resolve("uniffi/hyntix_usb_flasher_jni/hyntix_usb_flasher_jni.kt")
