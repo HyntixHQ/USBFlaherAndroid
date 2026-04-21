@@ -126,7 +126,7 @@ impl Flasher {
         // Flush: drain the pipeline and wait for all pending writes to complete
         info!("Flushing async writer pipeline...");
         writer
-            .flush()
+            .flush_with_progress(|phys| progress(FlashPhase::Flashing, phys, total_size))
             .map_err(|e| hyntix_common::Error::Io(e))?;
 
         // Final flush progress

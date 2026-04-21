@@ -222,6 +222,41 @@ impl AsyncUsbWriter {
 
         Ok(())
     }
+
+    pub fn flush_with_progress(&mut self, mut progress_callback: impl FnMut(u64)) -> std::io::Result<()> {
+        self.check_error()?;
+        self.flush_pending()?;
+
+        let (done_tx, done_rx) = crossbeam_channel::bounded(1);
+        if let Some(ref tx) = self.job_tx {
+            tx.send(Job::Sync(done_tx)).map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::Other, "Async worker died during flush")
+            })?;
+
+            // Wait with a small timeout to report continuous progress
+            loop {
+                match done_rx.recv_timeout(std::time::Duration::from_millis(100)) {
+                    Ok(_) => {
+                        break;
+                    }
+                    Err(crossbeam_channel::RecvTimeoutError::Timeout) => {
+                        // Report progress and check if worker died
+                        progress_callback(self.physical_position());
+                        self.check_error()?;
+                    }
+                    Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
+                        error!("Async worker died unexpectedly");
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            "Async worker died",
+                        ));
+                    }
+                }
+            }
+        }
+
+        self.check_error()
+    }
 }
 
 impl Write for AsyncUsbWriter {
@@ -274,37 +309,7 @@ impl Write for AsyncUsbWriter {
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        self.check_error()?;
-        self.flush_pending()?;
-
-        let (done_tx, done_rx) = crossbeam_channel::bounded(1);
-        if let Some(ref tx) = self.job_tx {
-            tx.send(Job::Sync(done_tx)).map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, "Async worker died during flush")
-            })?;
-
-            // Wait with timeout to detect hangs and log progress
-            loop {
-                match done_rx.recv_timeout(std::time::Duration::from_secs(5)) {
-                    Ok(_) => {
-                        break;
-                    }
-                    Err(crossbeam_channel::RecvTimeoutError::Timeout) => {
-                        // Check if worker died
-                        self.check_error()?;
-                    }
-                    Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
-                        error!("Async worker died unexpectedly");
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "Async worker died",
-                        ));
-                    }
-                }
-            }
-        }
-
-        self.check_error()
+        self.flush_with_progress(|_| {})
     }
 }
 
@@ -317,14 +322,21 @@ impl Read for AsyncUsbWriter {
 
         let mut storage = self.storage.lock().unwrap();
         let block_size = storage.block_size() as u64;
-
-        // Handle unaligned read by doing a blocking read through storage
-        // This is fine as Read is rarely used during flashing, mostly for validation
         let bytes_to_read = buf.len();
 
-        // If not aligned, we might need a temporary buffer to read more blocks
         let start_lba = self.current_pos / block_size;
         let offset = (self.current_pos % block_size) as usize;
+
+        // Fast path: Zero-allocation aligned read (used during verification)
+        if offset == 0 && bytes_to_read % block_size as usize == 0 {
+            return storage.read_blocks(start_lba, buf).map(|_| {
+                self.current_pos += bytes_to_read as u64;
+                self.pending_start_pos = self.current_pos; // Reset pending start
+                bytes_to_read
+            }).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+        }
+
+        // Slow path: Unaligned read
         let total_bytes_needed = offset + bytes_to_read;
         let total_blocks = (total_bytes_needed + block_size as usize - 1) / block_size as usize;
 

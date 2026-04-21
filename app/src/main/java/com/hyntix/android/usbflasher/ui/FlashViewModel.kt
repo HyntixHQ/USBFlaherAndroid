@@ -142,31 +142,38 @@ class FlashViewModel(
             // Let's modify Repo to take UsbDevice!
             
             repository.flashDevice(image, device, object : FlashRepository.FlashCallback {
-                private var lastTime = System.currentTimeMillis()
-                private var lastBytes = 0L
+                private var lastSpeedTime = android.os.SystemClock.elapsedRealtime()
+                private var lastSpeedBytes = 0L
+                private var currentSpeed = 0L
+                
                 private var lastPhase = ""
                 private var lastUpdateTime = 0L
 
                 override fun onProgress(phase: String, current: Long, total: Long) {
-                    val now = System.currentTimeMillis()
+                    val now = android.os.SystemClock.elapsedRealtime()
                     val phaseChanged = phase != lastPhase
                     
-                    // Reset counters if phase changed (e.g. Flashing -> Verifying)
+                    // Reset speed counters if phase changed (e.g. Flashing -> Verifying)
                     if (phaseChanged) {
                         lastPhase = phase
-                        lastBytes = current
-                        lastTime = now
+                        lastSpeedBytes = current
+                        lastSpeedTime = now
+                        currentSpeed = 0L
                     }
                     
-                    val deltaSinceReset = now - lastTime
-                    val speed = if (deltaSinceReset > 0) (current - lastBytes) * 1000 / deltaSinceReset else 0
-                    val etaSeconds = if (speed > 0) (total - current) / speed else 0
+                    val speedDeltaMs = now - lastSpeedTime
+                    if (speedDeltaMs >= 1000) { // 1-second rolling window for stable speed
+                        currentSpeed = ((current - lastSpeedBytes) * 1000) / speedDeltaMs
+                        lastSpeedBytes = current
+                        lastSpeedTime = now
+                    }
                     
                     // Update UI at 10Hz (100ms) OR immediately on phase change
-                    if (now - lastUpdateTime > 100 || phaseChanged) {
+                    if (now - lastUpdateTime >= 100 || phaseChanged) {
                         lastUpdateTime = now
+                        val etaSeconds = if (currentSpeed > 0) (total - current) / currentSpeed else 0
                         
-                        val progress = FlashProgress(current, total, speed, etaSeconds)
+                        val progress = FlashProgress(current, total, currentSpeed, etaSeconds)
 
                         if (phase.equals("Verifying", ignoreCase = true)) {
                             _state.value = FlashState.Verifying(

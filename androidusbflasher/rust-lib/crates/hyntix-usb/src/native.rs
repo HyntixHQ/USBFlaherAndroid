@@ -198,37 +198,42 @@ impl NativeUsbBackend {
                         submit_offset += this_chunk;
                         in_flight.push_back(urb);
                         
-                        // Adaptive: upsize if host performs sustainably without ENOMEM
+                        // AIMD: Additive Increase
+                        // Increase chunk size gradually (+64KB) if stable for a full pipeline cycle
                         success_count += 1;
-                        if success_count > 64 && chunk_size < INITIAL_URB_CHUNK_SIZE {
-                            let new_size = (chunk_size * 2).min(INITIAL_URB_CHUNK_SIZE);
-                            info!(
-                                "Success threshold reached, increasing OUT chunk to {}KB",
-                                new_size / 1024
-                            );
-                            chunk_size = new_size;
-                            self.adaptive_out_chunk.store(new_size, Ordering::Relaxed);
+                        if success_count > URB_PIPELINE_DEPTH && chunk_size < INITIAL_URB_CHUNK_SIZE {
+                            let new_size = (chunk_size + 64 * 1024).min(INITIAL_URB_CHUNK_SIZE);
+                            if new_size > chunk_size {
+                                chunk_size = new_size;
+                                self.adaptive_out_chunk.store(new_size, Ordering::Relaxed);
+                            }
                             success_count = 0;
                         }
                     }
                     Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
-                        // Adaptive: halve chunk size
+                        // AIMD: Multiplicative Decrease
                         success_count = 0;
                         let new_size = (chunk_size / 2).max(MIN_URB_CHUNK_SIZE);
                         if new_size < chunk_size {
                             info!(
-                                "ENOMEM at {}KB, reducing to {}KB",
+                                "AIMD: ENOMEM at {}KB, reducing OUT chunk to {}KB",
                                 chunk_size / 1024,
                                 new_size / 1024
                             );
                             chunk_size = new_size;
                             self.adaptive_out_chunk.store(new_size, Ordering::Relaxed);
-                            continue; // Retry with smaller chunk
                         }
-                        // At minimum floor — real OOM
-                        error!("ENOMEM at minimum chunk size ({}KB)", MIN_URB_CHUNK_SIZE / 1024);
-                        self.drain_urbs(&mut in_flight);
-                        return Err(e);
+                        
+                        if !in_flight.is_empty() {
+                            // Host DMA pool is exhausted. Backpressure applied.
+                            // Break submit loop and enter reap phase to wait for memory to free.
+                            break;
+                        } else {
+                            // At minimum floor and nothing in flight — real OOM
+                            error!("ENOMEM at minimum chunk size ({}KB) with empty pipeline", MIN_URB_CHUNK_SIZE / 1024);
+                            self.drain_urbs(&mut in_flight);
+                            return Err(e);
+                        }
                     }
                     Err(e) => {
                         error!("URB submit failed: {}", e);
@@ -318,34 +323,39 @@ impl NativeUsbBackend {
                         submit_offset += this_chunk;
                         in_flight.push_back(urb);
 
-                        // Adaptive: upsize if host performs sustainably without ENOMEM
+                        // AIMD: Additive Increase
                         success_count += 1;
-                        if success_count > 64 && chunk_size < INITIAL_URB_CHUNK_SIZE {
-                            let new_size = (chunk_size * 2).min(INITIAL_URB_CHUNK_SIZE);
-                            info!(
-                                "Success threshold reached, increasing IN chunk to {}KB",
-                                new_size / 1024
-                            );
-                            chunk_size = new_size;
-                            self.adaptive_in_chunk.store(new_size, Ordering::Relaxed);
+                        if success_count > URB_PIPELINE_DEPTH && chunk_size < INITIAL_URB_CHUNK_SIZE {
+                            let new_size = (chunk_size + 64 * 1024).min(INITIAL_URB_CHUNK_SIZE);
+                            if new_size > chunk_size {
+                                chunk_size = new_size;
+                                self.adaptive_in_chunk.store(new_size, Ordering::Relaxed);
+                            }
                             success_count = 0;
                         }
                     }
                     Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
+                        // AIMD: Multiplicative Decrease
                         success_count = 0;
                         let new_size = (chunk_size / 2).max(MIN_URB_CHUNK_SIZE);
                         if new_size < chunk_size {
                             info!(
-                                "ENOMEM (IN) at {}KB, reducing to {}KB",
+                                "AIMD: ENOMEM at {}KB, reducing IN chunk to {}KB",
                                 chunk_size / 1024,
                                 new_size / 1024
                             );
                             chunk_size = new_size;
                             self.adaptive_in_chunk.store(new_size, Ordering::Relaxed);
-                            continue;
                         }
-                        self.drain_urbs(&mut in_flight);
-                        return Err(e);
+                        
+                        if !in_flight.is_empty() {
+                            // DMA pool exhausted. Break submit loop to reap.
+                            break;
+                        } else {
+                            error!("ENOMEM at minimum IN chunk size ({}KB)", MIN_URB_CHUNK_SIZE / 1024);
+                            self.drain_urbs(&mut in_flight);
+                            return Err(e);
+                        }
                     }
                     Err(e) => {
                         self.drain_urbs(&mut in_flight);
