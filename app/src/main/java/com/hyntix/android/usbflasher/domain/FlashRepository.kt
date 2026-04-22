@@ -65,19 +65,13 @@ class FlashRepository(
                         android.util.Log.d("FlashRepository", "scanDevices: Waiting for usbMutex for ${device.deviceName}")
                         usbMutex.withLock {
                             android.util.Log.d("FlashRepository", "scanDevices: Acquired usbMutex for ${device.deviceName}")
-                            for (i in 0 until 3) {
-                                try {
-                                    capacity = usbFlasher.getDeviceCapacity(device)
-                                    if (capacity > 0) {
-                                        capacityCache[device.deviceName] = capacity
-                                        break
-                                    }
-                                } catch (e: Exception) {
-                                    android.util.Log.e("FlashRepository", "Capacity probe failed (attempt ${i + 1})", e)
+                            try {
+                                capacity = usbFlasher.getDeviceCapacity(device)
+                                if (capacity > 0) {
+                                    capacityCache[device.deviceName] = capacity
                                 }
-                                if (i < 2) {
-                                    try { kotlinx.coroutines.delay(500) } catch (_: Exception) {}
-                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("FlashRepository", "Capacity probe failed", e)
                             }
                         }
                     }

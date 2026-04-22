@@ -55,7 +55,7 @@ class FlashViewModel(
         triggerScan() // Initial scan
         scanJob = viewModelScope.launch(Dispatchers.IO) {
             while (isActive) {
-                delay(10000) // Polling fallback (10s)
+                delay(3000) // Polling fallback (3s)
                 if (_state.value !is FlashState.Flashing && _state.value !is FlashState.Verifying) {
                     val devices = repository.scanDevices()
                     _availableDevices.value = devices
@@ -145,6 +145,7 @@ class FlashViewModel(
                 private var lastSpeedTime = android.os.SystemClock.elapsedRealtime()
                 private var lastSpeedBytes = 0L
                 private var currentSpeed = 0L
+                private val speedHistory = ArrayDeque<Long>(3) // 3-second smoothing window
                 
                 private var lastPhase = ""
                 private var lastUpdateTime = 0L
@@ -159,11 +160,26 @@ class FlashViewModel(
                         lastSpeedBytes = current
                         lastSpeedTime = now
                         currentSpeed = 0L
+                        speedHistory.clear()
+                        android.util.Log.i("FlashTelemetry", "Phase changed to: $phase")
                     }
                     
                     val speedDeltaMs = now - lastSpeedTime
-                    if (speedDeltaMs >= 1000) { // 1-second rolling window for stable speed
-                        currentSpeed = ((current - lastSpeedBytes) * 1000) / speedDeltaMs
+                    if (speedDeltaMs >= 1000) { 
+                        val instSpeed = ((current - lastSpeedBytes) * 1000) / speedDeltaMs
+                        
+                        // Push to circular buffer (max 3 items)
+                        if (speedHistory.size >= 3) {
+                            speedHistory.removeFirst()
+                        }
+                        speedHistory.addLast(instSpeed)
+                        
+                        // Calculate smoothed average
+                        currentSpeed = speedHistory.sum() / speedHistory.size
+                        
+                        android.util.Log.i("FlashTelemetry", 
+                            "[$phase] Instant: ${instSpeed / 1024 / 1024} MB/s | Smoothed: ${currentSpeed / 1024 / 1024} MB/s | History: ${speedHistory.map { it / 1024 / 1024 }}")
+                        
                         lastSpeedBytes = current
                         lastSpeedTime = now
                     }

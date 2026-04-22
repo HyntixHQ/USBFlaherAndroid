@@ -17,6 +17,7 @@ hyntix-usb = { workspace = true }
 hyntix-linux = { workspace = true }
 log.workspace = true
 sha2.workspace = true
+crossbeam-channel.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -502,6 +502,7 @@ dependencies = [
 name = "hyntix-usb-flasher"
 version = "0.1.0"
 dependencies = [
+ "crossbeam-channel",
  "env_logger",
  "hyntix-common",
  "hyntix-fat32",

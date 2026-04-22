@@ -135,7 +135,7 @@ impl Flasher {
         // Wait for worker thread to fully complete
         writer.wait_idle()?;
 
-        // ── Verification Phase ──────────────────────────────────────────
+        // ── Verification Phase (Pipelined: Read overlaps with Hash) ─────
         if verify {
             info!("Verifying integrity...");
             progress(FlashPhase::Verifying, 0, total_size);
@@ -146,39 +146,92 @@ impl Flasher {
                 .map_err(|e| hyntix_common::Error::Io(e))?;
 
             let expected_hash = source_hasher.finalize();
-            let mut dest_hasher = sha2::Sha256::new();
+            let chunk_len = hyntix_usb::config::READ_CHUNK_SIZE;
 
+            // Double-buffer: main thread reads into one buffer while hash thread
+            // processes the other. This hides SHA-256 latency behind USB I/O.
+            let (hash_tx, hash_rx) = crossbeam_channel::bounded::<(Vec<u8>, usize)>(2);
+            let (recycle_tx, recycle_rx) = crossbeam_channel::bounded::<Vec<u8>>(2);
+
+            // Pre-allocate two buffers
+            recycle_tx.send(vec![0u8; chunk_len]).unwrap();
+            recycle_tx.send(vec![0u8; chunk_len]).unwrap();
+
+            let cancel_clone = self.cancelled.clone();
+
+            // Hash thread: receives filled buffers, updates SHA-256, recycles them
+            let hash_handle = std::thread::spawn(move || -> Result<sha2::digest::Output<sha2::Sha256>> {
+                let mut dest_hasher = sha2::Sha256::new();
+                while let Ok((buf, len)) = hash_rx.recv() {
+                    if cancel_clone.load(Ordering::Relaxed) {
+                        return Err(hyntix_common::Error::Cancelled);
+                    }
+                    dest_hasher.update(&buf[..len]);
+                    let _ = recycle_tx.send(buf); // Return buffer to pool
+                }
+                Ok(dest_hasher.finalize())
+            });
+
+            // Main thread: reads from USB device, sends filled buffers to hash thread
             let mut verified_bytes: u64 = 0;
-            let mut device_buf = vec![0u8; hyntix_usb::config::READ_CHUNK_SIZE];
-
             while verified_bytes < total_size {
                 if self.cancelled.load(Ordering::Relaxed) {
+                    drop(hash_tx); // Signal hash thread to stop
+                    let _ = hash_handle.join();
                     return Err(hyntix_common::Error::Cancelled);
                 }
 
                 let remaining = (total_size - verified_bytes) as usize;
-                let chunk_size = remaining.min(hyntix_usb::config::READ_CHUNK_SIZE);
+                let this_chunk = remaining.min(chunk_len);
 
-                // Read from USB device via SCSI READ(10)
+                // Get a recycled buffer (blocks until hash thread returns one)
+                let mut buf = recycle_rx.recv().map_err(|_| {
+                    hyntix_common::Error::Io(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "Hash thread died",
+                    ))
+                })?;
+
                 let n = writer
-                    .read(&mut device_buf[..chunk_size])
+                    .read(&mut buf[..this_chunk])
                     .map_err(|e| hyntix_common::Error::Io(e))?;
 
-                if n != chunk_size {
+                if n != this_chunk {
+                    drop(hash_tx);
+                    let _ = hash_handle.join();
                     return Err(hyntix_common::Error::SizeMismatch {
                         operation: "verify read",
-                        expected: chunk_size,
+                        expected: this_chunk,
                         actual: n,
                     });
                 }
 
-                dest_hasher.update(&device_buf[..chunk_size]);
+                // Send filled buffer to hash thread (non-blocking if channel has space)
+                hash_tx.send((buf, n)).map_err(|_| {
+                    hyntix_common::Error::Io(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "Hash thread died",
+                    ))
+                })?;
 
-                verified_bytes += chunk_size as u64;
+                verified_bytes += n as u64;
                 progress(FlashPhase::Verifying, verified_bytes, total_size);
             }
 
-            let final_dest_hash = dest_hasher.finalize();
+            // Drop sender to signal hash thread that all data has been sent
+            drop(hash_tx);
+
+            // Wait for hash thread to finish and get the final digest
+            let final_dest_hash = hash_handle
+                .join()
+                .map_err(|_| {
+                    hyntix_common::Error::Io(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "Hash thread panicked",
+                    ))
+                })?
+                .map_err(|e| e)?;
+
             if expected_hash != final_dest_hash {
                 return Err(hyntix_common::Error::Io(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,

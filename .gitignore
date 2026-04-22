@@ -38,3 +38,5 @@ Thumbs.db
 # JNI specific
 **/src/main/jniLibs/arm64-v8a/*.so
 !**/src/main/jniLibs/arm64-v8a/libjnidispatch.so
+logcat_output.txt
+logcat.sh

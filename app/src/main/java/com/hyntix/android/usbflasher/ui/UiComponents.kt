@@ -1,9 +1,13 @@
 package com.hyntix.android.usbflasher.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -136,13 +140,24 @@ fun FlashingSheet(
             
             Spacer(modifier = Modifier.height(24.dp))
             
+            // Animate progress smoothly between bursty Rust callback values.
+            // LinearEasing + 300ms tween gives continuous motion without overshoot.
+            val animatedProgress by animateFloatAsState(
+                targetValue = progress.percentage / 100f,
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = LinearEasing
+                ),
+                label = "progressAnimation"
+            )
+
             LinearProgressIndicator(
-                progress = { progress.percentage / 100f },
+                progress = { animatedProgress.coerceIn(0f, 1f) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp),
                 strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f), // approximate
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f),
             )
             
             Spacer(modifier = Modifier.height(8.dp))
@@ -151,8 +166,9 @@ fun FlashingSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                // Show the animated percentage (matches the bar position)
                 Text(
-                    text = "${progress.percentage.toInt()}%",
+                    text = "${(animatedProgress * 100).toInt().coerceIn(0, 100)}%",
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold
                 )
