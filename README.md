@@ -20,6 +20,8 @@ Unlike traditional single-threaded flasher implementations, this project uses a 
 - **Raw Block Writing**: Flashes images directly to the raw block device, bypassing partition table limits. Perfect for Linux Hybrid ISOs (Ubuntu, Fedora, Arch, etc.).
 - **SHA-256 Verification**: Automatically verifies data integrity immediately after writing.
 - **Auto-Detection**: Instantly detects and configures OTG connected USB mass storage devices.
+- **Auto-Eject**: Safely ejects the drive after a successful flash — just unplug and go.
+- **In-App Log Viewer**: Built-in debug log viewer with share and clear actions for field troubleshooting.
 - **Safety First**: Prevents common user errors by explicitly blocking incompatible Windows/macOS images.
 
 ## 🛠️ Building
