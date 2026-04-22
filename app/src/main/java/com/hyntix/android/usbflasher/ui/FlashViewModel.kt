@@ -216,8 +216,8 @@ class FlashViewModel(
                 }
 
                 override fun onError(message: String) {
-                    _state.value = FlashState.Error(message, image, device)
-                    startDeviceScan() // Resume scan
+                    _state.value = FlashState.Error(toUserMessage(message), image, device)
+                    startDeviceScan()
                 }
             })
         }
@@ -226,8 +226,46 @@ class FlashViewModel(
     fun cancel() {
         repository.cancel()
         _state.value = FlashState.Idle
-        startDeviceScan() // Resume scan
-        // Keep selections? Yes.
+        startDeviceScan()
         checkReadyState() 
+    }
+
+    /** Called when user taps Done after a successful flash. Ejects the drive. */
+    fun done() {
+        val currentState = _state.value
+        if (currentState is FlashState.Success) {
+            viewModelScope.launch(Dispatchers.IO) {
+                repository.ejectDevice(currentState.device)
+                _state.value = FlashState.Idle
+                startDeviceScan()
+                checkReadyState()
+            }
+        } else {
+            cancel()
+        }
+    }
+
+    /** Map raw Rust/technical errors to concise user-friendly messages. */
+    private fun toUserMessage(raw: String): String {
+        val lower = raw.lowercase()
+        return when {
+            lower.contains("cancel") -> "Cancelled by user."
+            lower.contains("verification") || lower.contains("mismatch") || lower.contains("hash") ->
+                "Verification failed. Data may be corrupted."
+            lower.contains("permission") || lower.contains("access") ->
+                "USB permission denied. Reconnect and try again."
+            lower.contains("disconnected") || lower.contains("detach") || lower.contains("no device") ->
+                "USB drive was disconnected."
+            lower.contains("no space") || lower.contains("capacity") || lower.contains("too large") ->
+                "Image is larger than the drive."
+            lower.contains("usb") || lower.contains("pipe") || lower.contains("i/o") || lower.contains("ioctl") ->
+                "USB transfer failed. Try reconnecting the drive."
+            lower.contains("scsi") || lower.contains("csw") || lower.contains("cbw") ->
+                "Drive communication error. Try a different USB port."
+            lower.contains("timeout") ->
+                "Drive not responding. Please reconnect."
+            // Already user-friendly messages from FlashRepository pass through as-is
+            else -> raw
+        }
     }
 }

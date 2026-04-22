@@ -210,7 +210,10 @@ fun MainScreen(
             ) {
                 FlashingSheet(
                     state = state,
-                    onCancel = { viewModel.cancel() }
+                    onCancel = {
+                        if (state is FlashState.Success) viewModel.done()
+                        else viewModel.cancel()
+                    }
                 )
             }
         }
@@ -220,7 +223,7 @@ fun MainScreen(
     if (state is FlashState.Error) {
         AlertDialog(
             onDismissRequest = { viewModel.cancel() }, // Reset to Idle
-            title = { Text("Error") },
+            title = { Text("Something went wrong") },
             text = { Text((state as FlashState.Error).message) },
             confirmButton = {
                 TextButton(onClick = { viewModel.cancel() }) {

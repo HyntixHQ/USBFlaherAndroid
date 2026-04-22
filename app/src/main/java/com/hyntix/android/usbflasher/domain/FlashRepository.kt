@@ -143,7 +143,7 @@ class FlashRepository(
         
         if (msInterface == null) {
             AppLogger.e("FlashRepository", "performFlash: No MS interface found")
-            callback.onError("No mass storage interface found")
+            callback.onError("Not a supported USB drive.")
             return
         }
         
@@ -159,7 +159,7 @@ class FlashRepository(
         
         if (inEp == null || outEp == null) {
              AppLogger.e("FlashRepository", "performFlash: Bulk endpoints not found")
-             callback.onError("Could not find bulk endpoints")
+             callback.onError("Unable to communicate with drive.")
              return
         }
         
@@ -167,7 +167,7 @@ class FlashRepository(
         val connection = manager.openDevice(device)
         if (connection == null) {
              AppLogger.e("FlashRepository", "performFlash: openDevice failed")
-             callback.onError("Could not open device. Permission denied?")
+             callback.onError("USB permission denied. Reconnect and try again.")
              return
         }
 
@@ -175,7 +175,7 @@ class FlashRepository(
         if (!connection.claimInterface(msInterface, true)) {
              AppLogger.e("FlashRepository", "performFlash: claimInterface failed")
              connection.close()
-             callback.onError("Could not claim interface")
+             callback.onError("Drive is in use by another app.")
              return
         }
         
@@ -185,14 +185,14 @@ class FlashRepository(
         } catch (e: Exception) {
             AppLogger.e("FlashRepository", "performFlash: Failed to open PFD", e)
             connection.close()
-            callback.onError("Failed to open source file: ${e.message}")
+            callback.onError("Cannot read the selected file.")
             return
         }
 
         if (pfd == null) {
             AppLogger.e("FlashRepository", "performFlash: PFD is null")
             connection.close()
-            callback.onError("Failed to open source file descriptor")
+            callback.onError("Cannot read the selected file.")
             return
         }
 
@@ -228,8 +228,79 @@ class FlashRepository(
         capacityCache.clear()
     }
 
-
     fun cancel() {
         usbFlasher.cancel()
+    }
+
+    /**
+     * Eject a USB drive by sending SCSI START STOP UNIT command.
+     * This makes it safe to physically unplug the drive.
+     */
+    fun ejectDevice(deviceInfo: UsbDeviceInfo) {
+        val device = deviceInfo.device
+        val manager = context.getSystemService(Context.USB_SERVICE) as UsbManager
+
+        if (!manager.hasPermission(device)) {
+            AppLogger.w("FlashRepository", "ejectDevice: No permission, skipping eject")
+            return
+        }
+
+        // Find mass storage interface and endpoints
+        var msInterface: android.hardware.usb.UsbInterface? = null
+        for (i in 0 until device.interfaceCount) {
+            val iface = device.getInterface(i)
+            if (iface.interfaceClass == android.hardware.usb.UsbConstants.USB_CLASS_MASS_STORAGE) {
+                msInterface = iface
+                break
+            }
+        }
+        if (msInterface == null) return
+
+        var inEp: android.hardware.usb.UsbEndpoint? = null
+        var outEp: android.hardware.usb.UsbEndpoint? = null
+        for (i in 0 until msInterface.endpointCount) {
+            val ep = msInterface.getEndpoint(i)
+            if (ep.type == android.hardware.usb.UsbConstants.USB_ENDPOINT_XFER_BULK) {
+                if (ep.direction == android.hardware.usb.UsbConstants.USB_DIR_IN) inEp = ep
+                else outEp = ep
+            }
+        }
+        if (inEp == null || outEp == null) return
+
+        val connection = manager.openDevice(device) ?: return
+        if (!connection.claimInterface(msInterface, true)) {
+            connection.close()
+            return
+        }
+
+        try {
+            // Build CBW for SCSI START STOP UNIT (opcode 0x1B)
+            // LoEj=1, Start=0 → eject the media
+            val cbw = ByteArray(31)
+            // Signature: "USBC" (0x55534243)
+            cbw[0] = 0x55; cbw[1] = 0x53; cbw[2] = 0x42; cbw[3] = 0x43
+            // Tag (arbitrary)
+            cbw[4] = 0x01; cbw[5] = 0x00; cbw[6] = 0x00; cbw[7] = 0x00
+            // DataTransferLength: 0
+            // Flags: 0x00 (Host to Device)
+            // LUN: 0
+            cbw[14] = 6 // CB Length
+            // SCSI command: START STOP UNIT
+            cbw[15] = 0x1B // Opcode
+            cbw[19] = 0x02 // LoEj=1, Start=0
+
+            connection.bulkTransfer(outEp, cbw, cbw.size, 5000)
+
+            // Read CSW
+            val csw = ByteArray(13)
+            connection.bulkTransfer(inEp, csw, csw.size, 5000)
+
+            AppLogger.i("FlashRepository", "ejectDevice: Drive ejected successfully")
+        } catch (e: Exception) {
+            AppLogger.e("FlashRepository", "ejectDevice: Eject failed", e)
+        } finally {
+            connection.releaseInterface(msInterface)
+            connection.close()
+        }
     }
 }
