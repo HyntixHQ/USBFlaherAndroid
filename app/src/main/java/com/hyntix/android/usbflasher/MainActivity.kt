@@ -88,6 +88,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Initialize in-app logger before anything else
+        com.hyntix.android.usbflasher.util.AppLogger.init(applicationContext)
+        
         // Register USB Receiver
         val filter = IntentFilter(ACTION_USB_PERMISSION).apply {
             addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)

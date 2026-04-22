@@ -16,6 +16,7 @@ import com.adamglin.PhosphorIcons
 import com.adamglin.phosphoricons.Regular
 import com.adamglin.phosphoricons.regular.Disc
 import com.adamglin.phosphoricons.regular.Usb
+import com.adamglin.phosphoricons.regular.Terminal
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,6 +31,13 @@ fun MainScreen(
     val selectedDevice by viewModel.selectedDeviceInfo.collectAsState()
     
     var showDevicePicker by remember { mutableStateOf(false) }
+    var showLogViewer by remember { mutableStateOf(false) }
+
+    // Show log viewer as a full-screen overlay
+    if (showLogViewer) {
+        LogViewerScreen(onBack = { showLogViewer = false })
+        return
+    }
 
     // Start scanning on entry, stop on exit
     DisposableEffect(Unit) {
@@ -53,6 +61,15 @@ fun MainScreen(
                             "USB Flasher", 
                             fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                         ) 
+                    },
+                    actions = {
+                        IconButton(onClick = { showLogViewer = true }) {
+                            Icon(
+                                imageVector = PhosphorIcons.Regular.Terminal,
+                                contentDescription = "View logs",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background,

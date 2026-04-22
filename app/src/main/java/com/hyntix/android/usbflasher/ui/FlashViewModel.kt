@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hyntix.android.usbflasher.data.*
 import com.hyntix.android.usbflasher.domain.FlashRepository
+import com.hyntix.android.usbflasher.util.AppLogger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -161,7 +162,7 @@ class FlashViewModel(
                         lastSpeedTime = now
                         currentSpeed = 0L
                         speedHistory.clear()
-                        android.util.Log.i("FlashTelemetry", "Phase changed to: $phase")
+                        AppLogger.i("FlashTelemetry", "Phase changed to: $phase")
                     }
                     
                     val speedDeltaMs = now - lastSpeedTime
@@ -177,7 +178,7 @@ class FlashViewModel(
                         // Calculate smoothed average
                         currentSpeed = speedHistory.sum() / speedHistory.size
                         
-                        android.util.Log.i("FlashTelemetry", 
+                        AppLogger.i("FlashTelemetry", 
                             "[$phase] Instant: ${instSpeed / 1024 / 1024} MB/s | Smoothed: ${currentSpeed / 1024 / 1024} MB/s | History: ${speedHistory.map { it / 1024 / 1024 }}")
                         
                         lastSpeedBytes = current

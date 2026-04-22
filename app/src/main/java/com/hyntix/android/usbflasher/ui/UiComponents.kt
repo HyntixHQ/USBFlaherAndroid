@@ -116,15 +116,15 @@ fun FlashingSheet(
     state: FlashState,
     onCancel: () -> Unit
 ) {
-    val (progress, statusText) = when (state) {
-        is FlashState.Flashing -> state.progress to (state.status ?: "Flashing...")
-        is FlashState.Verifying -> state.progress to (state.status ?: "Verifying...")
-        is FlashState.Success -> FlashProgress(100, 100) to "Completed"
+    val progress = when (state) {
+        is FlashState.Flashing -> state.progress
+        is FlashState.Verifying -> state.progress
+        is FlashState.Success -> FlashProgress(100, 100)
         else -> return
     }
 
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerHighest, // Or generic
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = MaterialTheme.shapes.extraLarge,
         modifier = Modifier.fillMaxWidth()
@@ -135,15 +135,13 @@ fun FlashingSheet(
                 .navigationBarsPadding()
         ) {
             Text(
-                text = if (state is FlashState.Verifying) "Verifying..." else "Flashing...",
+                text = when (state) {
+                    is FlashState.Verifying -> "Verifying..."
+                    is FlashState.Success -> "Complete"
+                    else -> "Flashing..."
+                },
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = statusText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             
             Spacer(modifier = Modifier.height(24.dp))

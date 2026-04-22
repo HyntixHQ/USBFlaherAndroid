@@ -3,8 +3,13 @@ package com.hyntix.android.usbflasher.util
 import android.content.Context
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+import java.io.BufferedReader
 import java.io.File
+import java.io.InputStreamReader
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -12,13 +17,14 @@ import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * In-app file-based logger for debugging when logcat isn't available.
- * Logs are written to app's files directory and can be viewed/shared.
+ * Captures ALL events (Kotlin + Rust) with no filtering.
+ * Logs are written to app's files directory and can be viewed/shared from the UI.
  */
 object AppLogger {
     
     private const val LOG_FILE_NAME = "flash_debug.log"
     private const val MAX_LOG_SIZE = 5 * 1024 * 1024  // 5MB max
-    private const val MAX_MEMORY_LOGS = 500
+    private const val MAX_MEMORY_LOGS = 1000
     
     private var logFile: File? = null
     private val dateFormat = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
@@ -26,11 +32,16 @@ object AppLogger {
     // In-memory log buffer for UI display
     private val memoryLogs = ConcurrentLinkedQueue<String>()
     
+    // Observable flow for the UI — emits the full buffer on every new log
+    private val _logFlow = MutableStateFlow<List<String>>(emptyList())
+    val logFlow: StateFlow<List<String>> = _logFlow.asStateFlow()
+    
     // Log level
     enum class Level { DEBUG, INFO, WARN, ERROR }
     
     /**
      * Initialize logger with app context.
+     * Call this in MainActivity.onCreate() before anything else.
      */
     fun init(context: Context) {
         logFile = File(context.filesDir, LOG_FILE_NAME)
@@ -45,6 +56,9 @@ object AppLogger {
         
         // Add startup marker
         log(Level.INFO, "Logger", "=== App Started ===")
+        
+        // Start capturing Rust logs from logcat
+        startLogcatCapture()
     }
     
     fun d(tag: String, message: String) = log(Level.DEBUG, tag, message)
@@ -72,12 +86,14 @@ object AppLogger {
         }
         val logLine = "$timestamp $levelChar/$tag: $message"
         
-        // Also log to logcat
-        when (level) {
-            Level.DEBUG -> Log.d(tag, message)
-            Level.INFO -> Log.i(tag, message)
-            Level.WARN -> Log.w(tag, message)
-            Level.ERROR -> Log.e(tag, message)
+        // Also log to logcat (skip Rust-captured lines to avoid echo)
+        if (tag != "Rust") {
+            when (level) {
+                Level.DEBUG -> Log.d(tag, message)
+                Level.INFO -> Log.i(tag, message)
+                Level.WARN -> Log.w(tag, message)
+                Level.ERROR -> Log.e(tag, message)
+            }
         }
         
         synchronized(lock) {
@@ -93,6 +109,43 @@ object AppLogger {
             } catch (e: Exception) {
                 Log.e("AppLogger", "Failed to write log: ${e.message}")
             }
+            
+            // Notify UI observers
+            _logFlow.value = memoryLogs.toList()
+        }
+    }
+    
+    /**
+     * Capture Rust-side logs from logcat.
+     * Spawns a background thread that reads logcat for our PID's UsbFlasherRust tag
+     * and feeds each line into the in-app logger.
+     */
+    private fun startLogcatCapture() {
+        val pid = android.os.Process.myPid()
+        Thread({
+            try {
+                // Clear old logcat buffer first, then tail new entries
+                val process = Runtime.getRuntime().exec(
+                    arrayOf("logcat", "-v", "brief", "-s", "UsbFlasherRust:*", "--pid=$pid")
+                )
+                val reader = BufferedReader(InputStreamReader(process.inputStream))
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    line?.let { rawLine ->
+                        // Strip ANSI escape codes and logcat prefix, keep the message
+                        val cleaned = rawLine.replace(Regex("\u001b\\[[0-9;]*m"), "").trim()
+                        if (cleaned.isNotEmpty() && !cleaned.startsWith("-----")) {
+                            // Write directly to memory + file, skip logcat echo
+                            log(Level.INFO, "Rust", cleaned)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("AppLogger", "Logcat capture failed: ${e.message}")
+            }
+        }, "logcat-capture").apply {
+            isDaemon = true
+            start()
         }
     }
     
@@ -116,7 +169,10 @@ object AppLogger {
      * Clear all logs.
      */
     suspend fun clearLogs() = withContext(Dispatchers.IO) {
-        memoryLogs.clear()
+        synchronized(lock) {
+            memoryLogs.clear()
+            _logFlow.value = emptyList()
+        }
         try {
             logFile?.writeText("")
         } catch (e: Exception) {

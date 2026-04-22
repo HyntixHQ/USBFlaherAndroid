@@ -14,6 +14,7 @@ import com.hyntix.android.usbflasher.data.UsbDeviceInfo
 import com.hyntix.android.usbflasher.data.ImageFileInfo
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import com.hyntix.android.usbflasher.util.AppLogger
 import java.util.concurrent.ConcurrentHashMap
 
 class FlashRepository(
@@ -62,16 +63,16 @@ class FlashRepository(
                     if (cached != null && cached > 0) {
                         capacity = cached
                     } else {
-                        android.util.Log.d("FlashRepository", "scanDevices: Waiting for usbMutex for ${device.deviceName}")
+                        AppLogger.d("FlashRepository", "scanDevices: Waiting for usbMutex for ${device.deviceName}")
                         usbMutex.withLock {
-                            android.util.Log.d("FlashRepository", "scanDevices: Acquired usbMutex for ${device.deviceName}")
+                            AppLogger.d("FlashRepository", "scanDevices: Acquired usbMutex for ${device.deviceName}")
                             try {
                                 capacity = usbFlasher.getDeviceCapacity(device)
                                 if (capacity > 0) {
                                     capacityCache[device.deviceName] = capacity
                                 }
                             } catch (e: Exception) {
-                                android.util.Log.e("FlashRepository", "Capacity probe failed", e)
+                                AppLogger.e("FlashRepository", "Capacity probe failed", e)
                             }
                         }
                     }
@@ -112,9 +113,9 @@ class FlashRepository(
         deviceInfo: UsbDeviceInfo,
         callback: FlashCallback
     ) {
-        android.util.Log.d("FlashRepository", "flashDevice: Waiting for usbMutex")
+        AppLogger.d("FlashRepository", "flashDevice: Waiting for usbMutex")
         usbMutex.withLock {
-            android.util.Log.d("FlashRepository", "flashDevice: Acquired usbMutex")
+            AppLogger.d("FlashRepository", "flashDevice: Acquired usbMutex")
             val device = deviceInfo.device
             val manager = context.getSystemService(Context.USB_SERVICE) as UsbManager
             
@@ -129,7 +130,7 @@ class FlashRepository(
         manager: UsbManager,
         callback: FlashCallback
     ) {
-        android.util.Log.d("FlashRepository", "performFlash: Starting for ${device.deviceName}")
+        AppLogger.d("FlashRepository", "performFlash: Starting for ${device.deviceName}")
         // Resolve Endpoints
         var msInterface: android.hardware.usb.UsbInterface? = null
         for (i in 0 until device.interfaceCount) {
@@ -141,7 +142,7 @@ class FlashRepository(
         }
         
         if (msInterface == null) {
-            android.util.Log.e("FlashRepository", "performFlash: No MS interface found")
+            AppLogger.e("FlashRepository", "performFlash: No MS interface found")
             callback.onError("No mass storage interface found")
             return
         }
@@ -157,45 +158,45 @@ class FlashRepository(
         }
         
         if (inEp == null || outEp == null) {
-             android.util.Log.e("FlashRepository", "performFlash: Bulk endpoints not found")
+             AppLogger.e("FlashRepository", "performFlash: Bulk endpoints not found")
              callback.onError("Could not find bulk endpoints")
              return
         }
         
-        android.util.Log.d("FlashRepository", "performFlash: Opening device")
+        AppLogger.d("FlashRepository", "performFlash: Opening device")
         val connection = manager.openDevice(device)
         if (connection == null) {
-             android.util.Log.e("FlashRepository", "performFlash: openDevice failed")
+             AppLogger.e("FlashRepository", "performFlash: openDevice failed")
              callback.onError("Could not open device. Permission denied?")
              return
         }
 
-        android.util.Log.d("FlashRepository", "performFlash: Claiming interface ${msInterface.id}")
+        AppLogger.d("FlashRepository", "performFlash: Claiming interface ${msInterface.id}")
         if (!connection.claimInterface(msInterface, true)) {
-             android.util.Log.e("FlashRepository", "performFlash: claimInterface failed")
+             AppLogger.e("FlashRepository", "performFlash: claimInterface failed")
              connection.close()
              callback.onError("Could not claim interface")
              return
         }
         
         val pfd = try {
-            android.util.Log.d("FlashRepository", "performFlash: Opening PFD for ${image.uri}")
+            AppLogger.d("FlashRepository", "performFlash: Opening PFD for ${image.uri}")
             context.contentResolver.openFileDescriptor(image.uri, "r")
         } catch (e: Exception) {
-            android.util.Log.e("FlashRepository", "performFlash: Failed to open PFD", e)
+            AppLogger.e("FlashRepository", "performFlash: Failed to open PFD", e)
             connection.close()
             callback.onError("Failed to open source file: ${e.message}")
             return
         }
 
         if (pfd == null) {
-            android.util.Log.e("FlashRepository", "performFlash: PFD is null")
+            AppLogger.e("FlashRepository", "performFlash: PFD is null")
             connection.close()
             callback.onError("Failed to open source file descriptor")
             return
         }
 
-        android.util.Log.d("FlashRepository", "performFlash: Calling usbFlasher.flashRaw with usbFd=${connection.fileDescriptor}")
+        AppLogger.d("FlashRepository", "performFlash: Calling usbFlasher.flashRaw with usbFd=${connection.fileDescriptor}")
         usbFlasher.flashRaw(
             pfd,
             connection.fileDescriptor,
@@ -208,13 +209,13 @@ class FlashRepository(
                      callback.onProgress(phase, current, total)
                 }
                 override fun onSuccess() {
-                     android.util.Log.d("FlashRepository", "performFlash: Success, closing handles")
+                     AppLogger.d("FlashRepository", "performFlash: Success, closing handles")
                      connection.close()
                      pfd.close()
                      callback.onSuccess()
                 }
                 override fun onError(message: String) {
-                     android.util.Log.e("FlashRepository", "performFlash: Error: $message")
+                     AppLogger.e("FlashRepository", "performFlash: Error: $message")
                      connection.close()
                      pfd.close()
                      callback.onError(message)
