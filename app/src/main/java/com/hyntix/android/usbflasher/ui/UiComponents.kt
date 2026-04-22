@@ -26,6 +26,7 @@ fun StatusCard(
     title: String,
     value: String,
     icon: ImageVector,
+    subtitle: String? = null,
     description: String? = null,
     isWarning: Boolean = false,
     onClick: () -> Unit
@@ -58,7 +59,7 @@ fun StatusCard(
                 ) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.labelLarge, // Slightly larger label
+                        style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
@@ -66,9 +67,16 @@ fun StatusCard(
                     Text(
                         text = value,
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified // Ensure no weird line height offsets
+                        color = MaterialTheme.colorScheme.onSurface
                     )
+                    if (subtitle != null) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
             

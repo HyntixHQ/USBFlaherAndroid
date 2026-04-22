@@ -47,7 +47,7 @@ fun MainScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             topBar = {
-                CenterAlignedTopAppBar(
+                TopAppBar(
                     title = { 
                         Text(
                             "USB Flasher", 
@@ -60,7 +60,26 @@ fun MainScreen(
                     )
                 )
             },
-            containerColor = MaterialTheme.colorScheme.background
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                Surface(
+                    color = Color.Transparent,
+                    tonalElevation = 0.dp
+                ) {
+                    Button(
+                        onClick = { viewModel.startFlash() },
+                        enabled = selectedImage != null && selectedDevice != null && (selectedDevice?.hasPermission == true) && winIsoWarning == null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                            .navigationBarsPadding()
+                            .height(56.dp),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text("Flash", style = MaterialTheme.typography.titleMedium)
+                    }
+                }
+            }
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -72,7 +91,8 @@ fun MainScreen(
                 // Image File Card
                 StatusCard(
                     title = "Image File",
-                    value = selectedImage?.let { "${it.name}\n${it.sizeFormatted}" } ?: "Tap to Select",
+                    value = selectedImage?.name ?: "Tap to Select",
+                    subtitle = selectedImage?.sizeFormatted,
                     icon = PhosphorIcons.Regular.Disc,
                     description = winIsoWarning,
                     isWarning = winIsoWarning != null,
@@ -82,7 +102,8 @@ fun MainScreen(
                 // Target Drive Card
                 StatusCard(
                     title = "Target Drive",
-                    value = selectedDevice?.let { "${it.name}\n${it.capacityFormatted}" } ?: "Connect a USB Drive",
+                    value = selectedDevice?.name ?: "Connect a USB Drive",
+                    subtitle = selectedDevice?.capacityFormatted,
                     icon = PhosphorIcons.Regular.Usb,
                     onClick = { 
                         if (availableDevices.size > 1) {
@@ -105,21 +126,6 @@ fun MainScreen(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 8.dp)
                     )
-                }
-                
-                Spacer(modifier = Modifier.weight(1f))
-                
-                // Flash Button (Only visible if not flashing)
-                Button(
-                    onClick = { viewModel.startFlash() },
-                    enabled = selectedImage != null && selectedDevice != null && (selectedDevice?.hasPermission == true) && winIsoWarning == null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .height(56.dp),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Text("FLASH TO USB", style = MaterialTheme.typography.titleMedium)
                 }
             }
         }

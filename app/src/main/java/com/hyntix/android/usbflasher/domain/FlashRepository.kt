@@ -78,7 +78,7 @@ class FlashRepository(
                 }
                 
                 UsbDeviceInfo(
-                    name = "${device.manufacturerName ?: "Generic"} ${device.productName ?: "USB Drive"}",
+                    name = "${device.manufacturerName?.trim() ?: "Generic"} ${device.productName?.trim() ?: "USB Drive"}".replace(Regex("\\s+"), " ").trim(),
                     vendorId = device.vendorId,
                     productId = device.productId,
                     capacityBytes = capacity,
