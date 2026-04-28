@@ -1,0 +1,16 @@
+[package]
+name = "hyntix-windows"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+hyntix-udf = { path = "../hyntix-udf" }
+hyntix-wim = { path = "../hyntix-wim" }
+hyntix-fat32 = { path = "../hyntix-fat32" }
+hyntix-usb = { path = "../hyntix-usb" }
+hyntix-common = { path = "../hyntix-common" }
+thiserror = { workspace = true }
+log = { workspace = true }

@@ -1,0 +1,13 @@
+[package]
+name = "hyntix-windows-cli"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+
+[dependencies]
+hyntix-udf = { path = "../hyntix-udf" }
+hyntix-wim = { path = "../hyntix-wim" }
+hyntix-windows = { path = "../hyntix-windows" }
+hyntix-usb = { path = "../hyntix-usb" }

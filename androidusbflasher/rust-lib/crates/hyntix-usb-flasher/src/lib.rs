@@ -47,6 +47,19 @@ impl Flasher {
         iso.is_linux_iso()
     }
 
+    /// Check if the provided ISO is a valid Windows installer.
+    pub fn is_windows_iso<R: Read + Seek>(&self, reader: R) -> Result<bool> {
+        let mut udf = hyntix_udf::UdfReader::new(reader).map_err(|e| hyntix_common::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        let tree = udf.walk().map_err(|e| hyntix_common::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        
+        for (path, _) in &tree {
+            if path == "sources/install.wim" || path == "sources/boot.wim" {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
     /// Flash a raw image or ISO to the USB device using the AsyncUsbWriter pipeline.
     ///
     /// Architecture:
@@ -244,6 +257,28 @@ impl Flasher {
         progress(FlashPhase::Finalizing, total_size, total_size);
 
         info!("Flash successful");
+        Ok(())
+    }
+
+    /// Flash a Windows ISO to the USB device.
+    pub fn flash_windows<R>(
+        &self,
+        source: R,
+        dest: UsbMassStorage,
+        _total_size: u64,
+        progress: impl Fn(FlashPhase, u64, u64),
+    ) -> Result<()>
+    where
+        R: Read + Seek + Send,
+    {
+        // Wrap the destination in AsyncUsbWriter for high-performance SCSI commands
+        let writer = AsyncUsbWriter::new(dest, self.cancelled.clone());
+        let mut flasher = hyntix_windows::WindowsFlasher::new(writer);
+
+        flasher.flash(source, |current, total| {
+            progress(FlashPhase::Flashing, current, total);
+        }).map_err(|e| hyntix_common::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+
         Ok(())
     }
 }

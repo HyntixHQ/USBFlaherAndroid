@@ -458,6 +458,9 @@ impl crate::PhysicalProgress for UsbMassStorageWriter {
     fn physical_position(&self) -> u64 {
         self.position
     }
+    fn total_capacity(&self) -> u64 {
+        self.capacity()
+    }
 }
 
 impl std::io::Read for UsbMassStorageWriter {

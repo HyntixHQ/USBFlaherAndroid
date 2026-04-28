@@ -59,7 +59,8 @@ data class FlashProgress(
 data class ImageFileInfo(
     val uri: Uri,
     val name: String,
-    val sizeBytes: Long
+    val sizeBytes: Long,
+    val isWindows: Boolean = false
 ) {
     val sizeFormatted: String
         get() = when {

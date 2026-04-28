@@ -96,14 +96,67 @@ class AndroidUsbFlasher(private val context: Context) {
         }
     }
 
-    fun isLinuxIso(isoFile: File): Boolean {
-        return ParcelFileDescriptor.open(isoFile, ParcelFileDescriptor.MODE_READ_ONLY).use { pfd ->
-            try {
-                nativeFlasher.isLinuxIso(pfd.fd)
-            } catch (e: Exception) {
-                false
+    fun isLinuxIso(pfd: ParcelFileDescriptor): Boolean {
+        return try {
+            nativeFlasher.isLinuxIso(pfd.fd)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun isWindowsIso(pfd: ParcelFileDescriptor): Boolean {
+        return try {
+            nativeFlasher.isWindowsIso(pfd.fd)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun flashWindows(
+        pfd: ParcelFileDescriptor,
+        usbFd: Int,
+        interfaceId: Int,
+        inEndpoint: Int,
+        outEndpoint: Int,
+        callback: Callback
+    ) {
+        val nativeCallback = object : FlashCallback {
+            override fun onProgress(phase: FlashPhase, current: ULong, total: ULong) {
+                val phaseStr = when (phase) {
+                    FlashPhase.VALIDATING -> "Validating"
+                    FlashPhase.FORMATTING -> "Formatting"
+                    FlashPhase.FLASHING -> "Flashing"
+                    FlashPhase.VERIFYING -> "Verifying"
+                    FlashPhase.FINALIZING -> "Finalizing"
+                }
+                callback.onProgress(phaseStr, current.toLong(), total.toLong())
             }
         }
+
+        Thread {
+            try {
+                android.util.Log.d("AndroidUsbFlasher", "flashWindows: Calling native flashWindowsDevice with usbFd=$usbFd")
+                nativeFlasher.flashWindowsDevice(
+                    pfd.fd,
+                    usbFd,
+                    interfaceId.toUByte(),
+                    inEndpoint.toUByte(),
+                    outEndpoint.toUByte(),
+                    nativeCallback
+                )
+                android.util.Log.d("AndroidUsbFlasher", "flashWindows: Native flashWindowsDevice returned success")
+                callback.onSuccess()
+            } catch (e: Exception) {
+                android.util.Log.e("AndroidUsbFlasher", "flashWindows: Native flashWindowsDevice failed: ${e.message}", e)
+                callback.onError(e.message ?: "Unknown error")
+            } finally {
+                try {
+                    pfd.close()
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+        }.start()
     }
 
     fun flashRaw(

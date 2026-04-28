@@ -662,9 +662,13 @@ internal object IntegrityCheckingUniffiLib {
     ): Short
     external fun uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_flash_device(
     ): Short
+    external fun uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_flash_windows_device(
+    ): Short
     external fun uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_get_device_capacity(
     ): Short
     external fun uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_is_linux_iso(
+    ): Short
+    external fun uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_is_windows_iso(
     ): Short
     external fun uniffi_hyntix_usb_flasher_jni_checksum_constructor_usbflasher_new(
     ): Short
@@ -699,9 +703,13 @@ internal object UniffiLib {
     ): Unit
     external fun uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_flash_device(`ptr`: Long,`imageFd`: Int,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`verify`: Byte,`callback`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
+    external fun uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_flash_windows_device(`ptr`: Long,`imageFd`: Int,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`callback`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    ): Unit
     external fun uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_get_device_capacity(`ptr`: Long,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
     external fun uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_is_linux_iso(`ptr`: Long,`fd`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    ): Byte
+    external fun uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_is_windows_iso(`ptr`: Long,`fd`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
     external fun uniffi_hyntix_usb_flasher_jni_fn_init_callback_vtable_flashcallback(`vtable`: UniffiVTableCallbackInterfaceFlashCallback,
     ): Unit
@@ -830,10 +838,16 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_flash_device() != 50425.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_flash_windows_device() != 51256.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if (lib.uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_get_device_capacity() != 12525.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_is_linux_iso() != 26566.toShort()) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_is_windows_iso() != 15111.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if (lib.uniffi_hyntix_usb_flasher_jni_checksum_constructor_usbflasher_new() != 17152.toShort()) {
@@ -1281,9 +1295,13 @@ public interface UsbFlasherInterface {
     
     fun `flashDevice`(`imageFd`: kotlin.Int, `usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte, `verify`: kotlin.Boolean, `callback`: FlashCallback)
     
+    fun `flashWindowsDevice`(`imageFd`: kotlin.Int, `usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte, `callback`: FlashCallback)
+    
     fun `getDeviceCapacity`(`usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte): kotlin.ULong
     
     fun `isLinuxIso`(`fd`: kotlin.Int): kotlin.Boolean
+    
+    fun `isWindowsIso`(`fd`: kotlin.Int): kotlin.Boolean
     
     companion object
 }
@@ -1418,6 +1436,19 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
     
 
     
+    @Throws(FlasherException::class)override fun `flashWindowsDevice`(`imageFd`: kotlin.Int, `usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte, `callback`: FlashCallback)
+        = 
+    callWithHandle {
+    uniffiRustCallWithError(FlasherException) { _status ->
+    UniffiLib.uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_flash_windows_device(
+        it,
+        FfiConverterInt.lower(`imageFd`),FfiConverterInt.lower(`usbFd`),FfiConverterUByte.lower(`interface`),FfiConverterUByte.lower(`inEp`),FfiConverterUByte.lower(`outEp`),FfiConverterTypeFlashCallback.lower(`callback`),_status)
+}
+    }
+    
+    
+
+    
     @Throws(FlasherException::class)override fun `getDeviceCapacity`(`usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte): kotlin.ULong {
             return FfiConverterULong.lift(
     callWithHandle {
@@ -1437,6 +1468,20 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
     callWithHandle {
     uniffiRustCallWithError(FlasherException) { _status ->
     UniffiLib.uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_is_linux_iso(
+        it,
+        FfiConverterInt.lower(`fd`),_status)
+}
+    }
+    )
+    }
+    
+
+    
+    @Throws(FlasherException::class)override fun `isWindowsIso`(`fd`: kotlin.Int): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    callWithHandle {
+    uniffiRustCallWithError(FlasherException) { _status ->
+    UniffiLib.uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_is_windows_iso(
         it,
         FfiConverterInt.lower(`fd`),_status)
 }

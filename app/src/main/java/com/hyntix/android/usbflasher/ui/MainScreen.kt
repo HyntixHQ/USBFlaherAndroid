@@ -45,12 +45,8 @@ fun MainScreen(
         onDispose { viewModel.stopDeviceScan() }
     }
 
-    // Checking for Windows ISO
-    val winIsoWarning = selectedImage?.let {
-        if (it.name.contains("win", ignoreCase = true) || it.name.contains("windows", ignoreCase = true)) 
-            "Windows images are not supported." 
-        else null
-    }
+    // Windows ISO is now supported via WIM Splitting!
+    val winIsoWarning = null
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -85,7 +81,7 @@ fun MainScreen(
                 ) {
                     Button(
                         onClick = { viewModel.startFlash() },
-                        enabled = selectedImage != null && selectedDevice != null && (selectedDevice?.hasPermission == true) && winIsoWarning == null,
+                        enabled = selectedImage != null && selectedDevice != null && (selectedDevice?.hasPermission == true),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -106,13 +102,19 @@ fun MainScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Image File Card
+                val isoDescription = if (selectedImage?.isWindows == true) {
+                    "Windows (FAT32/UEFI Bootable)"
+                } else {
+                    null
+                }
+
                 StatusCard(
                     title = "Image File",
                     value = selectedImage?.name ?: "Tap to Select",
                     subtitle = selectedImage?.sizeFormatted,
                     icon = PhosphorIcons.Regular.Disc,
-                    description = winIsoWarning,
-                    isWarning = winIsoWarning != null,
+                    description = isoDescription,
+                    isWarning = false,
                     onClick = onSelectFile
                 )
 

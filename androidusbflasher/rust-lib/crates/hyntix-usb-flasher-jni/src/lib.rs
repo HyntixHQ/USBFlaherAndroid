@@ -112,6 +112,19 @@ impl UsbFlasher {
         core_flasher.is_linux_iso(file).map_err(FlasherError::from)
     }
 
+    pub fn is_windows_iso(&self, fd: i32) -> Result<bool, FlasherError> {
+        let dup_fd = unsafe { libc::dup(fd) };
+        if dup_fd < 0 {
+            return Err(FlasherError::IoError {
+                msg: format!("Failed to dup FD {}: {}", fd, std::io::Error::last_os_error()),
+            });
+        }
+        let file = unsafe { File::from_raw_fd(dup_fd) };
+
+        let core_flasher = CoreFlasher::new(self.cancel_token.clone());
+        core_flasher.is_windows_iso(file).map_err(FlasherError::from)
+    }
+
     pub fn get_device_capacity(
         &self,
         usb_fd: i32,
@@ -127,7 +140,7 @@ impl UsbFlasher {
         let storage = UsbMassStorage::new_native(
             backend,
             0,
-            hyntix_usb::config::MAX_TRANSFER_SIZE,
+            hyntix_usb::config::SCSI_MAX_TRANSFER_SIZE,
         )
         .map_err(FlasherError::from)?;
         
@@ -155,7 +168,7 @@ impl UsbFlasher {
         let storage = UsbMassStorage::new_native(
             backend,
             0,
-            hyntix_usb::config::MAX_TRANSFER_SIZE,
+            hyntix_usb::config::SCSI_MAX_TRANSFER_SIZE,
         )
         .map_err(FlasherError::from)?;
 
@@ -180,6 +193,42 @@ impl UsbFlasher {
 
         core_flasher
             .flash_raw(source, storage, total_size, verify, |phase, current, total| {
+                callback.on_progress(phase.into(), current, total);
+            })
+            .map_err(FlasherError::from)
+    }
+
+    pub fn flash_windows_device(
+        &self,
+        image_fd: i32,
+        usb_fd: i32,
+        interface: u8,
+        in_ep: u8,
+        out_ep: u8,
+        callback: Box<dyn FlashCallback>,
+    ) -> Result<(), FlasherError> {
+        self.cancel_token.store(false, Ordering::SeqCst);
+
+        let backend = NativeUsbBackend::new(usb_fd, interface, in_ep, out_ep);
+        let storage = UsbMassStorage::new_native(
+            backend,
+            0,
+            hyntix_usb::config::SCSI_MAX_TRANSFER_SIZE,
+        )
+        .map_err(FlasherError::from)?;
+
+        let dup_image_fd = unsafe { libc::dup(image_fd) };
+        if dup_image_fd < 0 {
+            return Err(FlasherError::IoError {
+                msg: format!("Failed to dup image FD {}: {}", image_fd, std::io::Error::last_os_error()),
+            });
+        }
+        let source = unsafe { File::from_raw_fd(dup_image_fd) };
+        
+        let core_flasher = CoreFlasher::new(self.cancel_token.clone());
+
+        core_flasher
+            .flash_windows(source, storage, 0, |phase, current, total| {
                 callback.on_progress(phase.into(), current, total);
             })
             .map_err(FlasherError::from)

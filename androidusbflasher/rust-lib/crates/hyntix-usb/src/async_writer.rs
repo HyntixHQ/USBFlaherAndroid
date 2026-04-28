@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 
-use crate::config::{BUFFER_COUNT, MAX_TRANSFER_SIZE as BUFFER_SIZE};
+use crate::config::{BUFFER_COUNT, ASYNC_BUFFER_SIZE as BUFFER_SIZE};
 
 enum Job {
     Write(WriteJob),
@@ -177,6 +177,12 @@ impl AsyncUsbWriter {
     /// Get the actual physical progress of the write operation.
     pub fn physical_position(&self) -> u64 {
         self.physical_pos.load(Ordering::SeqCst)
+    }
+
+    /// Get the total capacity of the device in bytes.
+    pub fn capacity(&self) -> u64 {
+        let storage = self.storage.lock().unwrap();
+        storage.block_count() * storage.block_size() as u64
     }
 
     pub fn wait_idle(&mut self) -> Result<()> {
@@ -368,7 +374,10 @@ impl Seek for AsyncUsbWriter {
         };
 
         if new_pos != self.current_pos {
-            self.flush()?; // Must flush old data before moving pointer
+            // Only flush if we have pending data to write at the CURRENT position
+            if !self.pending_buffer.is_empty() {
+                self.flush()?;
+            }
             self.current_pos = new_pos;
             self.pending_start_pos = self.current_pos;
         }
@@ -389,5 +398,8 @@ impl Drop for AsyncUsbWriter {
 impl crate::PhysicalProgress for AsyncUsbWriter {
     fn physical_position(&self) -> u64 {
         self.physical_position()
+    }
+    fn total_capacity(&self) -> u64 {
+        self.capacity()
     }
 }

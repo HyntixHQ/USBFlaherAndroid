@@ -18,9 +18,12 @@ import com.hyntix.android.usbflasher.util.AppLogger
 import java.util.concurrent.ConcurrentHashMap
 
 class FlashRepository(
-    private val context: Context,
+    val context: Context,
     private val usbFlasher: AndroidUsbFlasher
 ) {
+    fun isWindowsIso(pfd: ParcelFileDescriptor): Boolean {
+        return usbFlasher.isWindowsIso(pfd)
+    }
     private val capacityCache = ConcurrentHashMap<String, Long>()
     private val usbMutex = Mutex()
     private var onDevicesChanged: (() -> Unit)? = null
@@ -196,32 +199,49 @@ class FlashRepository(
             return
         }
 
-        AppLogger.d("FlashRepository", "performFlash: Calling usbFlasher.flashRaw with usbFd=${connection.fileDescriptor}")
-        usbFlasher.flashRaw(
-            pfd,
-            connection.fileDescriptor,
-            msInterface.id,
-            inEp.address,
-            outEp.address,
-            true,
-            object : AndroidUsbFlasher.Callback {
-                override fun onProgress(phase: String, current: Long, total: Long) {
-                     callback.onProgress(phase, current, total)
-                }
-                override fun onSuccess() {
-                     AppLogger.d("FlashRepository", "performFlash: Success, closing handles")
-                     connection.close()
-                     pfd.close()
-                     callback.onSuccess()
-                }
-                override fun onError(message: String) {
-                     AppLogger.e("FlashRepository", "performFlash: Error: $message")
-                     connection.close()
-                     pfd.close()
-                     callback.onError(message)
-                }
+        val isWindows = image.isWindows
+        AppLogger.d("FlashRepository", "performFlash: isWindows=$isWindows")
+
+        val flashCallback = object : AndroidUsbFlasher.Callback {
+            override fun onProgress(phase: String, current: Long, total: Long) {
+                 callback.onProgress(phase, current, total)
             }
-        )
+            override fun onSuccess() {
+                 AppLogger.d("FlashRepository", "performFlash: Success, closing handles")
+                 connection.close()
+                 pfd.close()
+                 callback.onSuccess()
+            }
+            override fun onError(message: String) {
+                 AppLogger.e("FlashRepository", "performFlash: Error: $message")
+                 connection.close()
+                 pfd.close()
+                 callback.onError(message)
+            }
+        }
+
+        if (isWindows) {
+            AppLogger.d("FlashRepository", "performFlash: Calling usbFlasher.flashWindows")
+            usbFlasher.flashWindows(
+                pfd,
+                connection.fileDescriptor,
+                msInterface.id,
+                inEp.address,
+                outEp.address,
+                flashCallback
+            )
+        } else {
+            AppLogger.d("FlashRepository", "performFlash: Calling usbFlasher.flashRaw")
+            usbFlasher.flashRaw(
+                pfd,
+                connection.fileDescriptor,
+                msInterface.id,
+                inEp.address,
+                outEp.address,
+                true,
+                flashCallback
+            )
+        }
     }
 
     fun clearCache() {

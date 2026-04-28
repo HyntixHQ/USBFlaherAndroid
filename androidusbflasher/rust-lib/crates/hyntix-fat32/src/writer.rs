@@ -148,7 +148,7 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
 
             // Use 2MB buffer for efficient copying from reader (matching async writer)
             let mut buffer = vec![0u8; 2 * 1024 * 1024];
-            let mut _written: u64 = 0;
+            let mut limited_reader = reader.take(size);
 
             loop {
                 // Check cancellation via the writer which has its own handle
@@ -158,13 +158,13 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
                     }
                 }
 
-                let n = reader.read(&mut buffer)?;
+                let n = limited_reader.read(&mut buffer)?;
                 if n == 0 {
                     break;
                 }
 
-                writer.write_all(&mut buffer[..n])?;
-                progress(writer.physical_position(), size);
+                writer.write_all(&buffer[..n])?;
+                progress(writer.bytes_written, size);
             }
 
             // Explicitly flush/finalize
@@ -689,8 +689,6 @@ impl<'b, 'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32FileWri
             return Ok(());
         }
 
-        let bytes_per_cluster = self.parent.formatter.boot_sector.bytes_per_cluster() as usize;
-
         let start_disk_offset = self
             .parent
             .formatter
@@ -699,25 +697,33 @@ impl<'b, 'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32FileWri
 
         // Ensure writer is at the correct position
         if self.parent.writer.stream_position()? != start_disk_offset {
+            log::debug!("Fat32FileWriter: Seeking to cluster offset {}", start_disk_offset);
             self.parent
                 .writer
                 .seek(SeekFrom::Start(start_disk_offset))?;
         }
 
-        // Send to underlying writer (likely AsyncUsbWriter)
+        log::debug!("Fat32FileWriter: Writing {} bytes to disk at {}", data.len(), start_disk_offset);
         self.parent.writer.write_all(data)?;
 
         let mut total_processed_bytes = 0;
+        let bytes_per_cluster = self.parent.formatter.boot_sector.bytes_per_cluster() as usize;
+
         while total_processed_bytes < data.len() {
             let remaining_in_data = data.len() - total_processed_bytes;
-            let to_process = std::cmp::min(bytes_per_cluster, remaining_in_data);
+            
+            // Calculate how much we can write to the CURRENT cluster
+            let offset_in_cluster = (self.bytes_written % bytes_per_cluster as u64) as usize;
+            let space_in_cluster = bytes_per_cluster - offset_in_cluster;
+            let to_process = std::cmp::min(space_in_cluster, remaining_in_data);
 
             self.bytes_written += to_process as u64;
             total_processed_bytes += to_process;
 
-            // Update FAT chain and move to next cluster if needed
-            if self.bytes_written < self.total_size {
+            // If we just finished a cluster, allocate the next one
+            if self.bytes_written % bytes_per_cluster as u64 == 0 {
                 let next_cluster = self.parent.formatter.allocate_cluster();
+                log::debug!("Fat32FileWriter: Advancing from cluster {} to {}", self.current_cluster, next_cluster);
                 self.parent
                     .fat_cache
                     .push((self.current_cluster, next_cluster));
@@ -730,6 +736,10 @@ impl<'b, 'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32FileWri
 
     pub fn physical_position(&self) -> u64 {
         self.parent.writer.physical_position()
+    }
+
+    pub fn bytes_written(&self) -> u64 {
+        self.bytes_written
     }
 }
 

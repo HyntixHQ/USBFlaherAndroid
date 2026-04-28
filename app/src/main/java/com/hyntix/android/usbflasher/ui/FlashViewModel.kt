@@ -97,9 +97,19 @@ class FlashViewModel(
     }
 
     fun onFileSelected(uri: Uri, name: String, size: Long) {
-        val image = ImageFileInfo(uri, name, size)
-        _selectedImageInfo.value = image
-        checkReadyState()
+        viewModelScope.launch(Dispatchers.IO) {
+            val context = repository.context // Need to expose context or pass it
+            val pfd = context.contentResolver.openFileDescriptor(uri, "r")
+            val isWindows = if (pfd != null) {
+                val check = repository.isWindowsIso(pfd)
+                pfd.close()
+                check
+            } else false
+
+            val image = ImageFileInfo(uri, name, size, isWindows)
+            _selectedImageInfo.value = image
+            checkReadyState()
+        }
     }
 
     fun onDeviceSelected(device: UsbDeviceInfo) {

@@ -21,15 +21,23 @@ pub use native::NativeUsbBackend;
 pub trait PhysicalProgress {
     /// Get the actual number of bytes written to the physical device.
     fn physical_position(&self) -> u64;
+    /// Get the total capacity of the physical device.
+    fn total_capacity(&self) -> u64;
 }
 
 impl<T: PhysicalProgress + ?Sized> PhysicalProgress for &mut T {
     fn physical_position(&self) -> u64 {
         (**self).physical_position()
     }
+    fn total_capacity(&self) -> u64 {
+        (**self).total_capacity()
+    }
 }
 impl<T: PhysicalProgress + ?Sized> PhysicalProgress for Box<T> {
     fn physical_position(&self) -> u64 {
         (**self).physical_position()
+    }
+    fn total_capacity(&self) -> u64 {
+        (**self).total_capacity()
     }
 }

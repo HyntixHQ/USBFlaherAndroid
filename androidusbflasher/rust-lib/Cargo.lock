@@ -489,6 +489,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyntix-udf"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "hyntix-usb"
 version = "0.1.0"
 dependencies = [
@@ -508,7 +515,9 @@ dependencies = [
  "hyntix-fat32",
  "hyntix-iso",
  "hyntix-linux",
+ "hyntix-udf",
  "hyntix-usb",
+ "hyntix-windows",
  "log",
  "sha2",
  "tempfile",
@@ -526,6 +535,36 @@ dependencies = [
  "log",
  "thiserror",
  "uniffi",
+]
+
+[[package]]
+name = "hyntix-wim"
+version = "0.1.0"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
+name = "hyntix-windows"
+version = "0.1.0"
+dependencies = [
+ "hyntix-common",
+ "hyntix-fat32",
+ "hyntix-udf",
+ "hyntix-usb",
+ "hyntix-wim",
+ "log",
+ "thiserror",
+]
+
+[[package]]
+name = "hyntix-windows-cli"
+version = "0.1.0"
+dependencies = [
+ "hyntix-udf",
+ "hyntix-usb",
+ "hyntix-wim",
+ "hyntix-windows",
 ]
 
 [[package]]

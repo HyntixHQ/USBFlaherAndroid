@@ -275,13 +275,17 @@ impl Fat32BootSector {
 
             // Zero out rest of FAT in large chunks
             let mut remaining_sectors = self.sectors_per_fat - 1;
+            let total_sectors = remaining_sectors;
             while remaining_sectors > 0 {
                 let sectors_to_write = std::cmp::min(remaining_sectors, (CHUNK_SIZE / 512) as u32);
                 let bytes_to_write = sectors_to_write as usize * 512;
 
-                // We reuse chunk_buffer which is already all zeros
                 writer.write_all(&chunk_buffer[..bytes_to_write])?;
                 remaining_sectors -= sectors_to_write;
+                
+                if (total_sectors - remaining_sectors) % 1000 == 0 {
+                    log::info!("FAT32: Zeroing FAT{}... {}/{} sectors", i + 1, total_sectors - remaining_sectors, total_sectors);
+                }
             }
         }
 
@@ -359,6 +363,8 @@ impl Fat32Formatter {
         let remaining = self.boot_sector.bytes_per_cluster() as usize - 32;
         let zeros = vec![0u8; remaining];
         writer.write_all(&zeros)?;
+
+        log::info!("FAT32: Formatting completed.");
 
         Ok(())
     }
