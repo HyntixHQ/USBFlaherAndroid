@@ -8,10 +8,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Share
+import com.adamglin.PhosphorIcons
+import com.adamglin.phosphoricons.Regular
+import com.adamglin.phosphoricons.regular.ArrowLeft
+import com.adamglin.phosphoricons.regular.ShareNetwork
+import com.adamglin.phosphoricons.regular.Trash
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -51,7 +52,7 @@ fun LogViewerScreen(
                 title = { Text("Logs") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(PhosphorIcons.Regular.ArrowLeft, contentDescription = "Back")
                     }
                 },
                 actions = {
@@ -84,13 +85,13 @@ fun LogViewerScreen(
                             }
                         }
                     }) {
-                        Icon(Icons.Default.Share, contentDescription = "Share logs")
+                        Icon(PhosphorIcons.Regular.ShareNetwork, contentDescription = "Share logs")
                     }
                     // Clear button
                     IconButton(onClick = {
                         scope.launch { AppLogger.clearLogs() }
                     }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Clear logs")
+                        Icon(PhosphorIcons.Regular.Trash, contentDescription = "Clear logs")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

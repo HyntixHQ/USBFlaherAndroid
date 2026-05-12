@@ -3,10 +3,10 @@
 //! Creates a GPT partition table with a single EFI System Partition
 //! for UEFI boot support.
 
-use byteorder::{LittleEndian, WriteBytesExt};
 use hyntix_common::{Error, Result};
 use std::io::{Seek, SeekFrom, Write};
 use uuid::Uuid;
+use zerocopy::{IntoBytes, FromBytes, FromZeros, Immutable, KnownLayout};
 
 /// Sector size in bytes.
 pub const SECTOR_SIZE: u64 = 512;
@@ -33,6 +33,36 @@ const BASIC_DATA_TYPE_GUID: Uuid = Uuid::from_bytes([
 
 /// Protective MBR partition type for GPT.
 const GPT_PROTECTIVE_MBR: u8 = 0xEE;
+
+#[derive(IntoBytes, FromBytes, Immutable, KnownLayout, Clone)]
+#[repr(C, packed)]
+struct GptHeader {
+    signature: u64,
+    revision: u32,
+    header_size: u32,
+    header_crc: u32,
+    reserved: u32,
+    current_lba: u64,
+    backup_lba: u64,
+    first_usable_lba: u64,
+    last_usable_lba: u64,
+    disk_guid: [u8; 16],
+    partition_entries_lba: u64,
+    num_partition_entries: u32,
+    partition_entry_size: u32,
+    partition_entries_crc: u32,
+}
+
+#[derive(IntoBytes, FromBytes, Immutable, KnownLayout, Clone)]
+#[repr(C, packed)]
+struct GptEntry {
+    type_guid: [u8; 16],
+    partition_guid: [u8; 16],
+    start_lba: u64,
+    end_lba: u64,
+    attributes: u64,
+    name: [u16; 36],
+}
 
 /// GPT partition table.
 #[derive(Debug)]
@@ -217,58 +247,31 @@ impl GptTable {
         let first_usable = 34u64;
         let last_usable = total_sectors - 34;
 
-        let mut header = Vec::with_capacity(512);
+        let mut header = GptHeader {
+            signature: GPT_SIGNATURE,
+            revision: GPT_REVISION,
+            header_size: GPT_HEADER_SIZE,
+            header_crc: 0,
+            reserved: 0,
+            current_lba: header_lba,
+            backup_lba,
+            first_usable_lba: first_usable,
+            last_usable_lba: last_usable,
+            disk_guid: *self.disk_guid.as_bytes(),
+            partition_entries_lba: entries_lba,
+            num_partition_entries: PARTITION_ENTRIES,
+            partition_entry_size: PARTITION_ENTRY_SIZE,
+            partition_entries_crc: entries_crc,
+        };
 
-        // Signature
-        header.write_u64::<LittleEndian>(GPT_SIGNATURE)?;
+        // Calculate header CRC
+        let header_crc = crc32(&header.as_bytes()[..GPT_HEADER_SIZE as usize]);
+        header.header_crc = header_crc;
 
-        // Revision
-        header.write_u32::<LittleEndian>(GPT_REVISION)?;
+        let mut sector = [0u8; 512];
+        sector[..92].copy_from_slice(header.as_bytes());
 
-        // Header size
-        header.write_u32::<LittleEndian>(GPT_HEADER_SIZE)?;
-
-        // Header CRC32 (placeholder, calculated later)
-        header.write_u32::<LittleEndian>(0)?;
-
-        // Reserved
-        header.write_u32::<LittleEndian>(0)?;
-
-        // Current LBA
-        header.write_u64::<LittleEndian>(header_lba)?;
-
-        // Backup LBA
-        header.write_u64::<LittleEndian>(backup_lba)?;
-
-        // First usable LBA
-        header.write_u64::<LittleEndian>(first_usable)?;
-
-        // Last usable LBA
-        header.write_u64::<LittleEndian>(last_usable)?;
-
-        // Disk GUID
-        header.extend_from_slice(self.disk_guid.as_bytes());
-
-        // Partition entries starting LBA
-        header.write_u64::<LittleEndian>(entries_lba)?;
-
-        // Number of partition entries
-        header.write_u32::<LittleEndian>(PARTITION_ENTRIES)?;
-
-        // Size of each partition entry
-        header.write_u32::<LittleEndian>(PARTITION_ENTRY_SIZE)?;
-
-        // Partition entries CRC32
-        header.write_u32::<LittleEndian>(entries_crc)?;
-
-        // Calculate header CRC (over first 92 bytes)
-        let header_crc = crc32(&header[..GPT_HEADER_SIZE as usize]);
-        header[16..20].copy_from_slice(&header_crc.to_le_bytes());
-
-        // Pad to sector size
-        header.resize(512, 0);
-
-        writer.write_all(&header)?;
+        writer.write_all(&sector)?;
         Ok(())
     }
 
@@ -280,37 +283,28 @@ impl GptTable {
     ) -> Result<u32> {
         writer.seek(SeekFrom::Start(start_lba * SECTOR_SIZE))?;
 
-        let total_size = (PARTITION_ENTRIES * PARTITION_ENTRY_SIZE) as usize;
-        let mut entries = vec![0u8; total_size];
+        let mut entries = vec![GptEntry::new_zeroed(); PARTITION_ENTRIES as usize];
 
         for (i, partition) in self.partitions.iter().enumerate() {
-            let offset = i * PARTITION_ENTRY_SIZE as usize;
-
-            // Type GUID (mixed-endian)
-            entries[offset..offset + 16].copy_from_slice(partition.type_guid.as_bytes());
-
-            // Partition GUID (mixed-endian)
-            entries[offset + 16..offset + 32].copy_from_slice(partition.partition_guid.as_bytes());
-
-            // Starting LBA
-            entries[offset + 32..offset + 40].copy_from_slice(&partition.start_lba.to_le_bytes());
-
-            // Ending LBA
-            entries[offset + 40..offset + 48].copy_from_slice(&partition.end_lba.to_le_bytes());
-
-            // Attributes
-            entries[offset + 48..offset + 56].copy_from_slice(&partition.attributes.to_le_bytes());
-
-            // Name (UTF-16LE, 72 bytes max)
+            let mut name = [0u16; 36];
             let name_utf16: Vec<u16> = partition.name.encode_utf16().take(36).collect();
-            for (j, c) in name_utf16.iter().enumerate() {
-                let name_offset = offset + 56 + j * 2;
-                entries[name_offset..name_offset + 2].copy_from_slice(&c.to_le_bytes());
+            for (j, &c) in name_utf16.iter().enumerate() {
+                name[j] = c;
             }
+
+            entries[i] = GptEntry {
+                type_guid: *partition.type_guid.as_bytes(),
+                partition_guid: *partition.partition_guid.as_bytes(),
+                start_lba: partition.start_lba,
+                end_lba: partition.end_lba,
+                attributes: partition.attributes,
+                name,
+            };
         }
 
-        let crc = crc32(&entries);
-        writer.write_all(&entries)?;
+        let bytes = entries.as_bytes();
+        let crc = crc32(bytes);
+        writer.write_all(bytes)?;
 
         Ok(crc)
     }

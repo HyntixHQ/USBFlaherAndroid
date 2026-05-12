@@ -3,7 +3,7 @@
 use crate::mass_storage::UsbMassStorage;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use hyntix_common::{Error, Result};
-use log::error;
+use tracing::error;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;

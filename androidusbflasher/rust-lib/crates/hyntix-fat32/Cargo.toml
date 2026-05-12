@@ -7,9 +7,10 @@ license.workspace = true
 
 [dependencies]
 hyntix-common = { workspace = true }
-byteorder.workspace = true
-log.workspace = true
+
+tracing.workspace = true
 crc.workspace = true
 uuid.workspace = true
 unicode-normalization.workspace = true
 hyntix-usb = { workspace = true }
+zerocopy = { workspace = true }

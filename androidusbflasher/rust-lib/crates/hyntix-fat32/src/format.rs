@@ -284,7 +284,7 @@ impl Fat32BootSector {
                 remaining_sectors -= sectors_to_write;
                 
                 if (total_sectors - remaining_sectors) % 1000 == 0 {
-                    log::info!("FAT32: Zeroing FAT{}... {}/{} sectors", i + 1, total_sectors - remaining_sectors, total_sectors);
+                    tracing::info!("FAT32: Zeroing FAT{}... {}/{} sectors", i + 1, total_sectors - remaining_sectors, total_sectors);
                 }
             }
         }
@@ -364,7 +364,7 @@ impl Fat32Formatter {
         let zeros = vec![0u8; remaining];
         writer.write_all(&zeros)?;
 
-        log::info!("FAT32: Formatting completed.");
+        tracing::info!("FAT32: Formatting completed.");
 
         Ok(())
     }

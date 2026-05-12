@@ -66,8 +66,11 @@ android {
     }
 
     packaging {
-        jniLibs {
-            keepDebugSymbols.add("**/libjnidispatch.so")
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "**/LICENSE.txt"
+            excludes += "**/NOTICE"
+            excludes += "**/README.md"
         }
     }
 
@@ -78,7 +81,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
     // Material Icons Extended
-    implementation(libs.androidx.compose.material.icons.extended)
+
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)

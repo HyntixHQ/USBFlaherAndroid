@@ -113,7 +113,7 @@ impl UsbMassStorage {
             Some(&mut inquiry_data),
             None,
         )?;
-        log::debug!("INQUIRY response received");
+        tracing::debug!("INQUIRY response received");
 
         // TEST UNIT READY (may need retries)
         for attempt in 0..MAX_RETRIES {
@@ -121,13 +121,13 @@ impl UsbMassStorage {
             match self.transfer_command(ScsiTestUnitReady::cbw(tag, lun), None, None) {
                 Ok(_) => break,
                 Err(e) if attempt < MAX_RETRIES - 1 => {
-                    log::warn!("TEST UNIT READY failed (attempt {}): {}", attempt + 1, e);
+                    tracing::warn!("TEST UNIT READY failed (attempt {}): {}", attempt + 1, e);
                     std::thread::sleep(std::time::Duration::from_millis(100));
                 }
                 Err(e) => return Err(e),
             }
         }
-        log::debug!("Device is ready");
+        tracing::debug!("Device is ready");
 
         // READ CAPACITY
         let mut capacity_data = [0u8; 8];
@@ -141,14 +141,14 @@ impl UsbMassStorage {
         if let Some((last_block, block_size)) = ScsiReadCapacity::parse_response(&capacity_data) {
             self.block_size = block_size;
             self.block_count = last_block as u64 + 1;
-            log::info!(
+            tracing::info!(
                 "UsbMassStorage: Capacity detected: {} blocks * {} bytes = {} bytes",
                 self.block_count,
                 block_size,
                 self.capacity()
             );
         } else {
-            log::error!("UsbMassStorage: Failed to parse READ CAPACITY response: {:?}", capacity_data);
+            tracing::error!("UsbMassStorage: Failed to parse READ CAPACITY response: {:?}", capacity_data);
             return Err(Error::UsbError(
                 "Failed to parse READ CAPACITY response".into(),
             ));
@@ -248,7 +248,7 @@ impl UsbMassStorage {
         let mut csw_buffer = [0u8; CSW_SIZE];
         let read = self.backend.bulk_in(&mut csw_buffer)?;
         if read != CSW_SIZE {
-            log::error!("UsbMassStorage: CSW read incomplete: {} != {}", read, CSW_SIZE);
+            tracing::error!("UsbMassStorage: CSW read incomplete: {} != {}", read, CSW_SIZE);
             return Err(Error::UsbError(format!(
                 "CSW read incomplete: {} != {}",
                 read, CSW_SIZE
@@ -371,7 +371,7 @@ impl UsbMassStorage {
         match self.transfer_command(cbw, None, None) {
             Ok(_) => Ok(()),
             Err(e) => {
-                log::warn!(
+                tracing::warn!(
                     "SYNCHRONIZE CACHE failed (might not be supported by device): {}",
                     e
                 );

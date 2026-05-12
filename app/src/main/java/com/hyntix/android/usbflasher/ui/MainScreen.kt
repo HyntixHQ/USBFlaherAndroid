@@ -32,6 +32,7 @@ fun MainScreen(
     
     var showDevicePicker by remember { mutableStateOf(false) }
     var showLogViewer by remember { mutableStateOf(false) }
+    var showConfirmDialog by remember { mutableStateOf(false) }
 
     // Show log viewer as a full-screen overlay
     if (showLogViewer) {
@@ -80,7 +81,7 @@ fun MainScreen(
                     tonalElevation = 0.dp
                 ) {
                     Button(
-                        onClick = { viewModel.startFlash() },
+                        onClick = { showConfirmDialog = true },
                         enabled = selectedImage != null && selectedDevice != null && (selectedDevice?.hasPermission == true),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -190,6 +191,35 @@ fun MainScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = { showDevicePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Confirmation Dialog before flashing
+        if (showConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showConfirmDialog = false },
+                title = { Text("Confirm Flashing") },
+                text = { 
+                    Text("This will PERMANENTLY ERASE all data on ${selectedDevice?.name}. Are you sure you want to proceed?") 
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showConfirmDialog = false
+                            viewModel.startFlash()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Erase and Flash")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showConfirmDialog = false }) {
                         Text("Cancel")
                     }
                 }

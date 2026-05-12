@@ -1,5 +1,5 @@
 use hyntix_common::Result;
-use log::info;
+use tracing::info;
 use std::io::{Read, Seek, SeekFrom};
 
 pub struct IsoReader<R: Read + Seek> {

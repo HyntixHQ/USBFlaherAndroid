@@ -4,7 +4,6 @@ use hyntix_fat32::{Fat32Writer, Fat32Formatter, GptTable};
 use hyntix_usb::PhysicalProgress;
 use std::io::{Read, Seek, Write, SeekFrom};
 use thiserror::Error;
-use log;
 
 #[derive(Error, Debug)]
 pub enum WindowsError {
@@ -47,10 +46,11 @@ impl<W: Write + Seek + Read + PhysicalProgress> WindowsFlasher<W> {
         let partition = gpt.partitions[0].clone();
         
         println!("Formatting FAT32 Partition...");
+        let volume_label = udf.volume_id();
         let formatter = Fat32Formatter::new(
             partition.start_lba * 512, 
             (partition.end_lba - partition.start_lba + 1) * 512,
-            "BOOTABLE"
+            volume_label
         ).map_err(|e| WindowsError::Fat32(e.to_string()))?;
 
         let mut fat_writer = Fat32Writer::new(&mut self.writer, formatter);
@@ -107,10 +107,10 @@ impl<W: Write + Seek + Read + PhysicalProgress> WindowsFlasher<W> {
             };
             let parent_cluster = *dir_clusters.get(parent_path).unwrap_or(&root_cluster);
 
-            log::info!("WindowsFlasher: Starting file {} ({} bytes)", path, entry.size);
+            tracing::info!("WindowsFlasher: Starting file {} ({} bytes)", path, entry.size);
 
             if path_lower == "sources/install.wim" || path_lower == "sources/install.esd" {
-                log::info!("WindowsFlasher: Detected main image, using split-writer...");
+                tracing::info!("WindowsFlasher: Detected main image, using split-writer...");
                 let mut accumulated_wim_progress = 0;
                 write_split_wim(&mut udf, entry, parent_cluster, &mut fat_writer, |p| {
                      accumulated_wim_progress += p;
@@ -124,7 +124,7 @@ impl<W: Write + Seek + Read + PhysicalProgress> WindowsFlasher<W> {
                 }).map_err(|e| WindowsError::Fat32(e.to_string()))?;
                 current_progress += entry.size;
             }
-            log::info!("WindowsFlasher: Finished file {}", path);
+            tracing::info!("WindowsFlasher: Finished file {}", path);
         }
 
         println!("Finalizing FAT...");
@@ -187,11 +187,19 @@ where
         swm_writer.write_all(&h_buf)?;
 
         // 2. Write Blobs
+        let mut buffer = vec![0u8; 2 * 1024 * 1024]; // 2MB buffer for high-speed writes
         for e in &part.blobs_to_write {
             udf.reader().seek(SeekFrom::Start(wim_data_offset + e.res_hdr.offset))?;
             let mut blob_reader = udf.reader().take(e.res_hdr.size);
-            std::io::copy(&mut blob_reader, &mut swm_writer)?;
-            progress(e.res_hdr.size);
+            
+            loop {
+                let n = blob_reader.read(&mut buffer)?;
+                if n == 0 {
+                    break;
+                }
+                swm_writer.write_all(&buffer[..n])?;
+                progress(n as u64);
+            }
         }
 
         // 3. Write Lookup Table (The master table calculated during split)

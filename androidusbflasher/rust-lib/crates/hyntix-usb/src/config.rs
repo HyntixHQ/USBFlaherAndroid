@@ -23,15 +23,15 @@ pub const BUFFER_COUNT: usize = 16;
 pub const ASYNC_BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
 /// Maximum transfer size for a single SCSI WRITE(10)/READ(10) command.
-/// 1MB is a safe value that works on almost all USB controllers while
-/// maintaining high throughput (minimizing CBW/CSW overhead).
+/// Reduced to 1MB (safe default) to avoid firmware/kernel hangs.
 pub const SCSI_MAX_TRANSFER_SIZE: usize = 1024 * 1024;
 
 /// Initial chunk size per URB.
-pub const INITIAL_URB_CHUNK_SIZE: usize = 32 * 1024;
+/// Reduced to 128KB to be more friendly to Android's DMA pool.
+pub const INITIAL_URB_CHUNK_SIZE: usize = 128 * 1024;
 
-/// Minimum URB chunk size (16KB).
-pub const MIN_URB_CHUNK_SIZE: usize = 16 * 1024;
+/// Minimum URB chunk size (32KB).
+pub const MIN_URB_CHUNK_SIZE: usize = 32 * 1024;
 
 /// File read chunk size for the flasher.
 pub const READ_CHUNK_SIZE: usize = ASYNC_BUFFER_SIZE;

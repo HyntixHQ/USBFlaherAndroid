@@ -92,7 +92,7 @@ impl ScsiReadCapacity {
     /// Parse READ CAPACITY response.
     /// Returns (last_block_address, block_size).
     pub fn parse_response(data: &[u8]) -> Option<(u32, u32)> {
-        log::debug!("ScsiReadCapacity: Raw response (len={}): {:02X?}", data.len(), data);
+        tracing::debug!("ScsiReadCapacity: Raw response (len={}): {:02X?}", data.len(), data);
         if data.len() < 8 {
             return None;
         }
@@ -101,7 +101,7 @@ impl ScsiReadCapacity {
         let last_block_address = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
         let block_size = u32::from_be_bytes([data[4], data[5], data[6], data[7]]);
 
-        log::debug!("ScsiReadCapacity: Parsed LBA={}, BlockSize={}", last_block_address, block_size);
+        tracing::debug!("ScsiReadCapacity: Parsed LBA={}, BlockSize={}", last_block_address, block_size);
         Some((last_block_address, block_size))
     }
 }

@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::os::fd::RawFd;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 
 use crate::config::{INITIAL_URB_CHUNK_SIZE, MIN_URB_CHUNK_SIZE};
 

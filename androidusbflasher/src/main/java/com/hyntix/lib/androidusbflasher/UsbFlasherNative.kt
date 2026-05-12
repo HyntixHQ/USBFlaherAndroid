@@ -59,7 +59,7 @@ open class RustBuffer : Structure() {
     companion object {
         internal fun alloc(size: ULong = 0UL) = uniffiRustCall() { status ->
             // Note: need to convert the size to a `Long` value to make this work with JVM.
-            UniffiLib.ffi_hyntix_usb_flasher_jni_rustbuffer_alloc(size.toLong(), status)
+            UniffiLib.ffi_usbflasher_rustbuffer_alloc(size.toLong(), status)
         }.also {
             if(it.data == null) {
                throw RuntimeException("RustBuffer.alloc() returned null data pointer (size=${size})")
@@ -75,7 +75,7 @@ open class RustBuffer : Structure() {
         }
 
         internal fun free(buf: RustBuffer.ByValue) = uniffiRustCall() { status ->
-            UniffiLib.ffi_hyntix_usb_flasher_jni_rustbuffer_free(buf, status)
+            UniffiLib.ffi_usbflasher_rustbuffer_free(buf, status)
         }
     }
 
@@ -355,7 +355,7 @@ private fun findLibraryName(componentName: String): String {
     if (libOverride != null) {
         return libOverride
     }
-    return "hyntix_usb_flasher_jni"
+    return "usbflasher"
 }
 
 // Define FFI callback types
@@ -654,27 +654,27 @@ internal open class UniffiVTableCallbackInterfaceFlashCallback(
 // We now use JNA's "direct mapping" - unclear if same considerations apply exactly.
 internal object IntegrityCheckingUniffiLib {
     init {
-        Native.register(IntegrityCheckingUniffiLib::class.java, findLibraryName(componentName = "hyntix_usb_flasher_jni"))
+        Native.register(IntegrityCheckingUniffiLib::class.java, findLibraryName(componentName = "usbflasher"))
         uniffiCheckContractApiVersion(this)
         uniffiCheckApiChecksums(this)
     }
-    external fun uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_cancel(
+    external fun uniffi_usbflasher_checksum_method_usbflasher_cancel(
     ): Short
-    external fun uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_flash_device(
+    external fun uniffi_usbflasher_checksum_method_usbflasher_flash_device(
     ): Short
-    external fun uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_flash_windows_device(
+    external fun uniffi_usbflasher_checksum_method_usbflasher_flash_windows_device(
     ): Short
-    external fun uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_get_device_capacity(
+    external fun uniffi_usbflasher_checksum_method_usbflasher_get_device_capacity(
     ): Short
-    external fun uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_is_linux_iso(
+    external fun uniffi_usbflasher_checksum_method_usbflasher_is_linux_iso(
     ): Short
-    external fun uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_is_windows_iso(
+    external fun uniffi_usbflasher_checksum_method_usbflasher_is_windows_iso(
     ): Short
-    external fun uniffi_hyntix_usb_flasher_jni_checksum_constructor_usbflasher_new(
+    external fun uniffi_usbflasher_checksum_constructor_usbflasher_new(
     ): Short
-    external fun uniffi_hyntix_usb_flasher_jni_checksum_method_flashcallback_on_progress(
+    external fun uniffi_usbflasher_checksum_method_flashcallback_on_progress(
     ): Short
-    external fun ffi_hyntix_usb_flasher_jni_uniffi_contract_version(
+    external fun ffi_usbflasher_uniffi_contract_version(
     ): Int
 
         
@@ -689,133 +689,133 @@ internal object UniffiLib {
     
 
     init {
-        Native.register(UniffiLib::class.java, findLibraryName(componentName = "hyntix_usb_flasher_jni"))
+        Native.register(UniffiLib::class.java, findLibraryName(componentName = "usbflasher"))
         uniffiCallbackInterfaceFlashCallback.register(this)
         
     }
-    external fun uniffi_hyntix_usb_flasher_jni_fn_clone_usbflasher(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_clone_usbflasher(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
-    external fun uniffi_hyntix_usb_flasher_jni_fn_free_usbflasher(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_free_usbflasher(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    external fun uniffi_hyntix_usb_flasher_jni_fn_constructor_usbflasher_new(uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_constructor_usbflasher_new(uniffi_out_err: UniffiRustCallStatus, 
     ): Long
-    external fun uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_cancel(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_method_usbflasher_cancel(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    external fun uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_flash_device(`ptr`: Long,`imageFd`: Int,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`verify`: Byte,`callback`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_method_usbflasher_flash_device(`ptr`: Long,`imageFd`: Int,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`verify`: Byte,`callback`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    external fun uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_flash_windows_device(`ptr`: Long,`imageFd`: Int,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`callback`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_method_usbflasher_flash_windows_device(`ptr`: Long,`imageFd`: Int,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`callback`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    external fun uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_get_device_capacity(`ptr`: Long,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_method_usbflasher_get_device_capacity(`ptr`: Long,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
-    external fun uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_is_linux_iso(`ptr`: Long,`fd`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_method_usbflasher_is_linux_iso(`ptr`: Long,`fd`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
-    external fun uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_is_windows_iso(`ptr`: Long,`fd`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_method_usbflasher_is_windows_iso(`ptr`: Long,`fd`: Int,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
-    external fun uniffi_hyntix_usb_flasher_jni_fn_init_callback_vtable_flashcallback(`vtable`: UniffiVTableCallbackInterfaceFlashCallback,
+    external fun uniffi_usbflasher_fn_init_callback_vtable_flashcallback(`vtable`: UniffiVTableCallbackInterfaceFlashCallback,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun ffi_hyntix_usb_flasher_jni_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun ffi_hyntix_usb_flasher_jni_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_usbflasher_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_cancel_u8(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_cancel_u8(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_free_u8(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_free_u8(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_usbflasher_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_cancel_i8(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_cancel_i8(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_free_i8(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_free_i8(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Byte
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_usbflasher_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_cancel_u16(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_cancel_u16(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_free_u16(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_free_u16(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Short
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_usbflasher_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_cancel_i16(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_cancel_i16(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_free_i16(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_free_i16(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Short
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_usbflasher_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_cancel_u32(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_cancel_u32(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_free_u32(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_free_u32(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_usbflasher_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_cancel_i32(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_cancel_i32(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_free_i32(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_free_i32(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Int
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_usbflasher_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_cancel_u64(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_cancel_u64(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_free_u64(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_free_u64(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_usbflasher_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_cancel_i64(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_cancel_i64(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_free_i64(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_free_i64(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_usbflasher_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_cancel_f32(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_cancel_f32(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_free_f32(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_free_f32(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Float
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_usbflasher_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_cancel_f64(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_cancel_f64(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_free_f64(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_free_f64(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Double
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_usbflasher_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_cancel_rust_buffer(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_cancel_rust_buffer(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_free_rust_buffer(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_free_rust_buffer(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): RustBuffer.ByValue
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
+    external fun ffi_usbflasher_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_cancel_void(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_cancel_void(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_free_void(`handle`: Long,
+    external fun ffi_usbflasher_rust_future_free_void(`handle`: Long,
     ): Unit
-    external fun ffi_hyntix_usb_flasher_jni_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Unit
 
         
@@ -825,35 +825,35 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
     // Get the bindings contract version from our ComponentInterface
     val bindings_contract_version = 30
     // Get the scaffolding contract version by calling the into the dylib
-    val scaffolding_contract_version = lib.ffi_hyntix_usb_flasher_jni_uniffi_contract_version()
+    val scaffolding_contract_version = lib.ffi_usbflasher_uniffi_contract_version()
     if (bindings_contract_version != scaffolding_contract_version) {
         throw RuntimeException("UniFFI contract version mismatch: try cleaning and rebuilding your project")
     }
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
-    if (lib.uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_cancel() != 22846.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_usbflasher_cancel() != 9090.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_flash_device() != 50425.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_usbflasher_flash_device() != 54497.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_flash_windows_device() != 51256.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_usbflasher_flash_windows_device() != 6832.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_get_device_capacity() != 12525.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_usbflasher_get_device_capacity() != 43981.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_is_linux_iso() != 26566.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_usbflasher_is_linux_iso() != 20577.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_hyntix_usb_flasher_jni_checksum_method_usbflasher_is_windows_iso() != 15111.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_usbflasher_is_windows_iso() != 43340.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_hyntix_usb_flasher_jni_checksum_constructor_usbflasher_new() != 17152.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_constructor_usbflasher_new() != 30401.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_hyntix_usb_flasher_jni_checksum_method_flashcallback_on_progress() != 47473.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_flashcallback_on_progress() != 3786.toShort()) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1333,7 +1333,7 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
     constructor() :
         this(UniffiWithHandle, 
     uniffiRustCall() { _status ->
-    UniffiLib.uniffi_hyntix_usb_flasher_jni_fn_constructor_usbflasher_new(
+    UniffiLib.uniffi_usbflasher_fn_constructor_usbflasher_new(
     
         _status)
 }
@@ -1393,7 +1393,7 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
                 return;
             }
             uniffiRustCall { status ->
-                UniffiLib.uniffi_hyntix_usb_flasher_jni_fn_free_usbflasher(handle, status)
+                UniffiLib.uniffi_usbflasher_fn_free_usbflasher(handle, status)
             }
         }
     }
@@ -1406,7 +1406,7 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
             throw InternalException("uniffiCloneHandle() called on NoHandle object");
         }
         return uniffiRustCall() { status ->
-            UniffiLib.uniffi_hyntix_usb_flasher_jni_fn_clone_usbflasher(handle, status)
+            UniffiLib.uniffi_usbflasher_fn_clone_usbflasher(handle, status)
         }
     }
 
@@ -1414,7 +1414,7 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
         = 
     callWithHandle {
     uniffiRustCall() { _status ->
-    UniffiLib.uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_cancel(
+    UniffiLib.uniffi_usbflasher_fn_method_usbflasher_cancel(
         it,
         _status)
 }
@@ -1427,7 +1427,7 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
         = 
     callWithHandle {
     uniffiRustCallWithError(FlasherException) { _status ->
-    UniffiLib.uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_flash_device(
+    UniffiLib.uniffi_usbflasher_fn_method_usbflasher_flash_device(
         it,
         FfiConverterInt.lower(`imageFd`),FfiConverterInt.lower(`usbFd`),FfiConverterUByte.lower(`interface`),FfiConverterUByte.lower(`inEp`),FfiConverterUByte.lower(`outEp`),FfiConverterBoolean.lower(`verify`),FfiConverterTypeFlashCallback.lower(`callback`),_status)
 }
@@ -1440,7 +1440,7 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
         = 
     callWithHandle {
     uniffiRustCallWithError(FlasherException) { _status ->
-    UniffiLib.uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_flash_windows_device(
+    UniffiLib.uniffi_usbflasher_fn_method_usbflasher_flash_windows_device(
         it,
         FfiConverterInt.lower(`imageFd`),FfiConverterInt.lower(`usbFd`),FfiConverterUByte.lower(`interface`),FfiConverterUByte.lower(`inEp`),FfiConverterUByte.lower(`outEp`),FfiConverterTypeFlashCallback.lower(`callback`),_status)
 }
@@ -1453,7 +1453,7 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
             return FfiConverterULong.lift(
     callWithHandle {
     uniffiRustCallWithError(FlasherException) { _status ->
-    UniffiLib.uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_get_device_capacity(
+    UniffiLib.uniffi_usbflasher_fn_method_usbflasher_get_device_capacity(
         it,
         FfiConverterInt.lower(`usbFd`),FfiConverterUByte.lower(`interface`),FfiConverterUByte.lower(`inEp`),FfiConverterUByte.lower(`outEp`),_status)
 }
@@ -1467,7 +1467,7 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
             return FfiConverterBoolean.lift(
     callWithHandle {
     uniffiRustCallWithError(FlasherException) { _status ->
-    UniffiLib.uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_is_linux_iso(
+    UniffiLib.uniffi_usbflasher_fn_method_usbflasher_is_linux_iso(
         it,
         FfiConverterInt.lower(`fd`),_status)
 }
@@ -1481,7 +1481,7 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
             return FfiConverterBoolean.lift(
     callWithHandle {
     uniffiRustCallWithError(FlasherException) { _status ->
-    UniffiLib.uniffi_hyntix_usb_flasher_jni_fn_method_usbflasher_is_windows_iso(
+    UniffiLib.uniffi_usbflasher_fn_method_usbflasher_is_windows_iso(
         it,
         FfiConverterInt.lower(`fd`),_status)
 }
@@ -1756,7 +1756,7 @@ internal object uniffiCallbackInterfaceFlashCallback {
     // Registers the foreign callback with the Rust side.
     // This method is generated for each callback interface.
     internal fun register(lib: UniffiLib) {
-        lib.uniffi_hyntix_usb_flasher_jni_fn_init_callback_vtable_flashcallback(vtable)
+        lib.uniffi_usbflasher_fn_init_callback_vtable_flashcallback(vtable)
     }
 }
 

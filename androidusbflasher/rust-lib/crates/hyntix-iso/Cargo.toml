@@ -8,6 +8,6 @@ license.workspace = true
 [dependencies]
 hyntix-common = { workspace = true }
 nom.workspace = true
-byteorder.workspace = true
-log.workspace = true
+
 unicode-normalization.workspace = true
+tracing = { workspace = true }

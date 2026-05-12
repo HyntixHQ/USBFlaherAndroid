@@ -1,6 +1,6 @@
 use hyntix_usb::{NativeUsbBackend, UsbMassStorage};
 use hyntix_usb_flasher::{FlashPhase as CoreFlashPhase, Flasher as CoreFlasher};
-use log::{info, LevelFilter};
+use tracing::info;
 use std::fs::File;
 use std::io::{Seek, SeekFrom};
 use std::os::fd::FromRawFd;
@@ -10,14 +10,22 @@ use thiserror::Error;
 
 uniffi::setup_scaffolding!();
 
+#[cfg(target_os = "android")]
+fn init_logging() {
+    use tracing_subscriber::prelude::*;
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        if let Ok(layer) = tracing_android::layer("UsbFlasherRust") {
+            tracing_subscriber::registry().with(layer).init();
+        }
+    });
+}
+
+#[cfg(not(target_os = "android"))]
 fn init_logging() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        let _ = android_logger::init_once(
-            android_logger::Config::default()
-                .with_max_level(LevelFilter::Debug)
-                .with_tag("UsbFlasherRust"),
-        );
+        tracing_subscriber::fmt::init();
     });
 }
 

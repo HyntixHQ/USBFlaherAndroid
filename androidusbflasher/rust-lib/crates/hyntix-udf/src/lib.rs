@@ -68,6 +68,8 @@ pub struct UdfReader<R: Read + Seek> {
     partition_start: u32,
     /// Sector of the root directory File Entry (partition-relative).
     root_icb_loc: u32,
+    /// Volume label / identifier.
+    volume_id: String,
 }
 
 impl<R: Read + Seek> UdfReader<R> {
@@ -90,6 +92,7 @@ impl<R: Read + Seek> UdfReader<R> {
         // ── Step 2: Walk Volume Descriptor Sequence ──────────────────────
         let mut partition_start: Option<u32> = None;
         let mut fsd_lbn: Option<u32> = None;
+        let mut volume_id = String::from("WINDOWS_ISO");
 
         let num_sectors = vds_len / SECTOR_SIZE as u32;
         for i in 0..num_sectors {
@@ -114,18 +117,14 @@ impl<R: Read + Seek> UdfReader<R> {
                     }
                 }
                 TAG_LOGICAL_VOLUME_DESC => {
-                    // ECMA-167 3/10.6 – Logical Volume Descriptor
-                    //   0-15:   Tag
-                    //   16-19:  Volume Descriptor Sequence Number
-                    //   20-83:  Descriptor Character Set (charspec, 64 bytes)
-                    //   84-211: Logical Volume Identifier (dstring, 128 bytes)
-                    //   212-215: Logical Block Size (u32)
-                    //   216-247: Domain Identifier (EntityIdentifier, 32 bytes)
                     //   248-263: Logical Volume Contents Use (long_ad, 16 bytes)
                     //     248-251: Extent Length
                     //     252-255: Extent LBN (partition-relative)
                     //     256-257: Partition Reference Number
                     fsd_lbn = Some(u32_at(&buf, 252));
+
+                    // Volume ID is at 84-211
+                    volume_id = decode_dstring(&buf[84..212]).trim().to_string();
                 }
                 TAG_TERMINATING_DESC => break,
                 _ => {}
@@ -159,7 +158,12 @@ impl<R: Read + Seek> UdfReader<R> {
             reader,
             partition_start,
             root_icb_loc,
+            volume_id,
         })
+    }
+
+    pub fn volume_id(&self) -> &str {
+        &self.volume_id
     }
 
     // ── Public API ───────────────────────────────────────────────────────

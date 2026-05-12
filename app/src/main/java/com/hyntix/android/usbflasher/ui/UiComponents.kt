@@ -146,51 +146,56 @@ fun FlashingSheet(
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            // Animate progress smoothly between bursty Rust callback values.
-            // LinearEasing + 300ms tween gives continuous motion without overshoot.
-            val animatedProgress by animateFloatAsState(
-                targetValue = progress.percentage / 100f,
-                animationSpec = tween(
-                    durationMillis = 300,
-                    easing = LinearEasing
-                ),
-                label = "progressAnimation"
-            )
-
-            LinearProgressIndicator(
-                progress = { animatedProgress.coerceIn(0f, 1f) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp),
-                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f),
-            )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Show the animated percentage (matches the bar position)
-                Text(
-                    text = "${(animatedProgress * 100).toInt().coerceIn(0, 100)}%",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = progress.speedFormatted,
-                    style = MaterialTheme.typography.labelMedium
-                )
-                Text(
-                    text = "ETA: ${progress.etaFormatted}",
-                    style = MaterialTheme.typography.labelMedium
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
             val isSuccess = state is FlashState.Success
+            
+            if (isSuccess) {
+                Spacer(modifier = Modifier.height(32.dp))
+            } else {
+                // Animate progress smoothly between bursty Rust callback values.
+                // LinearEasing + 300ms tween gives continuous motion without overshoot.
+                val animatedProgress by animateFloatAsState(
+                    targetValue = progress.percentage / 100f,
+                    animationSpec = tween(
+                        durationMillis = 300,
+                        easing = LinearEasing
+                    ),
+                    label = "progressAnimation"
+                )
+
+                LinearProgressIndicator(
+                    progress = { animatedProgress.coerceIn(0f, 1f) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp),
+                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f),
+                )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Show the animated percentage (matches the bar position)
+                    Text(
+                        text = "${(animatedProgress * 100).toInt().coerceIn(0, 100)}%",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = progress.speedFormatted,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                    Text(
+                        text = "ETA: ${progress.etaFormatted}",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+
             Button(
                 onClick = onCancel,
                 modifier = Modifier.fillMaxWidth().height(50.dp),

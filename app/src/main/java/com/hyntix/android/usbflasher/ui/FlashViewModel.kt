@@ -240,15 +240,16 @@ class FlashViewModel(
         checkReadyState() 
     }
 
-    /** Called when user taps Done after a successful flash. Ejects the drive. */
+    /** Called when user taps Done after a successful flash. Ejects the drive and clears state. */
     fun done() {
         val currentState = _state.value
         if (currentState is FlashState.Success) {
             viewModelScope.launch(Dispatchers.IO) {
                 repository.ejectDevice(currentState.device)
+                _selectedImageInfo.value = null
+                _selectedDeviceInfo.value = null
                 _state.value = FlashState.Idle
                 startDeviceScan()
-                checkReadyState()
             }
         } else {
             cancel()

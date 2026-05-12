@@ -2,8 +2,8 @@ use hyntix_common::Result;
 use hyntix_iso::reader::IsoReader;
 use hyntix_usb::async_writer::AsyncUsbWriter;
 use hyntix_usb::UsbMassStorage;
-use log::info;
-use sha2::Digest;
+use tracing::info;
+use blake3;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -95,7 +95,7 @@ impl Flasher {
         // (64MB / 2MB URB = 32 URBs per SCSI command).
         let mut buf = vec![0u8; hyntix_usb::config::READ_CHUNK_SIZE];
         let mut total_written: u64 = 0;
-        let mut source_hasher = sha2::Sha256::new();
+        let mut source_hasher = blake3::Hasher::new();
 
         loop {
             if self.cancelled.load(Ordering::Relaxed) {
@@ -148,107 +148,106 @@ impl Flasher {
         // Wait for worker thread to fully complete
         writer.wait_idle()?;
 
-        // ── Verification Phase (Pipelined: Read overlaps with Hash) ─────
+        // ── Verification Phase (Triple-Pipelined: Read-Ahead + Main-Hash) ─────
         if verify {
-            info!("Verifying integrity...");
+            info!("Verifying integrity with read pre-fetching (1MB chunks)...");
             progress(FlashPhase::Verifying, 0, total_size);
 
-            // Seek the writer back to the beginning to read from LBA 0
             writer
                 .seek(SeekFrom::Start(0))
                 .map_err(|e| hyntix_common::Error::Io(e))?;
 
             let expected_hash = source_hasher.finalize();
-            let chunk_len = hyntix_usb::config::READ_CHUNK_SIZE;
+            // Using 1MB chunks for verification to match safe SCSI limits and reduce memory pressure
+            let chunk_len = 1024 * 1024; 
 
-            // Double-buffer: main thread reads into one buffer while hash thread
-            // processes the other. This hides SHA-256 latency behind USB I/O.
-            let (hash_tx, hash_rx) = crossbeam_channel::bounded::<(Vec<u8>, usize)>(2);
-            let (recycle_tx, recycle_rx) = crossbeam_channel::bounded::<Vec<u8>>(2);
+            // Triple-buffering: Read Thread -> [Buffer 1] -> [Buffer 2] -> [Buffer 3] -> Main Thread
+            let (read_tx, read_rx) = crossbeam_channel::bounded::<(Vec<u8>, usize)>(4);
+            let (recycle_tx, recycle_rx) = crossbeam_channel::bounded::<Vec<u8>>(4);
 
-            // Pre-allocate two buffers
-            recycle_tx.send(vec![0u8; chunk_len]).unwrap();
-            recycle_tx.send(vec![0u8; chunk_len]).unwrap();
+            // Pre-allocate buffers (4 x 1MB = 4MB)
+            for _ in 0..4 {
+                recycle_tx.send(vec![0u8; chunk_len]).unwrap();
+            }
 
             let cancel_clone = self.cancelled.clone();
+            let mut reader = writer;
 
-            // Hash thread: receives filled buffers, updates SHA-256, recycles them
-            let hash_handle = std::thread::spawn(move || -> Result<sha2::digest::Output<sha2::Sha256>> {
-                let mut dest_hasher = sha2::Sha256::new();
-                while let Ok((buf, len)) = hash_rx.recv() {
+            let read_handle = std::thread::spawn(move || -> Result<AsyncUsbWriter> {
+                let mut verified_bytes: u64 = 0;
+                while verified_bytes < total_size {
                     if cancel_clone.load(Ordering::Relaxed) {
                         return Err(hyntix_common::Error::Cancelled);
                     }
-                    dest_hasher.update(&buf[..len]);
-                    let _ = recycle_tx.send(buf); // Return buffer to pool
+
+                    let remaining = (total_size - verified_bytes) as usize;
+                    let this_chunk = remaining.min(chunk_len);
+
+                    let mut buf = recycle_rx.recv().map_err(|_| {
+                        hyntix_common::Error::Io(std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            "Recycle channel closed",
+                        ))
+                    })?;
+
+                    // Important: use storage.read_blocks directly or through reader.read
+                    // reader.read is fine as it handles alignment and mutex locking.
+                    let n = reader
+                        .read(&mut buf[..this_chunk])
+                        .map_err(|e| hyntix_common::Error::Io(e))?;
+
+                    if n != this_chunk {
+                        return Err(hyntix_common::Error::SizeMismatch {
+                            operation: "verify read",
+                            expected: this_chunk,
+                            actual: n,
+                        });
+                    }
+
+                    if read_tx.send((buf, n)).is_err() {
+                        break;
+                    }
+                    verified_bytes += n as u64;
                 }
-                Ok(dest_hasher.finalize())
+                Ok(reader)
             });
 
-            // Main thread: reads from USB device, sends filled buffers to hash thread
+            let mut dest_hasher = blake3::Hasher::new();
             let mut verified_bytes: u64 = 0;
+            
             while verified_bytes < total_size {
-                if self.cancelled.load(Ordering::Relaxed) {
-                    drop(hash_tx); // Signal hash thread to stop
-                    let _ = hash_handle.join();
-                    return Err(hyntix_common::Error::Cancelled);
-                }
+                let (buf, n) = match read_rx.recv() {
+                    Ok(data) => data,
+                    Err(_) => break,
+                };
 
-                let remaining = (total_size - verified_bytes) as usize;
-                let this_chunk = remaining.min(chunk_len);
-
-                // Get a recycled buffer (blocks until hash thread returns one)
-                let mut buf = recycle_rx.recv().map_err(|_| {
-                    hyntix_common::Error::Io(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "Hash thread died",
-                    ))
-                })?;
-
-                let n = writer
-                    .read(&mut buf[..this_chunk])
-                    .map_err(|e| hyntix_common::Error::Io(e))?;
-
-                if n != this_chunk {
-                    drop(hash_tx);
-                    let _ = hash_handle.join();
-                    return Err(hyntix_common::Error::SizeMismatch {
-                        operation: "verify read",
-                        expected: this_chunk,
-                        actual: n,
-                    });
-                }
-
-                // Send filled buffer to hash thread (non-blocking if channel has space)
-                hash_tx.send((buf, n)).map_err(|_| {
-                    hyntix_common::Error::Io(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "Hash thread died",
-                    ))
-                })?;
-
+                dest_hasher.update(&buf[..n]);
                 verified_bytes += n as u64;
-                progress(FlashPhase::Verifying, verified_bytes, total_size);
+                
+                // Report progress every 4MB to reduce JNI/UI overhead
+                if verified_bytes % (4 * 1024 * 1024) == 0 || verified_bytes == total_size {
+                    progress(FlashPhase::Verifying, verified_bytes, total_size);
+                }
+
+                let _ = recycle_tx.send(buf);
             }
 
-            // Drop sender to signal hash thread that all data has been sent
-            drop(hash_tx);
-
-            // Wait for hash thread to finish and get the final digest
-            let final_dest_hash = hash_handle
+            let _writer = read_handle
                 .join()
                 .map_err(|_| {
                     hyntix_common::Error::Io(std::io::Error::new(
                         std::io::ErrorKind::Other,
-                        "Hash thread panicked",
+                        "Read thread panicked",
                     ))
                 })?
                 .map_err(|e| e)?;
 
+            let final_dest_hash = dest_hasher.finalize();
+
             if expected_hash != final_dest_hash {
                 return Err(hyntix_common::Error::Io(std::io::Error::new(
                     std::io::ErrorKind::InvalidData,
-                    "Verification Failed: SHA-256 data mismatch",
+                    "Verification Failed: BLAKE3 data mismatch",
                 )));
             }
         }

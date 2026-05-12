@@ -31,8 +31,6 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
     implementation("net.java.dev.jna:jna:5.16.0@aar")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -57,11 +55,11 @@ tasks.register<Exec>("cargoBuild") {
     commandLine("cargo", "build", "--release", "--target", "aarch64-linux-android")
 
     doLast {
-        val builtLib = workspaceRoot.resolve("target/aarch64-linux-android/release/libhyntix_usb_flasher_jni.so")
+        val builtLib = workspaceRoot.resolve("target/aarch64-linux-android/release/libusbflasher.so")
         if (!builtLib.exists()) {
              throw GradleException("Rust build failed: library not found at $builtLib")
         }
-        builtLib.copyTo(jniLibsDir.resolve("libhyntix_usb_flasher_jni.so"), overwrite = true)
+        builtLib.copyTo(jniLibsDir.resolve("libusbflasher.so"), overwrite = true)
         println("Rust library copied to $jniLibsDir")
     }
 }
@@ -69,7 +67,7 @@ tasks.register<Exec>("cargoBuild") {
 tasks.register<Exec>("generateBindings") {
     dependsOn("cargoBuild")
     val workspaceRoot = project.projectDir.resolve("rust-lib")
-    val builtLib = workspaceRoot.resolve("target/aarch64-linux-android/release/libhyntix_usb_flasher_jni.so")
+    val builtLib = workspaceRoot.resolve("target/aarch64-linux-android/release/libusbflasher.so")
     val outDir = project.layout.buildDirectory.dir("generated/uniffi").get().asFile
 
     doFirst {
@@ -81,7 +79,7 @@ tasks.register<Exec>("generateBindings") {
     commandLine("$userHome/.cargo/bin/uniffi-bindgen", "generate", builtLib.absolutePath, "--language", "kotlin", "--out-dir", outDir.absolutePath, "--no-format")
 
     doLast {
-        val generatedFile = outDir.resolve("uniffi/hyntix_usb_flasher_jni/hyntix_usb_flasher_jni.kt")
+        val generatedFile = outDir.resolve("uniffi/usbflasher/usbflasher.kt")
         if (generatedFile.exists()) {
              val destFile = project.file("src/main/java/com/hyntix/lib/androidusbflasher/UsbFlasherNative.kt")
 
@@ -97,9 +95,9 @@ tasks.register<Exec>("generateBindings") {
              destFile.writeText(content)
              println("Generated bindings copied to $destFile")
         } else {
-             println("Warning: Generated Kotlin file not found in $outDir/uniffi/hyntix_usb_flasher_jni/")
+             println("Warning: Generated Kotlin file not found in $outDir/uniffi/usbflasher/")
              // Try to find it if it moved
-             project.fileTree(outDir).filter { it.name == "hyntix_usb_flasher_jni.kt" }.forEach {
+             project.fileTree(outDir).filter { it.name == "usbflasher.kt" }.forEach {
                  println("Found at alternative path: ${it.absolutePath}")
              }
         }

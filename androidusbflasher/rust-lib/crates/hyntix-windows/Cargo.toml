@@ -7,10 +7,11 @@ edition.workspace = true
 repository.workspace = true
 
 [dependencies]
-hyntix-udf = { path = "../hyntix-udf" }
-hyntix-wim = { path = "../hyntix-wim" }
-hyntix-fat32 = { path = "../hyntix-fat32" }
-hyntix-usb = { path = "../hyntix-usb" }
-hyntix-common = { path = "../hyntix-common" }
+hyntix-udf = { workspace = true }
+hyntix-wim = { workspace = true }
+hyntix-fat32 = { workspace = true }
+hyntix-usb = { workspace = true }
+hyntix-common = { workspace = true }
 thiserror = { workspace = true }
-log = { workspace = true }
+
+tracing = { workspace = true }
