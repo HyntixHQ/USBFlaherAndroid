@@ -5,7 +5,11 @@
 set -e
 
 # Configuration
-ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$HOME/Android/Sdk/ndk/30.0.14904198}"
+if [ -z "$ANDROID_NDK_HOME" ]; then
+    echo "Error: ANDROID_NDK_HOME is not set."
+    echo "Example: export ANDROID_NDK_HOME=\$HOME/Android/Sdk/ndk/30.0.14904198"
+    exit 1
+fi
 TARGET="aarch64-linux-android"
 API_LEVEL="26"
 

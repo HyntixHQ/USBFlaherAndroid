@@ -11,11 +11,11 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "1.0.2"
 authors = ["Hyntix <dev@hyntix.com>"]
 license = "AGPL-3.0-or-later"
-edition = "2021"
-repository = "https://github.com/HyntixHQ/usb-flasher"
+edition = "2024"
+repository = "https://github.com/HyntixHQ/USBFlaherAndroid"
 
 [workspace.dependencies]
 thiserror = "2.0.18"
@@ -26,7 +26,6 @@ unicode-normalization = "0.1.25"
 crc = "3.4.0"
 crossbeam-channel = "0.5.15"
 uuid = { version = "1.23.0", features = ["v4"] }
-tempfile = "3.27.0"
 
 blake3 = "1.8.5"
 tracing = "0.1.44"
@@ -52,5 +51,5 @@ hyntix-windows = { path = "crates/hyntix-windows" }
 lto = true
 codegen-units = 1
 opt-level = "z"
-strip = true
+strip = false
 panic = "abort"

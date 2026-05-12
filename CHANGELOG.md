@@ -5,23 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.2] - 2026-04-28
+## [1.0.2] - 2026-05-12
 
 ### Added
 - **Windows ISO Flashing Support**: Comprehensive implementation for flashing Windows 10/11 ISOs to FAT32 media with full UEFI boot compatibility.
 - **Intelligent SWM Splitting**: Custom engine that automatically splits large `install.wim` files (>4GB) into spanned `.swm` parts.
-- **Master Lookup Table**: Implemented a global WIM index architecture across all split parts, ensuring the Windows Setup engine can locate resources flawlessly.
-- **Custom FAT32 Driver**: A specialized Rust-based FAT32 writer with cluster-aligned allocation and high-performance throughput.
+- **Triple-Pipelined Verification**: High-performance verification engine utilizing a background read-ahead thread to saturate the USB bus while hashing.
+- **Safety Confirmation Dialog**: Mandatory warning dialog before flashing to prevent accidental data erasure.
+- **Dynamic Volume Labeling**: Automatic extraction of the Logical Volume Identifier from UDF metadata to apply native labels to bootable media.
+- **Post-Flash Cleanup**: Automated drive ejection (SCSI START STOP UNIT) and state resetting (clearing ISO/Device) upon completion.
 
 ### Improved
-- **Progress Calculation**: Refactored progress tracking to use relative byte reporting, eliminating negative ETA values and cumulative percentage errors.
-- **USB Hardware Compatibility**: Decoupled async buffer sizing from SCSI transfer limits (1MB) to ensure broad compatibility with generic USB mass storage controllers.
-- **Logging Pipeline**: Targeted PID-based filtering and streamlined log tags for better diagnostic signal.
+- **Verification Throughput**: Optimized SCSI transfer sizes (1MB) and URB chunk sizes (128KB) to maximize speed while respecting Android DMA memory limits.
+- **UI Streamlining**: Removed redundant "Done" text from the success screen for a more polished experience.
+- **Progress Telemetry**: Throttled progress reporting during high-speed verification to reduce JNI/UI overhead.
+- **USB Hardware Compatibility**: Decoupled async buffer sizing from SCSI transfer limits to ensure broad compatibility with generic controllers.
 
 ### Fixed
+- **Verification Hangs**: Resolved a critical issue where large SCSI transfers (4MB) caused silent kernel hangs on certain Android devices.
 - **The "License Terms" Bug**: Resolved the critical issue where Windows Setup failed to find the EULA due to absolute offset mismatches in split WIMs.
 - **Infinite Overwrite Bug**: Fixed a cluster advancement logic error in the FAT32 writer that caused stalls at partition boundaries.
-- **SWM Header Compliance**: Corrected SWM headers to include required boot indices and GUIDs.
 
 ## [1.0.1] - 2026-04-22
 

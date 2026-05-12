@@ -7,15 +7,15 @@ plugins {
 
 android {
     namespace = "com.hyntix.android.usbflasher"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = "30.0.14904198"
 
     defaultConfig {
         applicationId = "com.hyntix.android.usbflasher"
         minSdk = 33
-        targetSdk = 36
-        versionCode = 2
-        versionName = "1.0.1"
+        targetSdk = 37
+        versionCode = 3
+        versionName = "1.0.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -77,12 +77,6 @@ android {
 }
 
 dependencies {
-    // ViewModel Compose integration
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-
-    // Material Icons Extended
-
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

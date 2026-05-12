@@ -4,7 +4,7 @@ plugins {
 
 android {
     namespace = "com.hyntix.lib.androidusbflasher"
-    compileSdk = 36
+    compileSdk = 37
     ndkVersion = "30.0.14904198"
 
     defaultConfig {
@@ -16,7 +16,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -31,7 +31,7 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-    implementation("net.java.dev.jna:jna:5.16.0@aar")
+    implementation("net.java.dev.jna:jna:${libs.versions.jna.get()}@aar")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -42,16 +42,19 @@ tasks.register<Exec>("cargoBuild") {
     val workspaceRoot = project.projectDir.resolve("rust-lib")
     val jniLibsDir = project.file("src/main/jniLibs/arm64-v8a")
 
-    val sdkDir = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT") ?: "/home/raja/Android/Sdk"
-    val ndkPath = "$sdkDir/ndk/30.0.14904198"
-    val linkerPath = "$ndkPath/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang"
+    val androidExtension = project.extensions.getByType<com.android.build.api.dsl.LibraryExtension>()
+    val androidComponents = project.extensions.getByType<com.android.build.api.variant.LibraryAndroidComponentsExtension>()
+    
+    val minSdk = androidExtension.defaultConfig.minSdk ?: 24
+    val ndkDir = androidComponents.sdkComponents.ndkDirectory.get().asFile
+    val linkerPath = ndkDir.resolve("toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${minSdk}-clang")
 
     doFirst {
         jniLibsDir.mkdirs()
     }
 
     workingDir(workspaceRoot)
-    environment("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER", linkerPath)
+    environment("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER", linkerPath.absolutePath)
     commandLine("cargo", "build", "--release", "--target", "aarch64-linux-android")
 
     doLast {
@@ -75,8 +78,8 @@ tasks.register<Exec>("generateBindings") {
     }
 
     workingDir(workspaceRoot)
-    val userHome = System.getProperty("user.home")
-    commandLine("$userHome/.cargo/bin/uniffi-bindgen", "generate", builtLib.absolutePath, "--language", "kotlin", "--out-dir", outDir.absolutePath, "--no-format")
+    val uniffiBin = "uniffi-bindgen"
+    commandLine(uniffiBin, "generate", builtLib.absolutePath, "--language", "kotlin", "--out-dir", outDir.absolutePath, "--no-format")
 
     doLast {
         val generatedFile = outDir.resolve("uniffi/usbflasher/usbflasher.kt")
