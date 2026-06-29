@@ -4,6 +4,7 @@
 //! over USB Bulk-Only Transport.
 
 use super::cbw::{CommandBlockWrapper, CBW_SIZE};
+use super::config;
 use super::csw::{CommandStatusWrapper, CswStatus, CSW_SIZE};
 use super::scsi::{
     ScsiInquiry, ScsiRead10, ScsiReadCapacity, ScsiStartStopUnit, ScsiSynchronizeCache,
@@ -148,7 +149,10 @@ impl UsbMassStorage {
                 self.capacity()
             );
         } else {
-            tracing::error!("UsbMassStorage: Failed to parse READ CAPACITY response: {:?}", capacity_data);
+            tracing::error!(
+                "UsbMassStorage: Failed to parse READ CAPACITY response: {:?}",
+                capacity_data
+            );
             return Err(Error::UsbError(
                 "Failed to parse READ CAPACITY response".into(),
             ));
@@ -194,6 +198,20 @@ impl UsbMassStorage {
     /// Get the maximum transfer size for the current backend.
     fn max_transfer_size(&self) -> usize {
         self.max_transfer_size
+    }
+
+    /// Reduce max transfer size on SCSI command failure (adaptive fallback).
+    /// Halves until the floor is reached, then stays at minimum.
+    fn reduce_max_transfer_size(&mut self) {
+        let new_size = (self.max_transfer_size / 2).max(config::SCSI_MIN_TRANSFER_SIZE);
+        if new_size < self.max_transfer_size {
+            tracing::warn!(
+                "SCSI: Reducing max transfer size from {}KB to {}KB due to command failure",
+                self.max_transfer_size / 1024,
+                new_size / 1024
+            );
+            self.max_transfer_size = new_size;
+        }
     }
 
     /// Transfer a SCSI command with optional data phase.
@@ -248,7 +266,11 @@ impl UsbMassStorage {
         let mut csw_buffer = [0u8; CSW_SIZE];
         let read = self.backend.bulk_in(&mut csw_buffer)?;
         if read != CSW_SIZE {
-            tracing::error!("UsbMassStorage: CSW read incomplete: {} != {}", read, CSW_SIZE);
+            tracing::error!(
+                "UsbMassStorage: CSW read incomplete: {} != {}",
+                read,
+                CSW_SIZE
+            );
             return Err(Error::UsbError(format!(
                 "CSW read incomplete: {} != {}",
                 read, CSW_SIZE
@@ -269,7 +291,9 @@ impl UsbMassStorage {
         match csw.status {
             CswStatus::Passed => Ok(()),
             CswStatus::Failed => {
-                // Could issue REQUEST SENSE here for more details
+                // Adaptive fallback: halve max transfer size for next command.
+                // Some drives have firmware limits on command size.
+                self.reduce_max_transfer_size();
                 Err(Error::UsbError("SCSI command failed".into()))
             }
             CswStatus::PhaseError => Err(Error::UsbError(
@@ -287,7 +311,8 @@ impl UsbMassStorage {
         }
 
         let _total_blocks = buffer.len() / self.block_size as usize;
-        let max_blocks_per_transfer = (self.max_transfer_size() / self.block_size as usize).min(u16::MAX as usize);
+        let max_blocks_per_transfer =
+            (self.max_transfer_size() / self.block_size as usize).min(u16::MAX as usize);
 
         let mut offset = 0;
         let mut current_block = start_block;
@@ -322,7 +347,8 @@ impl UsbMassStorage {
             ));
         }
 
-        let max_blocks_per_transfer = (self.max_transfer_size() / self.block_size as usize).min(u16::MAX as usize);
+        let max_blocks_per_transfer =
+            (self.max_transfer_size() / self.block_size as usize).min(u16::MAX as usize);
 
         let mut offset = 0;
         let mut current_block = start_block;

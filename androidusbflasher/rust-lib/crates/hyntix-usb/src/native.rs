@@ -210,6 +210,7 @@ impl NativeUsbBackend {
         let mut chunk_size = self.adaptive_out_chunk.load(Ordering::Relaxed);
         let mut total_sent = 0usize;
         let mut submit_offset = 0usize;
+        let mut successful_since_enomem = 0u32;
         // HashMap for O(1) URB lookup by pointer address on reap
         let mut in_flight: HashMap<usize, Box<UsbDevFsUrb>> = HashMap::with_capacity(256);
 
@@ -232,6 +233,7 @@ impl NativeUsbBackend {
                         in_flight.insert(urb_key, urb);
                     }
                     Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
+                        successful_since_enomem = 0;
                         // AIMD: Multiplicative Decrease
                         let new_size = (chunk_size / 2).max(MIN_URB_CHUNK_SIZE);
                         let shrunk = new_size < chunk_size;
@@ -327,6 +329,21 @@ impl NativeUsbBackend {
                         }
                     }
                 }
+
+                // AIMD: Additive Increase — recover chunk size after sustained success
+                successful_since_enomem += 1;
+                if successful_since_enomem >= 50 {
+                    let new_size = (chunk_size * 2).min(INITIAL_URB_CHUNK_SIZE);
+                    if new_size > chunk_size {
+                        info!(
+                            "AIMD: Increasing OUT chunk to {}KB after 50 clean cycles",
+                            new_size / 1024
+                        );
+                        chunk_size = new_size;
+                        self.adaptive_out_chunk.store(new_size, Ordering::Relaxed);
+                    }
+                    successful_since_enomem = 0;
+                }
             }
         }
 
@@ -346,6 +363,7 @@ impl NativeUsbBackend {
         let mut chunk_size = self.adaptive_in_chunk.load(Ordering::Relaxed);
         let mut total_read = 0usize;
         let mut submit_offset = 0usize;
+        let mut successful_since_enomem = 0u32;
         // HashMap for O(1) URB lookup by pointer address on reap
         let mut in_flight: HashMap<usize, Box<UsbDevFsUrb>> = HashMap::with_capacity(256);
 
@@ -368,6 +386,7 @@ impl NativeUsbBackend {
                         in_flight.insert(urb_key, urb);
                     }
                     Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
+                        successful_since_enomem = 0;
                         // AIMD: Multiplicative Decrease
                         let new_size = (chunk_size / 2).max(MIN_URB_CHUNK_SIZE);
                         let shrunk = new_size < chunk_size;
@@ -462,6 +481,21 @@ impl NativeUsbBackend {
                             ));
                         }
                     }
+                }
+
+                // AIMD: Additive Increase — recover chunk size after sustained success
+                successful_since_enomem += 1;
+                if successful_since_enomem >= 50 {
+                    let new_size = (chunk_size * 2).min(INITIAL_URB_CHUNK_SIZE);
+                    if new_size > chunk_size {
+                        info!(
+                            "AIMD: Increasing IN chunk to {}KB after 50 clean cycles",
+                            new_size / 1024
+                        );
+                        chunk_size = new_size;
+                        self.adaptive_in_chunk.store(new_size, Ordering::Relaxed);
+                    }
+                    successful_since_enomem = 0;
                 }
             }
         }

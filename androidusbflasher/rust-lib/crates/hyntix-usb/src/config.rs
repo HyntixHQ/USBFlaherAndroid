@@ -23,12 +23,17 @@ pub const BUFFER_COUNT: usize = 16;
 pub const ASYNC_BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
 /// Maximum transfer size for a single SCSI WRITE(10)/READ(10) command.
-/// Reduced to 1MB (safe default) to avoid firmware/kernel hangs.
-pub const SCSI_MAX_TRANSFER_SIZE: usize = 1024 * 1024;
+/// 2MB balances reduced BOT overhead with firmware compatibility.
+/// Falls back dynamically on CSW failure (see mass_storage.rs).
+pub const SCSI_MAX_TRANSFER_SIZE: usize = 2 * 1024 * 1024;
+
+/// Minimum transfer size floor for SCSI adaptive fallback.
+pub const SCSI_MIN_TRANSFER_SIZE: usize = 512 * 1024;
 
 /// Initial chunk size per URB.
-/// Reduced to 128KB to be more friendly to Android's DMA pool.
-pub const INITIAL_URB_CHUNK_SIZE: usize = 128 * 1024;
+/// 256KB reduces ioctl(SUBMITURB) calls by 50% vs 128KB.
+/// Falls back via AIMD on ENOMEM (see native.rs).
+pub const INITIAL_URB_CHUNK_SIZE: usize = 256 * 1024;
 
 /// Minimum URB chunk size (32KB).
 pub const MIN_URB_CHUNK_SIZE: usize = 32 * 1024;
