@@ -332,11 +332,11 @@ impl NativeUsbBackend {
 
                 // AIMD: Additive Increase — recover chunk size after sustained success
                 successful_since_enomem += 1;
-                if successful_since_enomem >= 50 {
+                if successful_since_enomem >= 200 {
                     let new_size = (chunk_size * 2).min(INITIAL_URB_CHUNK_SIZE);
                     if new_size > chunk_size {
                         info!(
-                            "AIMD: Increasing OUT chunk to {}KB after 50 clean cycles",
+                            "AIMD: Increasing OUT chunk to {}KB after 200 clean cycles",
                             new_size / 1024
                         );
                         chunk_size = new_size;
@@ -485,11 +485,11 @@ impl NativeUsbBackend {
 
                 // AIMD: Additive Increase — recover chunk size after sustained success
                 successful_since_enomem += 1;
-                if successful_since_enomem >= 50 {
+                if successful_since_enomem >= 200 {
                     let new_size = (chunk_size * 2).min(INITIAL_URB_CHUNK_SIZE);
                     if new_size > chunk_size {
                         info!(
-                            "AIMD: Increasing IN chunk to {}KB after 50 clean cycles",
+                            "AIMD: Increasing IN chunk to {}KB after 200 clean cycles",
                             new_size / 1024
                         );
                         chunk_size = new_size;

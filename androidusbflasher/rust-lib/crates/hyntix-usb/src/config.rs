@@ -13,7 +13,9 @@
 pub const URB_PIPELINE_DEPTH: usize = 32;
 
 /// Target total bytes to keep in-flight simultaneously across the pipeline.
-pub const TARGET_IN_FLIGHT_BYTES: usize = 16 * 1024 * 1024;
+/// 8MB fits within typical Android kernel DMA pool (usbfs_memory_mb >= 12MB),
+/// preventing ENOMEM oscillation seen at 16MB.
+pub const TARGET_IN_FLIGHT_BYTES: usize = 8 * 1024 * 1024;
 
 /// Number of buffers in the async pool.
 pub const BUFFER_COUNT: usize = 16;
@@ -23,20 +25,22 @@ pub const BUFFER_COUNT: usize = 16;
 pub const ASYNC_BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
 /// Maximum transfer size for a single SCSI WRITE(10)/READ(10) command.
-/// 2MB balances reduced BOT overhead with firmware compatibility.
+/// 4MB matches the async buffer size, so each buffer = 1 SCSI command.
 /// Falls back dynamically on CSW failure (see mass_storage.rs).
-pub const SCSI_MAX_TRANSFER_SIZE: usize = 2 * 1024 * 1024;
+pub const SCSI_MAX_TRANSFER_SIZE: usize = 4 * 1024 * 1024;
 
 /// Minimum transfer size floor for SCSI adaptive fallback.
 pub const SCSI_MIN_TRANSFER_SIZE: usize = 512 * 1024;
 
 /// Initial chunk size per URB.
-/// 256KB reduces ioctl(SUBMITURB) calls by 50% vs 128KB.
-/// Falls back via AIMD on ENOMEM (see native.rs).
-pub const INITIAL_URB_CHUNK_SIZE: usize = 256 * 1024;
+/// 32KB is the stable default for Android DMA pools (~8MB).
+/// AIMD additively increases to 64KB+ on devices with larger pools.
+pub const INITIAL_URB_CHUNK_SIZE: usize = 32 * 1024;
 
-/// Minimum URB chunk size (32KB).
-pub const MIN_URB_CHUNK_SIZE: usize = 32 * 1024;
+/// Minimum URB chunk size (16KB).
+/// Slightly smaller than the stable 32KB working size gives AIMD room
+/// to fall back if transient DMA pressure occurs.
+pub const MIN_URB_CHUNK_SIZE: usize = 16 * 1024;
 
 /// File read chunk size for the flasher.
 pub const READ_CHUNK_SIZE: usize = ASYNC_BUFFER_SIZE;
