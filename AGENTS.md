@@ -4,7 +4,7 @@
 
 - **Full build:** `./gradlew assembleRelease` — compiles Kotlin, cross-compiles Rust for ARM64, runs `uniffi-bindgen` to regenerate `UsbFlasherNative.kt`
 - **Rust only:** `cargo build --release --target aarch64-linux-android -p hyntix-usb-flasher-jni`
-- `uniffi-bindgen` must be on `$PATH` (from `cargo install uniffi`, version matching 0.31.0)
+- `uniffi-bindgen` must be on `$PATH` (from `cargo install uniffi`, version matching 0.31.2)
 
 ## Architecture
 
