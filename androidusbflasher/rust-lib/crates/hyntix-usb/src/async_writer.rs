@@ -3,13 +3,13 @@
 use crate::mass_storage::UsbMassStorage;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use hyntix_common::{Error, Result};
-use tracing::error;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
+use tracing::error;
 
-use crate::config::{BUFFER_COUNT, ASYNC_BUFFER_SIZE as BUFFER_SIZE};
+use crate::config::{ASYNC_BUFFER_SIZE as BUFFER_SIZE, BUFFER_COUNT};
 
 enum Job {
     Write(WriteJob),
@@ -200,6 +200,53 @@ impl AsyncUsbWriter {
         Ok(())
     }
 
+    /// Acquire a pre-allocated buffer from the pool.
+    /// Use with `write_buffer()` to avoid copying data into a pooled buffer.
+    pub fn acquire_buffer(&self) -> std::io::Result<Vec<u8>> {
+        self.buffer_rx
+            .try_recv()
+            .or_else(|_| self.buffer_rx.recv())
+            .map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::Other, "Buffer pool channel closed")
+            })
+    }
+
+    /// Write a pre-acquired buffer directly to the USB device, avoiding a copy.
+    ///
+    /// If the buffer is large, sector-aligned, and no pending data exists, the buffer
+    /// is sent directly as a job to the worker thread (zero-copy).
+    /// Otherwise, falls through to the standard write path.
+    pub fn write_buffer(&mut self, buffer: Vec<u8>) -> std::io::Result<usize> {
+        self.check_error()?;
+        let len = buffer.len();
+        if len == 0 {
+            return Ok(0);
+        }
+        // Fast path: large, aligned write with no pending data — send buffer directly
+        if self.pending_buffer.is_empty()
+            && len >= BUFFER_SIZE / 2
+            && self.current_pos % 512 == 0
+            && len % 512 == 0
+        {
+            let pos = self.current_pos;
+            let job = WriteJob {
+                buffer,
+                position: pos,
+            };
+            self.job_tx
+                .as_ref()
+                .unwrap()
+                .send(Job::Write(job))
+                .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Async worker died"))?;
+            self.current_pos += len as u64;
+            self.pending_start_pos = self.current_pos;
+            return Ok(len);
+        }
+        // Fallback: copy through standard write path
+        self.write_all(&buffer)?;
+        Ok(len)
+    }
+
     fn flush_pending(&mut self) -> std::io::Result<()> {
         if self.pending_buffer.is_empty() {
             return Ok(());
@@ -229,7 +276,10 @@ impl AsyncUsbWriter {
         Ok(())
     }
 
-    pub fn flush_with_progress(&mut self, mut progress_callback: impl FnMut(u64)) -> std::io::Result<()> {
+    pub fn flush_with_progress(
+        &mut self,
+        mut progress_callback: impl FnMut(u64),
+    ) -> std::io::Result<()> {
         self.check_error()?;
         self.flush_pending()?;
 
@@ -276,10 +326,14 @@ impl Write for AsyncUsbWriter {
             && buf.len() % 512 == 0
         {
             // Acquire a buffer from the pool. Try non-blocking first to keep disk I/O at max speed.
-            let mut job_buffer = self.buffer_rx.try_recv().or_else(|_| self.buffer_rx.recv()).map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, "Buffer pool channel closed")
-            })?;
-            
+            let mut job_buffer = self
+                .buffer_rx
+                .try_recv()
+                .or_else(|_| self.buffer_rx.recv())
+                .map_err(|_| {
+                    std::io::Error::new(std::io::ErrorKind::Other, "Buffer pool channel closed")
+                })?;
+
             job_buffer.clear();
             job_buffer.extend_from_slice(buf);
 
@@ -335,11 +389,14 @@ impl Read for AsyncUsbWriter {
 
         // Fast path: Zero-allocation aligned read (used during verification)
         if offset == 0 && bytes_to_read % block_size as usize == 0 {
-            return storage.read_blocks(start_lba, buf).map(|_| {
-                self.current_pos += bytes_to_read as u64;
-                self.pending_start_pos = self.current_pos; // Reset pending start
-                bytes_to_read
-            }).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+            return storage
+                .read_blocks(start_lba, buf)
+                .map(|_| {
+                    self.current_pos += bytes_to_read as u64;
+                    self.pending_start_pos = self.current_pos; // Reset pending start
+                    bytes_to_read
+                })
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
         }
 
         // Slow path: Unaligned read

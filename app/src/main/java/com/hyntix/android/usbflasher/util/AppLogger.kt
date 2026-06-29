@@ -15,52 +15,48 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ConcurrentLinkedQueue
 
-/**
- * In-app file-based logger for debugging when logcat isn't available.
- * Captures ALL events (Kotlin + Rust) with no filtering.
- * Logs are written to app's files directory and can be viewed/shared from the UI.
- */
 object AppLogger {
-    
+
     private const val LOG_FILE_NAME = "flash_debug.log"
-    private const val MAX_LOG_SIZE = 5 * 1024 * 1024  // 5MB max
+    private const val MAX_LOG_SIZE = 5 * 1024 * 1024
     private const val MAX_MEMORY_LOGS = 1000
-    
+
     private var logFile: File? = null
     private val dateFormat = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
-    
-    // In-memory log buffer for UI display
-    private val memoryLogs = ConcurrentLinkedQueue<String>()
-    
-    // Observable flow for the UI — emits the full buffer on every new log
+
+    private val ansiRegex = Regex("\u001b\\[[0-9;]*m")
+
+    // File write queue: log lines are enqueued here and flushed asynchronously
+    private val writeQueue = ConcurrentLinkedQueue<String>()
+
+    // Ring buffer for in-memory logs (thread-safe via ringLock)
+    private val ringLock = Any()
+    private val ringBuffer = ArrayDeque<String>()
+
+    // Flow for log viewer — updated periodically, not per-log-call
     private val _logFlow = MutableStateFlow<List<String>>(emptyList())
     val logFlow: StateFlow<List<String>> = _logFlow.asStateFlow()
-    
-    // Log level
+
+    // Throttle snapshot emissions to at most every 500ms
+    private var lastSnapshotMs = 0L
+
     enum class Level { DEBUG, INFO, WARN, ERROR }
-    
-    /**
-     * Initialize logger with app context.
-     * Call this in MainActivity.onCreate() before anything else.
-     */
+
     fun init(context: Context) {
         logFile = File(context.filesDir, LOG_FILE_NAME)
-        
-        // Rotate log if too large
+
         if (logFile?.exists() == true && logFile!!.length() > MAX_LOG_SIZE) {
             val backup = File(context.filesDir, "flash_debug_old.log")
             backup.delete()
             logFile?.renameTo(backup)
             logFile = File(context.filesDir, LOG_FILE_NAME)
         }
-        
-        // Add startup marker
+
         log(Level.INFO, "Logger", "=== App Started ===")
-        
-        // Start capturing Rust logs from logcat
         startLogcatCapture()
+        startFileWriter()
     }
-    
+
     fun d(tag: String, message: String) = log(Level.DEBUG, tag, message)
     fun i(tag: String, message: String) = log(Level.INFO, tag, message)
     fun w(tag: String, message: String) = log(Level.WARN, tag, message)
@@ -73,9 +69,7 @@ object AppLogger {
         log(Level.ERROR, tag, "$message: ${throwable.message}")
         log(Level.ERROR, tag, throwable.stackTraceToString().take(500))
     }
-    
-    private val lock = Any()
-    
+
     private fun log(level: Level, tag: String, message: String) {
         val timestamp = dateFormat.format(Date())
         val levelChar = when (level) {
@@ -85,8 +79,8 @@ object AppLogger {
             Level.ERROR -> "E"
         }
         val logLine = "$timestamp $levelChar/$tag: $message"
-        
-        // Also log to logcat (skip Rust-captured lines to avoid echo)
+
+        // Logcat (fast, skip Rust to avoid echo)
         if (tag != "Rust") {
             when (level) {
                 Level.DEBUG -> Log.d(tag, message)
@@ -95,36 +89,63 @@ object AppLogger {
                 Level.ERROR -> Log.e(tag, message)
             }
         }
-        
-        synchronized(lock) {
-            // Add to memory buffer
-            memoryLogs.add(logLine)
-            while (memoryLogs.size > MAX_MEMORY_LOGS) {
-                memoryLogs.poll()
+
+        // Enqueue for async file write (non-blocking)
+        writeQueue.offer(logLine)
+
+        // Append to ring buffer (synchronized on a small section, no I/O)
+        synchronized(ringLock) {
+            ringBuffer.addLast(logLine)
+            if (ringBuffer.size > MAX_MEMORY_LOGS) {
+                ringBuffer.removeFirst()
             }
-            
-            // Write to file
-            try {
-                logFile?.appendText("$logLine\n")
-            } catch (e: Exception) {
-                Log.e("AppLogger", "Failed to write log: ${e.message}")
+        }
+
+        // Emit snapshot to flow at most every 500ms (or immediately for ERRORs)
+        val now = System.currentTimeMillis()
+        if (now - lastSnapshotMs > 500 || level == Level.ERROR) {
+            lastSnapshotMs = now
+            synchronized(ringLock) {
+                _logFlow.value = ringBuffer.toList()
             }
-            
-            // Notify UI observers
-            _logFlow.value = memoryLogs.toList()
         }
     }
-    
-    /**
-     * Capture Rust-side logs from logcat.
-     * Spawns a background thread that reads logcat for our PID's UsbFlasherRust tag
-     * and feeds each line into the in-app logger.
-     */
+
+    private fun startFileWriter() {
+        Thread({
+            while (true) {
+                try {
+                    Thread.sleep(250)
+                    flushPendingWrites()
+                } catch (_: InterruptedException) {
+                    break
+                }
+            }
+        }, "log-writer").apply {
+            isDaemon = true
+            start()
+        }
+    }
+
+    private fun flushPendingWrites() {
+        val lines = ArrayList<String>(100)
+        while (true) {
+            val line = writeQueue.poll() ?: break
+            lines.add(line)
+            if (lines.size >= 100) break
+        }
+        if (lines.isEmpty()) return
+        try {
+            logFile?.appendText(lines.joinToString("\n") + "\n")
+        } catch (e: Exception) {
+            Log.e("AppLogger", "Failed to write logs: ${e.message}")
+        }
+    }
+
     private fun startLogcatCapture() {
         val pid = android.os.Process.myPid()
         Thread({
             try {
-                // Clear old logcat buffer first, then tail new entries
                 val process = Runtime.getRuntime().exec(
                     arrayOf("logcat", "-v", "brief", "-s", "UsbFlasherRust:*", "--pid=$pid")
                 )
@@ -132,10 +153,9 @@ object AppLogger {
                 var line: String?
                 while (reader.readLine().also { line = it } != null) {
                     line?.let { rawLine ->
-                        // Strip ANSI escape codes and logcat prefix, keep the message
-                        val cleaned = rawLine.replace(Regex("\u001b\\[[0-9;]*m"), "").trim()
+                        // Use cached regex to avoid recompilation per line
+                        val cleaned = rawLine.replace(ansiRegex, "").trim()
                         if (cleaned.isNotEmpty() && !cleaned.startsWith("-----")) {
-                            // Write directly to memory + file, skip logcat echo
                             log(Level.INFO, "Rust", cleaned)
                         }
                     }
@@ -148,15 +168,11 @@ object AppLogger {
             start()
         }
     }
-    
-    /**
-     * Get recent logs from memory.
-     */
-    fun getRecentLogs(): List<String> = memoryLogs.toList()
-    
-    /**
-     * Get all logs from file.
-     */
+
+    fun getRecentLogs(): List<String> = synchronized(ringLock) {
+        ringBuffer.toList()
+    }
+
     suspend fun getAllLogs(): String = withContext(Dispatchers.IO) {
         try {
             logFile?.readText() ?: "No logs available"
@@ -164,13 +180,10 @@ object AppLogger {
             "Error reading logs: ${e.message}"
         }
     }
-    
-    /**
-     * Clear all logs.
-     */
+
     suspend fun clearLogs() = withContext(Dispatchers.IO) {
-        synchronized(lock) {
-            memoryLogs.clear()
+        synchronized(ringLock) {
+            ringBuffer.clear()
             _logFlow.value = emptyList()
         }
         try {
@@ -179,9 +192,6 @@ object AppLogger {
             Log.e("AppLogger", "Failed to clear logs: ${e.message}")
         }
     }
-    
-    /**
-     * Get log file for sharing.
-     */
+
     fun getLogFile(): File? = logFile
 }

@@ -1,12 +1,12 @@
+use blake3;
 use hyntix_common::Result;
 use hyntix_iso::reader::IsoReader;
 use hyntix_usb::async_writer::AsyncUsbWriter;
 use hyntix_usb::UsbMassStorage;
-use tracing::info;
-use blake3;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Seek, SeekFrom};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use tracing::info;
 
 pub mod config;
 pub use config::FlashConfig;
@@ -49,9 +49,19 @@ impl Flasher {
 
     /// Check if the provided ISO is a valid Windows installer.
     pub fn is_windows_iso<R: Read + Seek>(&self, reader: R) -> Result<bool> {
-        let mut udf = hyntix_udf::UdfReader::new(reader).map_err(|e| hyntix_common::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        let tree = udf.walk().map_err(|e| hyntix_common::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
-        
+        let mut udf = hyntix_udf::UdfReader::new(reader).map_err(|e| {
+            hyntix_common::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))
+        })?;
+        let tree = udf.walk().map_err(|e| {
+            hyntix_common::Error::Io(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))
+        })?;
+
         for (path, _) in &tree {
             if path == "sources/install.wim" || path == "sources/boot.wim" {
                 return Ok(true);
@@ -93,7 +103,10 @@ impl Flasher {
         // Stream from source file to USB device via the async writer pipeline.
         // We use the standard READ_CHUNK_SIZE (64MB) to fill the 32-URB pipeline
         // (64MB / 2MB URB = 32 URBs per SCSI command).
-        let mut buf = vec![0u8; hyntix_usb::config::READ_CHUNK_SIZE];
+        // Acquire the first buffer from the pool to avoid an extra allocation + memcpy.
+        let mut buf = writer
+            .acquire_buffer()
+            .map_err(|e| hyntix_common::Error::Io(e))?;
         let mut total_written: u64 = 0;
         let mut source_hasher = blake3::Hasher::new();
 
@@ -102,14 +115,15 @@ impl Flasher {
                 return Err(hyntix_common::Error::Cancelled);
             }
 
-            // Read a chunk from source
+            // Read a chunk from source directly into the pool buffer
             let mut bytes_in_buf = 0;
             while bytes_in_buf < hyntix_usb::config::READ_CHUNK_SIZE {
                 let remaining = total_size - total_written - bytes_in_buf as u64;
                 if remaining == 0 {
                     break;
                 }
-                let to_read = (hyntix_usb::config::READ_CHUNK_SIZE - bytes_in_buf).min(remaining as usize);
+                let to_read =
+                    (hyntix_usb::config::READ_CHUNK_SIZE - bytes_in_buf).min(remaining as usize);
                 match source.read(&mut buf[bytes_in_buf..bytes_in_buf + to_read]) {
                     Ok(0) => break,
                     Ok(n) => bytes_in_buf += n,
@@ -123,13 +137,20 @@ impl Flasher {
 
             source_hasher.update(&buf[..bytes_in_buf]);
 
-            // Write to the async USB pipeline (this enqueues the job and returns quickly
-            // thanks to the double-buffered channel architecture)
+            buf.truncate(bytes_in_buf);
+
+            // Write the pool buffer directly to the async USB pipeline (zero-copy:
+            // no extend_from_slice, the buffer is sent as-is to the worker thread)
             writer
-                .write_all(&buf[..bytes_in_buf])
+                .write_buffer(buf)
                 .map_err(|e| hyntix_common::Error::Io(e))?;
 
             total_written += bytes_in_buf as u64;
+
+            // Acquire the next buffer from the pool for the next iteration
+            buf = writer
+                .acquire_buffer()
+                .map_err(|e| hyntix_common::Error::Io(e))?;
 
             // Report progress using the physical position (actual bytes confirmed written)
             let phys = writer.physical_position();
@@ -159,7 +180,7 @@ impl Flasher {
 
             let expected_hash = source_hasher.finalize();
             // Using 1MB chunks for verification to match safe SCSI limits and reduce memory pressure
-            let chunk_len = 1024 * 1024; 
+            let chunk_len = 1024 * 1024;
 
             // Triple-buffering: Read Thread -> [Buffer 1] -> [Buffer 2] -> [Buffer 3] -> Main Thread
             let (read_tx, read_rx) = crossbeam_channel::bounded::<(Vec<u8>, usize)>(4);
@@ -214,7 +235,7 @@ impl Flasher {
 
             let mut dest_hasher = blake3::Hasher::new();
             let mut verified_bytes: u64 = 0;
-            
+
             while verified_bytes < total_size {
                 let (buf, n) = match read_rx.recv() {
                     Ok(data) => data,
@@ -223,7 +244,7 @@ impl Flasher {
 
                 dest_hasher.update(&buf[..n]);
                 verified_bytes += n as u64;
-                
+
                 // Report progress every 4MB to reduce JNI/UI overhead
                 if verified_bytes % (4 * 1024 * 1024) == 0 || verified_bytes == total_size {
                     progress(FlashPhase::Verifying, verified_bytes, total_size);
@@ -274,9 +295,16 @@ impl Flasher {
         let writer = AsyncUsbWriter::new(dest, self.cancelled.clone());
         let mut flasher = hyntix_windows::WindowsFlasher::new(writer);
 
-        flasher.flash(source, |current, total| {
-            progress(FlashPhase::Flashing, current, total);
-        }).map_err(|e| hyntix_common::Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string())))?;
+        flasher
+            .flash(source, |current, total| {
+                progress(FlashPhase::Flashing, current, total);
+            })
+            .map_err(|e| {
+                hyntix_common::Error::Io(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    e.to_string(),
+                ))
+            })?;
 
         Ok(())
     }

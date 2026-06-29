@@ -38,6 +38,7 @@ fun LogViewerScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val horizontalScrollState = rememberScrollState()
 
     // Auto-scroll to bottom when new logs arrive
     LaunchedEffect(logs.size) {
@@ -143,12 +144,12 @@ fun LogViewerScreen(
                         lineHeight = 14.sp,
                         color = color,
                         maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
+                        overflow = TextOverflow.Clip,
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .horizontalScroll(horizontalScrollState)
+                            .widthIn(min = 1000.dp)
                             .background(bgColor)
                             .padding(horizontal = 4.dp, vertical = 2.dp)
-                            .horizontalScroll(rememberScrollState())
                     )
                 }
             }

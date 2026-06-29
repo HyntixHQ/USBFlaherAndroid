@@ -1,4 +1,4 @@
-use std::collections::VecDeque;
+use std::collections::HashMap;
 use std::os::fd::RawFd;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -184,8 +184,8 @@ impl NativeUsbBackend {
     }
 
     /// Discard all in-flight URBs and reap them. Used for error cleanup.
-    fn drain_urbs(&self, urbs: &mut VecDeque<Box<UsbDevFsUrb>>) {
-        for urb in urbs.iter() {
+    fn drain_urbs(&self, urbs: &mut HashMap<usize, Box<UsbDevFsUrb>>) {
+        for urb in urbs.values() {
             self.discard_urb(urb);
         }
         // Reap each discarded URB (kernel requires this)
@@ -210,7 +210,8 @@ impl NativeUsbBackend {
         let mut chunk_size = self.adaptive_out_chunk.load(Ordering::Relaxed);
         let mut total_sent = 0usize;
         let mut submit_offset = 0usize;
-        let mut in_flight: VecDeque<Box<UsbDevFsUrb>> = VecDeque::with_capacity(256);
+        // HashMap for O(1) URB lookup by pointer address on reap
+        let mut in_flight: HashMap<usize, Box<UsbDevFsUrb>> = HashMap::with_capacity(256);
 
         while submit_offset < data.len() || !in_flight.is_empty() {
             // Calculate dynamic depth: Ensure we always have TARGET_IN_FLIGHT_BYTES queued
@@ -226,14 +227,15 @@ impl NativeUsbBackend {
 
                 match self.submit_urb(&mut urb) {
                     Ok(()) => {
+                        let urb_key = &*urb as *const UsbDevFsUrb as usize;
                         submit_offset += this_chunk;
-                        in_flight.push_back(urb);
+                        in_flight.insert(urb_key, urb);
                     }
                     Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
                         // AIMD: Multiplicative Decrease
                         let new_size = (chunk_size / 2).max(MIN_URB_CHUNK_SIZE);
                         let shrunk = new_size < chunk_size;
-                        
+
                         if shrunk {
                             info!(
                                 "AIMD: ENOMEM at {}KB, reducing OUT chunk to {}KB. Pipeline expanding to {} URBs.",
@@ -244,7 +246,7 @@ impl NativeUsbBackend {
                             chunk_size = new_size;
                             self.adaptive_out_chunk.store(new_size, Ordering::Relaxed);
                         }
-                        
+
                         if !in_flight.is_empty() {
                             // Host DMA pool is exhausted by our pipeline.
                             // Break submit loop and enter reap phase to wait for memory to free.
@@ -255,7 +257,10 @@ impl NativeUsbBackend {
                             continue;
                         } else {
                             // At minimum floor and nothing in flight — real OOM
-                            error!("ENOMEM at minimum chunk size ({}KB) with empty pipeline", MIN_URB_CHUNK_SIZE / 1024);
+                            error!(
+                                "ENOMEM at minimum chunk size ({}KB) with empty pipeline",
+                                MIN_URB_CHUNK_SIZE / 1024
+                            );
                             self.drain_urbs(&mut in_flight);
                             return Err(e);
                         }
@@ -281,7 +286,9 @@ impl NativeUsbBackend {
                 };
 
                 // Collect all reaped pointers: the blocking one + any non-blocking ones
-                let mut reaped_ptrs = vec![first_ptr];
+                // Pre-allocate with enough capacity to avoid reallocation during the loop
+                let mut reaped_ptrs = Vec::with_capacity(64);
+                reaped_ptrs.push(first_ptr);
                 loop {
                     match self.reap_urb_nonblocking() {
                         Ok(Some(ptr)) => reaped_ptrs.push(ptr),
@@ -294,14 +301,11 @@ impl NativeUsbBackend {
                     }
                 }
 
-                // Process all reaped URBs
+                // O(1) lookup: use URB pointer address as HashMap key
                 for reaped_ptr in reaped_ptrs {
-                    let mut found = false;
-                    for i in 0..in_flight.len() {
-                        let urb_ptr = &*in_flight[i] as *const UsbDevFsUrb;
-                        if urb_ptr == reaped_ptr as *const UsbDevFsUrb {
-                            let urb = in_flight.remove(i).unwrap();
-
+                    let key = reaped_ptr as usize;
+                    match in_flight.remove(&key) {
+                        Some(urb) => {
                             if urb.status != 0 {
                                 let status = urb.status;
                                 if status == -(libc::EPIPE as i32) {
@@ -311,20 +315,16 @@ impl NativeUsbBackend {
                                 self.drain_urbs(&mut in_flight);
                                 return Err(std::io::Error::from_raw_os_error(-status));
                             }
-
                             total_sent += urb.actual_length as usize;
-                            found = true;
-                            break;
                         }
-                    }
-
-                    if !found {
-                        error!("Reaped unknown URB pointer — draining pipeline");
-                        self.drain_urbs(&mut in_flight);
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "Reaped unknown URB",
-                        ));
+                        None => {
+                            error!("Reaped unknown URB pointer — draining pipeline");
+                            self.drain_urbs(&mut in_flight);
+                            return Err(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                "Reaped unknown URB",
+                            ));
+                        }
                     }
                 }
             }
@@ -346,7 +346,8 @@ impl NativeUsbBackend {
         let mut chunk_size = self.adaptive_in_chunk.load(Ordering::Relaxed);
         let mut total_read = 0usize;
         let mut submit_offset = 0usize;
-        let mut in_flight: VecDeque<Box<UsbDevFsUrb>> = VecDeque::with_capacity(256);
+        // HashMap for O(1) URB lookup by pointer address on reap
+        let mut in_flight: HashMap<usize, Box<UsbDevFsUrb>> = HashMap::with_capacity(256);
 
         while submit_offset < data.len() || !in_flight.is_empty() {
             // Calculate dynamic depth: Ensure we always have TARGET_IN_FLIGHT_BYTES queued
@@ -362,14 +363,15 @@ impl NativeUsbBackend {
 
                 match self.submit_urb(&mut urb) {
                     Ok(()) => {
+                        let urb_key = &*urb as *const UsbDevFsUrb as usize;
                         submit_offset += this_chunk;
-                        in_flight.push_back(urb);
+                        in_flight.insert(urb_key, urb);
                     }
                     Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
                         // AIMD: Multiplicative Decrease
                         let new_size = (chunk_size / 2).max(MIN_URB_CHUNK_SIZE);
                         let shrunk = new_size < chunk_size;
-                        
+
                         if shrunk {
                             info!(
                                 "AIMD: ENOMEM at {}KB, reducing IN chunk to {}KB. Pipeline expanding to {} URBs.",
@@ -380,7 +382,7 @@ impl NativeUsbBackend {
                             chunk_size = new_size;
                             self.adaptive_in_chunk.store(new_size, Ordering::Relaxed);
                         }
-                        
+
                         if !in_flight.is_empty() {
                             // DMA pool exhausted. Break submit loop to reap.
                             break;
@@ -389,7 +391,10 @@ impl NativeUsbBackend {
                             // The host DMA is highly fragmented or limited. Retry with the smaller chunk.
                             continue;
                         } else {
-                            error!("ENOMEM at minimum IN chunk size ({}KB)", MIN_URB_CHUNK_SIZE / 1024);
+                            error!(
+                                "ENOMEM at minimum IN chunk size ({}KB)",
+                                MIN_URB_CHUNK_SIZE / 1024
+                            );
                             self.drain_urbs(&mut in_flight);
                             return Err(e);
                         }
@@ -413,7 +418,9 @@ impl NativeUsbBackend {
                 };
 
                 // Batch-drain: collect additional completed URBs without blocking
-                let mut reaped_ptrs = vec![first_ptr];
+                // Pre-allocate with enough capacity to avoid reallocation during the loop
+                let mut reaped_ptrs = Vec::with_capacity(64);
+                reaped_ptrs.push(first_ptr);
                 loop {
                     match self.reap_urb_nonblocking() {
                         Ok(Some(ptr)) => reaped_ptrs.push(ptr),
@@ -425,14 +432,11 @@ impl NativeUsbBackend {
                     }
                 }
 
-                // Process all reaped URBs
+                // O(1) lookup: use URB pointer address as HashMap key
                 for reaped_ptr in reaped_ptrs {
-                    let mut found = false;
-                    for i in 0..in_flight.len() {
-                        let urb_ptr = &*in_flight[i] as *const UsbDevFsUrb;
-                        if urb_ptr == reaped_ptr as *const UsbDevFsUrb {
-                            let urb = in_flight.remove(i).unwrap();
-
+                    let key = reaped_ptr as usize;
+                    match in_flight.remove(&key) {
+                        Some(urb) => {
                             if urb.status != 0 {
                                 let status = urb.status;
                                 if status == -(libc::EPIPE as i32) {
@@ -449,18 +453,14 @@ impl NativeUsbBackend {
                                 self.drain_urbs(&mut in_flight);
                                 return Ok(total_read);
                             }
-
-                            found = true;
-                            break;
                         }
-                    }
-
-                    if !found {
-                        self.drain_urbs(&mut in_flight);
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "Reaped unknown URB",
-                        ));
+                        None => {
+                            self.drain_urbs(&mut in_flight);
+                            return Err(std::io::Error::new(
+                                std::io::ErrorKind::Other,
+                                "Reaped unknown URB",
+                            ));
+                        }
                     }
                 }
             }
