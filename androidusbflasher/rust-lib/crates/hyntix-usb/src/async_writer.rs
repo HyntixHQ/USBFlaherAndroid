@@ -150,7 +150,9 @@ impl AsyncUsbWriter {
                     // partially-filled chunks back to the pool.
                     if write_job.buffer.capacity() >= BUFFER_SIZE {
                         let mut reclaimed = write_job.buffer;
-                        reclaimed.clear();
+                        // Restore length to full capacity so the next caller
+                        // can safely read into buf[0..BUFFER_SIZE].
+                        reclaimed.resize(BUFFER_SIZE, 0);
                         let _ = buffer_tx.try_send(reclaimed);
                     }
                 }

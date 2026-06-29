@@ -659,21 +659,21 @@ internal object IntegrityCheckingUniffiLib {
         uniffiCheckApiChecksums(this)
     }
     external fun uniffi_usbflasher_checksum_method_usbflasher_cancel(
-    ): Short
+    ): Int
     external fun uniffi_usbflasher_checksum_method_usbflasher_flash_device(
-    ): Short
+    ): Int
     external fun uniffi_usbflasher_checksum_method_usbflasher_flash_windows_device(
-    ): Short
+    ): Int
     external fun uniffi_usbflasher_checksum_method_usbflasher_get_device_capacity(
-    ): Short
+    ): Int
     external fun uniffi_usbflasher_checksum_method_usbflasher_is_linux_iso(
-    ): Short
+    ): Int
     external fun uniffi_usbflasher_checksum_method_usbflasher_is_windows_iso(
-    ): Short
+    ): Int
     external fun uniffi_usbflasher_checksum_constructor_usbflasher_new(
-    ): Short
+    ): Int
     external fun uniffi_usbflasher_checksum_method_flashcallback_on_progress(
-    ): Short
+    ): Int
     external fun ffi_usbflasher_uniffi_contract_version(
     ): Int
 
@@ -728,7 +728,7 @@ internal object UniffiLib {
     external fun ffi_usbflasher_rust_future_free_u8(`handle`: Long,
     ): Unit
     external fun ffi_usbflasher_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Byte
+    ): Int
     external fun ffi_usbflasher_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
     external fun ffi_usbflasher_rust_future_cancel_i8(`handle`: Long,
@@ -744,7 +744,7 @@ internal object UniffiLib {
     external fun ffi_usbflasher_rust_future_free_u16(`handle`: Long,
     ): Unit
     external fun ffi_usbflasher_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
-    ): Short
+    ): Int
     external fun ffi_usbflasher_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
     external fun ffi_usbflasher_rust_future_cancel_i16(`handle`: Long,
@@ -832,28 +832,28 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
-    if (lib.uniffi_usbflasher_checksum_method_usbflasher_cancel() != 9090.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_usbflasher_cancel() != 9090) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_method_usbflasher_flash_device() != 54497.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_usbflasher_flash_device() != 54497) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_method_usbflasher_flash_windows_device() != 6832.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_usbflasher_flash_windows_device() != 6832) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_method_usbflasher_get_device_capacity() != 43981.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_usbflasher_get_device_capacity() != 43981) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_method_usbflasher_is_linux_iso() != 20577.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_usbflasher_is_linux_iso() != 20577) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_method_usbflasher_is_windows_iso() != 43340.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_usbflasher_is_windows_iso() != 43340) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_constructor_usbflasher_new() != 30401.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_constructor_usbflasher_new() != 30401) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_method_flashcallback_on_progress() != 3786.toShort()) {
+    if (lib.uniffi_usbflasher_checksum_method_flashcallback_on_progress() != 3786) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1049,6 +1049,10 @@ private class JavaLangRefCleanable(
  */
 public object FfiConverterUByte: FfiConverter<UByte, Byte> {
     override fun lift(value: Byte): UByte {
+        return value.toUByte()
+    }
+
+    fun lift(value: Int): UByte {
         return value.toUByte()
     }
 
