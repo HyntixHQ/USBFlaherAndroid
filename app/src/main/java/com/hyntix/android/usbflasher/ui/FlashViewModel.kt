@@ -136,42 +136,32 @@ class FlashViewModel(
         val image = _selectedImageInfo.value ?: return
         val device = _selectedDeviceInfo.value ?: return
         
-        // Normally we'd need to find endpoints again or store them in UsbDeviceInfo
-        // For simplicity, we assume we can get them from the device object again.
-        // We'll delegate finding endpoints to repo/flasher logic helper if possible,
-        // but for now let's assume we pass what we have.
-        // Wait, FlashRepository.flashImage takes raw Ints.
-        // We need to resolve them.
-        
         viewModelScope.launch(Dispatchers.IO) {
-            stopDeviceScan() // Pause scan during flash
+            stopDeviceScan()
             _state.value = FlashState.Flashing(image, device, FlashProgress(0, image.sizeBytes))
-            
-            // We need to resolve USB connection params.
-            // This is a UI-layer/ViewModel logic simplification.
-            // Ideally Repo handles this resolution.
-            // Let's modify Repo to take UsbDevice!
             
             repository.flashDevice(image, device, object : FlashRepository.FlashCallback {
                 private var lastSpeedTime = android.os.SystemClock.elapsedRealtime()
                 private var lastSpeedBytes = 0L
                 private var currentSpeed = 0L
-                private val speedHistory = ArrayDeque<Long>(3) // 3-second smoothing window
+                private val speedHistory = ArrayDeque<Long>(3)
                 
                 private var lastPhase = ""
                 private var lastUpdateTime = 0L
+                private var lastEmittedCurrent = 0L
+                private var lastEmittedPhase = ""
 
                 override fun onProgress(phase: String, current: Long, total: Long) {
                     val now = android.os.SystemClock.elapsedRealtime()
                     val phaseChanged = phase != lastPhase
                     
-                    // Reset speed counters if phase changed (e.g. Flashing -> Verifying)
                     if (phaseChanged) {
                         lastPhase = phase
                         lastSpeedBytes = current
                         lastSpeedTime = now
                         currentSpeed = 0L
                         speedHistory.clear()
+                        lastEmittedCurrent = 0L
                         AppLogger.i("FlashTelemetry", "Phase changed to: $phase")
                     }
                     
@@ -179,25 +169,28 @@ class FlashViewModel(
                     if (speedDeltaMs >= 1000) { 
                         val instSpeed = ((current - lastSpeedBytes) * 1000) / speedDeltaMs
                         
-                        // Push to circular buffer (max 3 items)
                         if (speedHistory.size >= 3) {
                             speedHistory.removeFirst()
                         }
                         speedHistory.addLast(instSpeed)
                         
-                        // Calculate smoothed average
                         currentSpeed = speedHistory.sum() / speedHistory.size
                         
                         AppLogger.i("FlashTelemetry", 
-                            "[$phase] Instant: ${instSpeed / 1024 / 1024} MB/s | Smoothed: ${currentSpeed / 1024 / 1024} MB/s | History: ${speedHistory.map { it / 1024 / 1024 }}")
+                            "[$phase] $instSpeed B/s | Smoothed: $currentSpeed B/s")
                         
                         lastSpeedBytes = current
                         lastSpeedTime = now
                     }
                     
-                    // Update UI at 10Hz (100ms) OR immediately on phase change
-                    if (now - lastUpdateTime >= 100 || phaseChanged) {
+                    // Update UI at 10Hz OR immediately on phase change
+                    // Skip if nothing meaningfully changed to reduce object churn
+                    val shouldEmit = (now - lastUpdateTime >= 100 || phaseChanged)
+                            && (current != lastEmittedCurrent || phase != lastEmittedPhase)
+                    if (shouldEmit) {
                         lastUpdateTime = now
+                        lastEmittedCurrent = current
+                        lastEmittedPhase = phase
                         val etaSeconds = if (currentSpeed > 0) (total - current) / currentSpeed else 0
                         
                         val progress = FlashProgress(current, total, currentSpeed, etaSeconds)

@@ -27,6 +27,7 @@ class FlashRepository(
     private val capacityCache = ConcurrentHashMap<String, Long>()
     private val usbMutex = Mutex()
     private var onDevicesChanged: (() -> Unit)? = null
+    private val usbFilter: IntentFilter
 
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -38,11 +39,11 @@ class FlashRepository(
     }
 
     init {
-        val filter = IntentFilter().apply {
+        usbFilter = IntentFilter().apply {
             addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
         }
-        context.registerReceiver(usbReceiver, filter)
+        context.registerReceiver(usbReceiver, usbFilter)
     }
 
     fun setOnDevicesChangedListener(listener: () -> Unit) {
@@ -321,6 +322,14 @@ class FlashRepository(
         } finally {
             connection.releaseInterface(msInterface)
             connection.close()
+        }
+    }
+
+    fun close() {
+        try {
+            context.unregisterReceiver(usbReceiver)
+        } catch (_: IllegalArgumentException) {
+            // Already unregistered
         }
     }
 }

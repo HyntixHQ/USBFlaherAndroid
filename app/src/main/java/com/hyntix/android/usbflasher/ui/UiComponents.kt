@@ -1,13 +1,12 @@
 package com.hyntix.android.usbflasher.ui
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -146,28 +145,30 @@ fun FlashingSheet(
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            val isSuccess = state is FlashState.Success
+            val isSuccess = remember(state) { state is FlashState.Success }
             
             if (isSuccess) {
                 Spacer(modifier = Modifier.height(32.dp))
             } else {
-                // Animate progress smoothly between bursty Rust callback values.
-                // LinearEasing + 300ms tween gives continuous motion without overshoot.
+                // Spring animation tracks the monotonic progress closely without overshoot.
+                // Critical damping (dampingRatio = 1f) means it never overshoots.
                 val animatedProgress by animateFloatAsState(
                     targetValue = progress.percentage / 100f,
-                    animationSpec = tween(
-                        durationMillis = 300,
-                        easing = LinearEasing
+                    animationSpec = spring(
+                        stiffness = 2000f,
+                        dampingRatio = 1f,
                     ),
                     label = "progressAnimation"
                 )
 
+                val clampedProgress = animatedProgress.coerceIn(0f, 1f)
+
                 LinearProgressIndicator(
-                    progress = { animatedProgress.coerceIn(0f, 1f) },
+                    progress = { clampedProgress },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp),
-                    strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    strokeCap = StrokeCap.Butt,
                     trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f),
                 )
                 
@@ -177,9 +178,8 @@ fun FlashingSheet(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Show the animated percentage (matches the bar position)
                     Text(
-                        text = "${(animatedProgress * 100).toInt().coerceIn(0, 100)}%",
+                        text = "${(clampedProgress * 100).toInt().coerceIn(0, 100)}%",
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
                     )

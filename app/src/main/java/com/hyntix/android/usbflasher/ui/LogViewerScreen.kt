@@ -40,10 +40,28 @@ fun LogViewerScreen(
     val context = LocalContext.current
     val horizontalScrollState = rememberScrollState()
 
-    // Auto-scroll to bottom when new logs arrive
+    // Track whether user has manually scrolled away from the bottom.
+    // When true, new logs won't force-scroll to bottom.
+    var userScrolledUp by remember { mutableStateOf(false) }
+
+    // Detect user scroll via snapshotFlow of firstVisibleItemIndex.
+    // If the first visible item isn't at the very end, user scrolled up.
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            if (totalItems == 0) return@snapshotFlow true
+            val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            lastVisibleIndex < totalItems - 1
+        }.collect { isScrolledUp ->
+            userScrolledUp = isScrolledUp
+        }
+    }
+
+    // Auto-scroll to bottom when new logs arrive, but only if user is at bottom
     LaunchedEffect(logs.size) {
-        if (logs.isNotEmpty()) {
-            listState.animateScrollToItem(logs.size - 1)
+        if (logs.isNotEmpty() && !userScrolledUp) {
+            listState.scrollToItem(logs.size - 1)
         }
     }
 

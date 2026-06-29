@@ -2,6 +2,7 @@ package com.hyntix.android.usbflasher.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -226,29 +227,9 @@ fun MainScreen(
             )
         }
 
-        // Overlay for Flashing/Verifying/Success
-        if (state is FlashState.Flashing || state is FlashState.Verifying || state is FlashState.Success) {
-            // Scrim
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .clickable(enabled = true) { /* Consume clicks */ }
-            )
-            
-            // Bottom Sheet
-            Box(
-                modifier = Modifier.align(Alignment.BottomCenter)
-            ) {
-                FlashingSheet(
-                    state = state,
-                    onCancel = {
-                        if (state is FlashState.Success) viewModel.done()
-                        else viewModel.cancel()
-                    }
-                )
-            }
-        }
+        // Overlay for Flashing/Verifying/Success collected in its own composable
+        // to prevent full MainScreen recomposition on 10Hz progress updates.
+        FlashOverlay(viewModel = viewModel)
     }
     
     // Error Dialog (Simple Alert)
@@ -263,5 +244,40 @@ fun MainScreen(
                 }
             }
         )
+    }
+}
+
+/// Separately-composed flash overlay so 10Hz progress updates don't trigger
+/// full MainScreen recomposition. Only this composable recomposes.
+@Composable
+private fun FlashOverlay(viewModel: FlashViewModel) {
+    val state by viewModel.state.collectAsState()
+    if (state is FlashState.Flashing || state is FlashState.Verifying || state is FlashState.Success) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Scrim
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        enabled = true,
+                        onClick = { }
+                    )
+            )
+            // Bottom sheet aligned to bottom
+            Box(
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                FlashingSheet(
+                    state = state,
+                    onCancel = {
+                        if (state is FlashState.Success) viewModel.done()
+                        else viewModel.cancel()
+                    }
+                )
+            }
+        }
     }
 }
