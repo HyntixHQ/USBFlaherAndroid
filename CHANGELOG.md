@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-07-13
+
+### Added
+- **USBDEVFS_BULK Transfer Engine**: Replaced the `SUBMITURB`/`REAPURB` userspace URB pipeline with
+  synchronous `USBDEVFS_BULK` ioctl. Kernel manages DMA allocation from its own pool, bypassing the
+  `usbfs_memory_mb` constraint that limited URB sizes to 32KB. Now achieves 64KB-128KB chunks
+  even on devices with tight DMA pools.
+- **AIMD Floor Locking**: Tracks the last ENOMEM size in `enomem_floor`; additive increase never
+  exceeds `floor / 2`. Eliminates the 64KB↔128KB oscillation that plagued byte-based targeting.
+- **Per-SCSI Progress Updates**: `write_blocks_with_progress()` updates `physical_position` after
+  each SCSI WRITE(10) command. Main thread polls at 10Hz during both source reads and buffer
+  acquire-wait, providing smooth real-time UI feedback.
+- **Non-Blocking Buffer Acquire**: `try_acquire_buffer()` enables the main thread to poll progress
+  while waiting for the worker to recycle buffers.
+- **Inline BLAKE3 Hashing**: Hash computed per source read chunk instead of as a post-read batch,
+  eliminating a ~32ms latency bubble per 32MB buffer.
+
+### Improved
+- **Verification Speed**: Read verification improved from ~14 MB/s to ~20 MB/s (+40%) due to
+  `USBDEVFS_BULK` enabling larger IN chunks (64KB vs stuck at 32KB previously).
+- **Progress Bar Fluid Motion**: Spring animation tuned to `stiffness=4000`, `dampingRatio=0.7`
+  for natural water-flow feel. `strokeCap` changed to `Round` (matches design language).
+- **Source Read Efficiency**: `READ_CHUNK_SIZE` aligned to 32MB async buffer size; buffer pool
+  reduced to 4 × 32MB = 128MB (was 16 × 4MB = 64MB, then 8 × 32MB = 256MB).
+- **Zero Rust Warnings**: All 13 crates compile with zero warnings.
+
+### Changed
+- `SCSI_MAX_TRANSFER_SIZE`: 4MB (reduced from 32MB — larger triggered CSW fallback retries).
+- `BUFFER_COUNT`: 4 (reduced from 8 — 128MB pool adequate at ~18 MB/s throughput).
+- `URB_PIPELINE_DEPTH`: retained as 32 (legacy constant, no longer the active pipeline cap).
+- USB diagnostics: logs active config constants at startup; reads `usbfs_memory_mb` (SELinux permitting).
+
+### Fixed
+- **Buffer Pool Crash**: Recycled buffers had `len=0` from `clear()`, causing `source.read(&mut buf[0..n])`
+  to abort with "range end index 4194304 out of range for slice of length 0". Fixed with `resize(BUFFER_SIZE, 0)`.
+- **AIMD Oscillation**: Byte-based targeting (`TARGET_IN_FLIGHT_BYTES`) caused continuous 64KB↔128KB
+  chunk size oscillation. Hard 32-URB depth cap + floor locking eliminates this.
+- **Stuttering Progress Bar**: Per-buffer progress (32MB jumps every ~2s) replaced with per-SCSI
+  progress (4MB every ~250ms) + 10Hz polling loop.
+
+### Dependencies
+- zerocopy: 0.8.48 → 0.8.52
+- uniffi: 0.31.0 → 0.31.2 (system `uniffi-bindgen` updated to match)
+- anyhow: 1.0.102 → 1.0.103
+- uuid: 1.23.0 → 1.23.4
+
 ## [1.0.2] - 2026-05-12
 
 ### Added

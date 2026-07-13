@@ -1,20 +1,35 @@
-# USBFlasherAndroid
+# USBFlasherAndroid — AI Context
 
-## Project Overview
-This project is a hybrid application blending a modern Android Compose UI with a high-performance Rust core for low-level USB and ISO manipulation. 
+## Project State (v1.0.3)
+- **Min SDK**: 33 (Android 13)
+- **NDK**: r28+
+- **AGP**: 9.2.1
+- **Rust**: 1.85+, edition 2024
+- **Target**: ARM64 only (`arm64-v8a`)
+- **R8**: Full mode
 
-## Project State (v1.0.2)
-- **Minimum SDK**: 33 (Android 13)
-- **NDK**: r28+ (16KB page support)
-- **AGP**: 9.0+ (Built-in Kotlin support)
-- **R8**: Full Mode enabled for maximum optimization.
-- **Target**: ARM64 only (`aarch64-linux-android`).
+## Architecture
+- **App (`app/`)**: Jetpack Compose UI, MVI-lite, single Activity, no DI.
+- **Bridge (`androidusbflasher/`)**: UniFFI 0.31.2 + JNA 5.18.1. `AndroidUsbFlasher.kt` is hand-written; `UsbFlasherNative.kt` is auto-generated. Do NOT edit the generated file.
+- **Rust Core** (11 crates in `androidusbflasher/rust-lib/crates/`):
+  - `hyntix-usb-flasher-jni/`: cdylib entry point → `libusbflasher.so`
+  - `hyntix-usb/`: SCSI BOT protocol via `USBDEVFS_BULK` ioctl with AIMD flow control
+  - `hyntix-usb-flasher/`: Flash orchestration, BLAKE3 verification, 10Hz progress polling
+  - `hyntix-windows/`, `hyntix-fat32/`: Windows ISO deployment (UDF, FAT32, WIM splitting)
 
-### Architecture
-- **Android App (`app/`)**: Built with Jetpack Compose and Kotlin (MVI architecture).
-- **JNI Bridge (`androidusbflasher/`)**: Kotlin side of the JNI bridge, automatically generated using `uniffi-rs`.
-- **Rust Core (`hyntix-usb-flasher`, `hyntix-usb`)**: Heavy-lifting modules responsible for SCSI command generation (BOT protocol), triple-buffered asynchronous I/O, and concurrent hashing.
-- **Windows Deployment (`hyntix-windows`, `hyntix-wim`, `hyntix-fat32`)**: Specialized crates for UDF reading, FAT32 filesystem creation, and intelligent WIM/SWM splitting.
+## USB Stack
+- **USBDEVFS_BULK** (not SUBMITURB/REAPURB). Kernel manages DMA, bypassing `usbfs_memory_mb`.
+- **AIMD with floor locking**: chunk size halves on ENOMEM, recovery capped at `last_failing_size / 2`.
+- **SCSI**: 4MB WRITE(10), 32MB async buffers, 4× buffer pool.
+- **Progress**: per-SCSI `physical_position` updates, polled at 10Hz from main thread.
 
-*File updated by Antigravity (v1.0.2).*
+## Build
+```bash
+./gradlew assembleRelease
+cargo check    # verify Rust without NDK
+```
+`uniffi-bindgen` must be on `$PATH` (install via `cargo install uniffi --version 0.31.2 --features cli`).
 
+## Performance ceiling (USB 2.0 flash drive)
+- Write: ~19 MB/s (NAND-limited)
+- Read verify: ~20 MB/s
