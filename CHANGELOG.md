@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.3] - 2026-07-13
 
 ### Added
+- **ISO File Validation**: Files are now probed via Rust `isLinuxIso()`/`isWindowsIso()` at selection time.
+  Non-ISO files are rejected with a Snackbar feedback message instead of being silently accepted.
 - **USBDEVFS_BULK Transfer Engine**: Replaced the `SUBMITURB`/`REAPURB` userspace URB pipeline with
   synchronous `USBDEVFS_BULK` ioctl. Kernel manages DMA allocation from its own pool, bypassing the
   `usbfs_memory_mb` constraint that limited URB sizes to 32KB. Now achieves 64KB-128KB chunks

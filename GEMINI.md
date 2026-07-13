@@ -9,7 +9,7 @@
 - **R8**: Full mode
 
 ## Architecture
-- **App (`app/`)**: Jetpack Compose UI, MVI-lite, single Activity, no DI.
+- **App (`app/`)**: Jetpack Compose UI, MVI-lite, single Activity, no DI. File picker filters ISO/octet-stream MIMEs; invalid files rejected with Snackbar via `feedbackMessage` SharedFlow.
 - **Bridge (`androidusbflasher/`)**: UniFFI 0.31.2 + JNA 5.18.1. `AndroidUsbFlasher.kt` is hand-written; `UsbFlasherNative.kt` is auto-generated. Do NOT edit the generated file.
 - **Rust Core** (11 crates in `androidusbflasher/rust-lib/crates/`):
   - `hyntix-usb-flasher-jni/`: cdylib entry point → `libusbflasher.so`

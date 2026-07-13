@@ -16,6 +16,7 @@ A high-performance, rootless, open-source USB flashing utility for Android. Enab
 - **Windows Deployment Core**: Full Windows 10/11 ISO support with FAT32 formatting and intelligent WIM/SWM splitting for files >4GB.
 - **Per-SCSI Progress**: `physical_position` updates after each SCSI command, polled at 10Hz from the main thread — smooth UI without jank.
 - **BLAKE3 Verification**: Triple-buffered read-ahead verification with BLAKE3 hashing computes integrity check inline during source reads.
+- **ISO Validation**: File content-probed at selection via Rust probes — only valid Linux or Windows ISOs accepted, with Snackbar feedback for unsupported files.
 - **Ultra-Lightweight**: Full APK under 3MB.
 - **Auto-Eject**: Drive ejected via SCSI START STOP UNIT on completion.
 
