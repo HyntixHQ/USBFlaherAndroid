@@ -2,6 +2,7 @@ package com.hyntix.android.usbflasher.data
 
 import android.hardware.usb.UsbDevice
 import android.net.Uri
+import java.util.Locale
 
 /**
  * Information about a connected USB mass storage device
@@ -19,9 +20,9 @@ data class UsbDeviceInfo(
     
     private fun formatBytes(bytes: Long): String {
         return when {
-            bytes >= 1_000_000_000 -> String.format("%.1f GB", bytes / 1_000_000_000.0)
-            bytes >= 1_000_000 -> String.format("%.1f MB", bytes / 1_000_000.0)
-            else -> String.format("%.1f KB", bytes / 1_000.0)
+            bytes >= 1_000_000_000 -> String.format(Locale.US, "%.1f GB", bytes / 1_000_000_000.0)
+            bytes >= 1_000_000 -> String.format(Locale.US, "%.1f MB", bytes / 1_000_000.0)
+            else -> String.format(Locale.US, "%.1f KB", bytes / 1_000.0)
         }
     }
 }
@@ -40,15 +41,15 @@ data class FlashProgress(
     
     val speedFormatted: String
         get() = when {
-            speedBytesPerSecond >= 1_000_000 -> String.format("%.1f MB/s", speedBytesPerSecond / 1_000_000.0)
-            speedBytesPerSecond >= 1_000 -> String.format("%.1f KB/s", speedBytesPerSecond / 1_000.0)
+            speedBytesPerSecond >= 1_000_000 -> String.format(Locale.US, "%.1f MB/s", speedBytesPerSecond / 1_000_000.0)
+            speedBytesPerSecond >= 1_000 -> String.format(Locale.US, "%.1f KB/s", speedBytesPerSecond / 1_000.0)
             else -> "$speedBytesPerSecond B/s"
         }
     
     val etaFormatted: String
         get() = when {
-            etaSeconds >= 3600 -> String.format("%d:%02d:%02d", etaSeconds / 3600, (etaSeconds % 3600) / 60, etaSeconds % 60)
-            etaSeconds >= 60 -> String.format("%d:%02d", etaSeconds / 60, etaSeconds % 60)
+            etaSeconds >= 3600 -> String.format(Locale.US, "%d:%02d:%02d", etaSeconds / 3600, (etaSeconds % 3600) / 60, etaSeconds % 60)
+            etaSeconds >= 60 -> String.format(Locale.US, "%d:%02d", etaSeconds / 60, etaSeconds % 60)
             else -> "${etaSeconds}s"
         }
 }
@@ -64,9 +65,9 @@ data class ImageFileInfo(
 ) {
     val sizeFormatted: String
         get() = when {
-            sizeBytes >= 1_000_000_000 -> String.format("%.2f GB", sizeBytes / 1_000_000_000.0)
-            sizeBytes >= 1_000_000 -> String.format("%.1f MB", sizeBytes / 1_000_000.0)
-            else -> String.format("%.1f KB", sizeBytes / 1_000.0)
+            sizeBytes >= 1_000_000_000 -> String.format(Locale.US, "%.2f GB", sizeBytes / 1_000_000_000.0)
+            sizeBytes >= 1_000_000 -> String.format(Locale.US, "%.1f MB", sizeBytes / 1_000_000.0)
+            else -> String.format(Locale.US, "%.1f KB", sizeBytes / 1_000.0)
         }
 }
 

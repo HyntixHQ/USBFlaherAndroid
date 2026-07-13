@@ -32,7 +32,6 @@ import android.content.IntentFilter
 import android.app.PendingIntent
 import android.hardware.usb.UsbManager
 import android.hardware.usb.UsbDevice
-import android.os.Build
 
 class MainActivity : ComponentActivity() {
 
@@ -60,12 +59,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             } else if (UsbManager.ACTION_USB_DEVICE_ATTACHED == action) {
-                val device = if (Build.VERSION.SDK_INT >= 33) {
-                    intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
-                }
+                val device = intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
                 device?.let { requestUsbPermission(it) }
                 viewModel.startDeviceScan()
             } else if (UsbManager.ACTION_USB_DEVICE_DETACHED == action) {
@@ -96,11 +90,7 @@ class MainActivity : ComponentActivity() {
             addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
         }
-        if (Build.VERSION.SDK_INT >= 33) {
-            registerReceiver(usbReceiver, filter, Context.RECEIVER_EXPORTED)
-        } else {
-            registerReceiver(usbReceiver, filter)
-        }
+        registerReceiver(usbReceiver, filter, Context.RECEIVER_EXPORTED)
         
         enableEdgeToEdge()
         
