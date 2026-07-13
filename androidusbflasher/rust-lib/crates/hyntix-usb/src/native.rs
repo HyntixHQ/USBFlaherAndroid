@@ -1,101 +1,41 @@
-use std::collections::HashMap;
 use std::os::fd::RawFd;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::config::{INITIAL_URB_CHUNK_SIZE, MIN_URB_CHUNK_SIZE};
 
-// ── URB Pipeline Constants ───────────────────────────────────────────────────
-// All URB sizing constants are now imported from crate::config to ensure
-// consistency across the entire codebase.
+// ── USBDEVFS Constants ────────────────────────────────────────────────────────
+// These ioctl numbers match the Linux kernel's usbdevice_fs.h for ARM64.
+// On 32-bit ARM the struct sizes and ioctl numbers differ.
 
 /// Default timeout for bulk transfers in milliseconds.
 const DEFAULT_TIMEOUT_MS: u32 = 5000;
 
-/// URB type for bulk transfers (`USBDEVFS_URB_TYPE_BULK`).
-const URB_TYPE_BULK: u8 = 3;
-
 // ── USBDEVFS ioctl numbers (architecture-dependent) ──────────────────────────
 
-/// `USBDEVFS_SUBMITURB` — submit a URB asynchronously (non-blocking).
-fn ioctl_submiturb() -> u64 {
-    // _IOR('U', 10, struct usbdevfs_urb) — size differs by pointer width
+/// `USBDEVFS_BULK` — synchronous bulk transfer (_IOWR('U', 2, usbdevfs_bulktransfer))
+/// sizeof(usbdevfs_bulktransfer) = 24 on 64-bit (u32×3 + void*), 16 on 32-bit (u32×4)
+fn ioctl_bulk() -> u64 {
     if std::mem::size_of::<*mut u8>() == 8 {
-        0x8038550A // 64-bit: sizeof(usbdevfs_urb) = 56
+        0xC0185502 // 64-bit: sizeof = 24
     } else {
-        0x802C550A // 32-bit: sizeof(usbdevfs_urb) = 44
+        0x80085502 // 32-bit: sizeof = 16
     }
-}
-
-/// `USBDEVFS_REAPURB` — reap a completed URB (blocking).
-fn ioctl_reapurb() -> u64 {
-    // _IOW('U', 12, void*)
-    if std::mem::size_of::<*mut u8>() == 8 {
-        0x4008550C
-    } else {
-        0x4004550C
-    }
-}
-
-/// `USBDEVFS_REAPURBNDELAY` — reap a completed URB (non-blocking).
-/// Returns EAGAIN if no URBs are ready.
-fn ioctl_reapurbndelay() -> u64 {
-    // _IOW('U', 13, void*)
-    if std::mem::size_of::<*mut u8>() == 8 {
-        0x4008550D
-    } else {
-        0x4004550D
-    }
-}
-
-/// `USBDEVFS_DISCARDURB` — cancel a submitted URB.
-fn ioctl_discardurb() -> u64 {
-    0x550B // _IO('U', 11)
 }
 
 /// `USBDEVFS_CLEAR_HALT` — clear a stalled endpoint.
 const USBDEVFS_CLEAR_HALT: u64 = 0x80045515;
 
-// ── URB Structure ────────────────────────────────────────────────────────────
+// ── Bulk Transfer Structure ──────────────────────────────────────────────────
 
-/// Linux kernel `usbdevfs_urb` structure for async USB transfers.
-///
-/// Must match the kernel's layout exactly (including padding/alignment).
+/// Matches Linux kernel `struct usbdevfs_bulktransfer`.
 #[repr(C)]
-struct UsbDevFsUrb {
-    urb_type: u8,
-    endpoint: u8,
-    status: i32,
-    flags: u32,
-    buffer: *mut u8,
-    buffer_length: i32,
-    actual_length: i32,
-    start_frame: i32,
-    number_of_packets: i32,
-    error_count: i32,
-    signr: u32,
-    usercontext: *mut libc::c_void,
-}
-
-impl UsbDevFsUrb {
-    /// Create a new bulk URB pointing at the given buffer region.
-    fn new_bulk(endpoint: u8, buffer: *mut u8, length: usize) -> Self {
-        Self {
-            urb_type: URB_TYPE_BULK,
-            endpoint,
-            status: 0,
-            flags: 0,
-            buffer,
-            buffer_length: length as i32,
-            actual_length: 0,
-            start_frame: 0,
-            number_of_packets: 0,
-            error_count: 0,
-            signr: 0,
-            usercontext: std::ptr::null_mut(),
-        }
-    }
+struct UsbDevFsBulkTransfer {
+    ep: u32,
+    len: u32,
+    timeout_ms: u32,
+    data: *mut std::ffi::c_void,
 }
 
 // ── NativeUsbBackend ─────────────────────────────────────────────────────────
@@ -105,14 +45,20 @@ pub struct NativeUsbBackend {
     _interface: u8,
     in_ep: u8,
     out_ep: u8,
-    /// Adaptive chunk size for OUT (write) URBs. Starts at 2MB, halves on ENOMEM.
+    /// Adaptive chunk size for OUT (write) transfers. Starts at 256KB, halves on ENOMEM.
     adaptive_out_chunk: AtomicUsize,
-    /// Adaptive chunk size for IN (read) URBs.
+    /// Adaptive chunk size for IN (read) transfers.
     adaptive_in_chunk: AtomicUsize,
+    /// Last ENOMEM size for OUT — AIMD additive increase never exceeds floor/2.
+    /// Initialized to INITIAL_URB_CHUNK_SIZE * 2 so the first recovery is unconstrained.
+    out_enomem_floor: AtomicUsize,
+    /// Last ENOMEM size for IN.
+    in_enomem_floor: AtomicUsize,
 }
 
 impl NativeUsbBackend {
     pub fn new(fd: RawFd, interface: u8, in_ep: u8, out_ep: u8) -> Self {
+        let sentinel = INITIAL_URB_CHUNK_SIZE * 2;
         Self {
             fd,
             _interface: interface,
@@ -120,55 +66,79 @@ impl NativeUsbBackend {
             out_ep,
             adaptive_out_chunk: AtomicUsize::new(INITIAL_URB_CHUNK_SIZE),
             adaptive_in_chunk: AtomicUsize::new(INITIAL_URB_CHUNK_SIZE),
+            out_enomem_floor: AtomicUsize::new(sentinel),
+            in_enomem_floor: AtomicUsize::new(sentinel),
         }
     }
 
-    // ── Low-level URB operations ─────────────────────────────────────────
+    // ── Synchronous bulk operations (USBDEVFS_BULK) ────────────────────────
+    //
+    // Unlike the userspace URB pipeline (SUBMITURB/REAPURB), USBDEVFS_BULK
+    // tells the kernel to manage the entire transfer internally — including
+    // DMA buffer allocation from the kernel's own pool. This avoids the
+    // usbfs_memory_mb constraint that limited our URB pipeline to 32KB URBs.
 
-    /// Submit a URB to the kernel. Returns immediately (non-blocking).
-    fn submit_urb(&self, urb: &mut UsbDevFsUrb) -> std::io::Result<()> {
-        let ret = unsafe { libc::ioctl(self.fd, ioctl_submiturb() as _, urb as *mut UsbDevFsUrb) };
-        if ret < 0 {
-            Err(std::io::Error::last_os_error())
-        } else {
-            Ok(())
+    /// Synchronous bulk OUT: send data to the endpoint.
+    /// Blocks until the transfer completes or times out.
+    /// Auto-clears endpoint halt on EPIPE and retries once.
+    fn bulk_out_sync(&self, data: &[u8], timeout_ms: u32) -> std::io::Result<usize> {
+        let mut transfer = UsbDevFsBulkTransfer {
+            ep: self.out_ep as u32,
+            len: data.len() as u32,
+            timeout_ms,
+            data: data.as_ptr() as *mut std::ffi::c_void,
+        };
+        let ret = unsafe { libc::ioctl(self.fd, ioctl_bulk() as _, &mut transfer) };
+        if ret >= 0 {
+            return Ok(ret as usize);
         }
-    }
-
-    /// Reap (wait for) one completed URB. Blocks until a URB finishes.
-    fn reap_urb(&self) -> std::io::Result<*mut UsbDevFsUrb> {
-        let mut reaped: *mut UsbDevFsUrb = std::ptr::null_mut();
-        let ret = unsafe { libc::ioctl(self.fd, ioctl_reapurb() as _, &mut reaped) };
-        if ret < 0 {
-            Err(std::io::Error::last_os_error())
-        } else {
-            Ok(reaped)
-        }
-    }
-
-    /// Try to reap a completed URB without blocking.
-    /// Returns Ok(Some(ptr)) if a URB was ready, Ok(None) if no URBs are ready.
-    fn reap_urb_nonblocking(&self) -> std::io::Result<Option<*mut UsbDevFsUrb>> {
-        let mut reaped: *mut UsbDevFsUrb = std::ptr::null_mut();
-        let ret = unsafe { libc::ioctl(self.fd, ioctl_reapurbndelay() as _, &mut reaped) };
-        if ret < 0 {
-            let err = std::io::Error::last_os_error();
-            if err.raw_os_error() == Some(libc::EAGAIN) {
-                Ok(None) // No URBs ready
-            } else {
-                Err(err)
+        let err = std::io::Error::last_os_error();
+        if err.raw_os_error() == Some(libc::EPIPE) {
+            info!(
+                "Bulk OUT stall on ep {}, clearing halt and retrying",
+                self.out_ep
+            );
+            self.clear_halt(self.out_ep);
+            let ret = unsafe { libc::ioctl(self.fd, ioctl_bulk() as _, &mut transfer) };
+            if ret >= 0 {
+                return Ok(ret as usize);
             }
-        } else {
-            Ok(Some(reaped))
+            return Err(std::io::Error::last_os_error());
         }
+        Err(err)
     }
 
-    /// Cancel a submitted URB.
-    fn discard_urb(&self, urb: &UsbDevFsUrb) {
-        unsafe {
-            libc::ioctl(self.fd, ioctl_discardurb() as _, urb as *const UsbDevFsUrb);
+    /// Synchronous bulk IN: read data from the endpoint.
+    /// Blocks until the transfer completes or times out.
+    /// Auto-clears endpoint halt on EPIPE and retries once.
+    fn bulk_in_sync(&self, data: &mut [u8], timeout_ms: u32) -> std::io::Result<usize> {
+        let mut transfer = UsbDevFsBulkTransfer {
+            ep: self.in_ep as u32,
+            len: data.len() as u32,
+            timeout_ms,
+            data: data.as_mut_ptr() as *mut std::ffi::c_void,
+        };
+        let ret = unsafe { libc::ioctl(self.fd, ioctl_bulk() as _, &mut transfer) };
+        if ret >= 0 {
+            return Ok(ret as usize);
         }
+        let err = std::io::Error::last_os_error();
+        if err.raw_os_error() == Some(libc::EPIPE) {
+            info!(
+                "Bulk IN stall on ep {}, clearing halt and retrying",
+                self.in_ep
+            );
+            self.clear_halt(self.in_ep);
+            let ret = unsafe { libc::ioctl(self.fd, ioctl_bulk() as _, &mut transfer) };
+            if ret >= 0 {
+                return Ok(ret as usize);
+            }
+            return Err(std::io::Error::last_os_error());
+        }
+        Err(err)
     }
+
+    // ── Endpoint control ──────────────────────────────────────────────────
 
     /// Clear a stalled endpoint (EPIPE recovery).
     fn clear_halt(&self, endpoint: u8) {
@@ -183,166 +153,77 @@ impl NativeUsbBackend {
         }
     }
 
-    /// Discard all in-flight URBs and reap them. Used for error cleanup.
-    fn drain_urbs(&self, urbs: &mut HashMap<usize, Box<UsbDevFsUrb>>) {
-        for urb in urbs.values() {
-            self.discard_urb(urb);
-        }
-        // Reap each discarded URB (kernel requires this)
-        for _ in 0..urbs.len() {
-            let _ = self.reap_urb();
-        }
-        urbs.clear();
-    }
+    // ── Bulk OUT (Write) ──────────────────────────────────────────────────
 
-    // ── URB Pipeline: OUT (Write) ────────────────────────────────────────
-
-    /// Send data to the OUT endpoint using 32-URB pipelining.
+    /// Send data to the OUT endpoint using synchronous USBDEVFS_BULK.
     ///
-    /// Queues up to 32 URBs simultaneously, keeping the USB host controller's
-    /// DMA engine saturated. The chunk size adapts on ENOMEM:
-    /// 2MB → 1MB → 512KB → 256KB → 128KB → 64KB → 32KB → 16KB (floor).
-    pub fn bulk_out_with_timeout(&self, data: &[u8], _timeout_ms: u32) -> std::io::Result<usize> {
+    /// The chunk size adapts on ENOMEM. Unlike the old URB pipeline, the
+    /// kernel handles DMA allocation internally — potentially via a larger
+    /// DMA pool than usbfs_memory_mb.
+    pub fn bulk_out_with_timeout(&self, data: &[u8], timeout_ms: u32) -> std::io::Result<usize> {
         if data.is_empty() {
             return Ok(0);
         }
 
         let mut chunk_size = self.adaptive_out_chunk.load(Ordering::Relaxed);
         let mut total_sent = 0usize;
-        let mut submit_offset = 0usize;
+        let mut offset = 0usize;
         let mut successful_since_enomem = 0u32;
-        // HashMap for O(1) URB lookup by pointer address on reap
-        let mut in_flight: HashMap<usize, Box<UsbDevFsUrb>> = HashMap::with_capacity(256);
 
-        while submit_offset < data.len() || !in_flight.is_empty() {
-            // Calculate dynamic depth: Ensure we always have TARGET_IN_FLIGHT_BYTES queued
-            // A minimum of 4 URBs is enough to keep the hardware pipelined if chunks are huge (e.g. 1MB).
-            let target_depth = (crate::config::TARGET_IN_FLIGHT_BYTES / chunk_size).clamp(4, 256);
+        while offset < data.len() {
+            let this_chunk = chunk_size.min(data.len() - offset);
+            let chunk = &data[offset..offset + this_chunk];
 
-            // ── Submit phase: fill pipeline up to dynamic depth ──────────────
-            while submit_offset < data.len() && in_flight.len() < target_depth {
-                let this_chunk = chunk_size.min(data.len() - submit_offset);
-                let buf_ptr = data[submit_offset..].as_ptr() as *mut u8;
+            match self.bulk_out_sync(chunk, timeout_ms) {
+                Ok(n) => {
+                    offset += n;
+                    total_sent += n;
+                    successful_since_enomem += 1;
 
-                let mut urb = Box::new(UsbDevFsUrb::new_bulk(self.out_ep, buf_ptr, this_chunk));
-
-                match self.submit_urb(&mut urb) {
-                    Ok(()) => {
-                        let urb_key = &*urb as *const UsbDevFsUrb as usize;
-                        submit_offset += this_chunk;
-                        in_flight.insert(urb_key, urb);
-                    }
-                    Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
-                        successful_since_enomem = 0;
-                        // AIMD: Multiplicative Decrease
-                        let new_size = (chunk_size / 2).max(MIN_URB_CHUNK_SIZE);
-                        let shrunk = new_size < chunk_size;
-
-                        if shrunk {
+                    // AIMD: Additive Increase — recover chunk size after sustained success
+                    // Never exceeds floor/2 where floor is the last ENOMEM size.
+                    if successful_since_enomem >= 200 {
+                        let floor = self.out_enomem_floor.load(Ordering::Relaxed);
+                        let cap = floor / 2;
+                        let new_size = (chunk_size * 2).min(cap).min(INITIAL_URB_CHUNK_SIZE);
+                        if new_size > chunk_size {
                             info!(
-                                "AIMD: ENOMEM at {}KB, reducing OUT chunk to {}KB. Pipeline expanding to {} URBs.",
-                                chunk_size / 1024,
+                                "AIMD: Increasing OUT chunk to {}KB after 200 clean calls (floor={}KB)",
                                 new_size / 1024,
-                                (crate::config::TARGET_IN_FLIGHT_BYTES / new_size).clamp(4, 256)
+                                floor / 1024,
                             );
                             chunk_size = new_size;
                             self.adaptive_out_chunk.store(new_size, Ordering::Relaxed);
                         }
-
-                        if !in_flight.is_empty() {
-                            // Host DMA pool is exhausted by our pipeline.
-                            // Break submit loop and enter reap phase to wait for memory to free.
-                            break;
-                        } else if shrunk {
-                            // Nothing in flight, but we successfully shrank the chunk size.
-                            // The host DMA is highly fragmented or limited. Retry with the smaller chunk.
-                            continue;
-                        } else {
-                            // At minimum floor and nothing in flight — real OOM
-                            error!(
-                                "ENOMEM at minimum chunk size ({}KB) with empty pipeline",
-                                MIN_URB_CHUNK_SIZE / 1024
-                            );
-                            self.drain_urbs(&mut in_flight);
-                            return Err(e);
-                        }
-                    }
-                    Err(e) => {
-                        error!("URB submit failed: {}", e);
-                        self.drain_urbs(&mut in_flight);
-                        return Err(e);
+                        successful_since_enomem = 0;
                     }
                 }
-            }
-
-            // ── Reap phase: batch-drain all completed URBs ────────────────
-            if !in_flight.is_empty() {
-                // First reap is blocking — wait for at least one URB
-                let first_ptr = match self.reap_urb() {
-                    Ok(ptr) => ptr,
-                    Err(e) => {
-                        error!("URB reap failed: {}", e);
-                        self.drain_urbs(&mut in_flight);
-                        return Err(e);
-                    }
-                };
-
-                // Collect all reaped pointers: the blocking one + any non-blocking ones
-                // Pre-allocate with enough capacity to avoid reallocation during the loop
-                let mut reaped_ptrs = Vec::with_capacity(64);
-                reaped_ptrs.push(first_ptr);
-                loop {
-                    match self.reap_urb_nonblocking() {
-                        Ok(Some(ptr)) => reaped_ptrs.push(ptr),
-                        Ok(None) => break, // No more ready URBs
-                        Err(e) => {
-                            error!("Non-blocking reap failed: {}", e);
-                            self.drain_urbs(&mut in_flight);
-                            return Err(e);
-                        }
-                    }
-                }
-
-                // O(1) lookup: use URB pointer address as HashMap key
-                for reaped_ptr in reaped_ptrs {
-                    let key = reaped_ptr as usize;
-                    match in_flight.remove(&key) {
-                        Some(urb) => {
-                            if urb.status != 0 {
-                                let status = urb.status;
-                                if status == -(libc::EPIPE as i32) {
-                                    debug!("URB EPIPE on ep {}, clearing halt", self.out_ep);
-                                    self.clear_halt(self.out_ep);
-                                }
-                                self.drain_urbs(&mut in_flight);
-                                return Err(std::io::Error::from_raw_os_error(-status));
-                            }
-                            total_sent += urb.actual_length as usize;
-                        }
-                        None => {
-                            error!("Reaped unknown URB pointer — draining pipeline");
-                            self.drain_urbs(&mut in_flight);
-                            return Err(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                "Reaped unknown URB",
-                            ));
-                        }
-                    }
-                }
-
-                // AIMD: Additive Increase — recover chunk size after sustained success
-                successful_since_enomem += 1;
-                if successful_since_enomem >= 200 {
-                    let new_size = (chunk_size * 2).min(INITIAL_URB_CHUNK_SIZE);
-                    if new_size > chunk_size {
+                Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
+                    successful_since_enomem = 0;
+                    // Record this failing size so additive increase never exceeds floor/2
+                    self.out_enomem_floor.store(chunk_size, Ordering::Relaxed);
+                    // AIMD: Multiplicative Decrease — halve chunk size
+                    let new_size = (chunk_size / 2).max(MIN_URB_CHUNK_SIZE);
+                    if new_size < chunk_size {
                         info!(
-                            "AIMD: Increasing OUT chunk to {}KB after 200 clean cycles",
-                            new_size / 1024
+                            "AIMD: ENOMEM at {}KB, reducing OUT chunk to {}KB",
+                            chunk_size / 1024,
+                            new_size / 1024,
                         );
                         chunk_size = new_size;
                         self.adaptive_out_chunk.store(new_size, Ordering::Relaxed);
+                        // Retry the failed offset with the smaller chunk
+                        continue;
                     }
-                    successful_since_enomem = 0;
+                    error!(
+                        "ENOMEM at minimum chunk size ({}KB)",
+                        MIN_URB_CHUNK_SIZE / 1024
+                    );
+                    return Err(e);
+                }
+                Err(e) => {
+                    error!("Bulk OUT failed: {}", e);
+                    return Err(e);
                 }
             }
         }
@@ -350,152 +231,75 @@ impl NativeUsbBackend {
         Ok(total_sent)
     }
 
-    /// Read data from the IN endpoint using 32-URB pipelining.
-    pub fn bulk_in_with_timeout(
-        &self,
-        data: &mut [u8],
-        _timeout_ms: u32,
-    ) -> std::io::Result<usize> {
+    // ── Bulk IN (Read) ────────────────────────────────────────────────────
+
+    /// Read data from the IN endpoint using synchronous USBDEVFS_BULK.
+    pub fn bulk_in_with_timeout(&self, data: &mut [u8], timeout_ms: u32) -> std::io::Result<usize> {
         if data.is_empty() {
             return Ok(0);
         }
 
         let mut chunk_size = self.adaptive_in_chunk.load(Ordering::Relaxed);
         let mut total_read = 0usize;
-        let mut submit_offset = 0usize;
+        let mut offset = 0usize;
         let mut successful_since_enomem = 0u32;
-        // HashMap for O(1) URB lookup by pointer address on reap
-        let mut in_flight: HashMap<usize, Box<UsbDevFsUrb>> = HashMap::with_capacity(256);
 
-        while submit_offset < data.len() || !in_flight.is_empty() {
-            // Calculate dynamic depth: Ensure we always have TARGET_IN_FLIGHT_BYTES queued
-            // A minimum of 4 URBs is enough to keep the hardware pipelined if chunks are huge (e.g. 1MB).
-            let target_depth = (crate::config::TARGET_IN_FLIGHT_BYTES / chunk_size).clamp(4, 256);
+        while offset < data.len() {
+            let this_chunk = chunk_size.min(data.len() - offset);
+            let chunk = &mut data[offset..offset + this_chunk];
 
-            // ── Submit phase ─────────────────────────────────────────────
-            while submit_offset < data.len() && in_flight.len() < target_depth {
-                let this_chunk = chunk_size.min(data.len() - submit_offset);
-                let buf_ptr = data[submit_offset..].as_mut_ptr();
+            match self.bulk_in_sync(chunk, timeout_ms) {
+                Ok(n) => {
+                    offset += n;
+                    total_read += n;
 
-                let mut urb = Box::new(UsbDevFsUrb::new_bulk(self.in_ep, buf_ptr, this_chunk));
-
-                match self.submit_urb(&mut urb) {
-                    Ok(()) => {
-                        let urb_key = &*urb as *const UsbDevFsUrb as usize;
-                        submit_offset += this_chunk;
-                        in_flight.insert(urb_key, urb);
+                    // Short read: device has no more data
+                    if n < this_chunk {
+                        return Ok(total_read);
                     }
-                    Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
-                        successful_since_enomem = 0;
-                        // AIMD: Multiplicative Decrease
-                        let new_size = (chunk_size / 2).max(MIN_URB_CHUNK_SIZE);
-                        let shrunk = new_size < chunk_size;
 
-                        if shrunk {
+                    successful_since_enomem += 1;
+
+                    // AIMD: Additive Increase — capped at floor/2
+                    if successful_since_enomem >= 200 {
+                        let floor = self.in_enomem_floor.load(Ordering::Relaxed);
+                        let cap = floor / 2;
+                        let new_size = (chunk_size * 2).min(cap).min(INITIAL_URB_CHUNK_SIZE);
+                        if new_size > chunk_size {
                             info!(
-                                "AIMD: ENOMEM at {}KB, reducing IN chunk to {}KB. Pipeline expanding to {} URBs.",
-                                chunk_size / 1024,
+                                "AIMD: Increasing IN chunk to {}KB after 200 clean calls (floor={}KB)",
                                 new_size / 1024,
-                                (crate::config::TARGET_IN_FLIGHT_BYTES / new_size).clamp(4, 256)
+                                floor / 1024,
                             );
                             chunk_size = new_size;
                             self.adaptive_in_chunk.store(new_size, Ordering::Relaxed);
                         }
-
-                        if !in_flight.is_empty() {
-                            // DMA pool exhausted. Break submit loop to reap.
-                            break;
-                        } else if shrunk {
-                            // Nothing in flight, but we successfully shrank the chunk size.
-                            // The host DMA is highly fragmented or limited. Retry with the smaller chunk.
-                            continue;
-                        } else {
-                            error!(
-                                "ENOMEM at minimum IN chunk size ({}KB)",
-                                MIN_URB_CHUNK_SIZE / 1024
-                            );
-                            self.drain_urbs(&mut in_flight);
-                            return Err(e);
-                        }
-                    }
-                    Err(e) => {
-                        self.drain_urbs(&mut in_flight);
-                        return Err(e);
+                        successful_since_enomem = 0;
                     }
                 }
-            }
-
-            // ── Reap phase: batch-drain all completed URBs ────────────────
-            if !in_flight.is_empty() {
-                // First reap is blocking — wait for at least one URB
-                let first_ptr = match self.reap_urb() {
-                    Ok(ptr) => ptr,
-                    Err(e) => {
-                        self.drain_urbs(&mut in_flight);
-                        return Err(e);
-                    }
-                };
-
-                // Batch-drain: collect additional completed URBs without blocking
-                // Pre-allocate with enough capacity to avoid reallocation during the loop
-                let mut reaped_ptrs = Vec::with_capacity(64);
-                reaped_ptrs.push(first_ptr);
-                loop {
-                    match self.reap_urb_nonblocking() {
-                        Ok(Some(ptr)) => reaped_ptrs.push(ptr),
-                        Ok(None) => break,
-                        Err(e) => {
-                            self.drain_urbs(&mut in_flight);
-                            return Err(e);
-                        }
-                    }
-                }
-
-                // O(1) lookup: use URB pointer address as HashMap key
-                for reaped_ptr in reaped_ptrs {
-                    let key = reaped_ptr as usize;
-                    match in_flight.remove(&key) {
-                        Some(urb) => {
-                            if urb.status != 0 {
-                                let status = urb.status;
-                                if status == -(libc::EPIPE as i32) {
-                                    self.clear_halt(self.in_ep);
-                                }
-                                self.drain_urbs(&mut in_flight);
-                                return Err(std::io::Error::from_raw_os_error(-status));
-                            }
-
-                            total_read += urb.actual_length as usize;
-
-                            // Short read: device has no more data for this request
-                            if (urb.actual_length as usize) < (urb.buffer_length as usize) {
-                                self.drain_urbs(&mut in_flight);
-                                return Ok(total_read);
-                            }
-                        }
-                        None => {
-                            self.drain_urbs(&mut in_flight);
-                            return Err(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                "Reaped unknown URB",
-                            ));
-                        }
-                    }
-                }
-
-                // AIMD: Additive Increase — recover chunk size after sustained success
-                successful_since_enomem += 1;
-                if successful_since_enomem >= 200 {
-                    let new_size = (chunk_size * 2).min(INITIAL_URB_CHUNK_SIZE);
-                    if new_size > chunk_size {
+                Err(e) if e.raw_os_error() == Some(libc::ENOMEM) => {
+                    successful_since_enomem = 0;
+                    self.in_enomem_floor.store(chunk_size, Ordering::Relaxed);
+                    let new_size = (chunk_size / 2).max(MIN_URB_CHUNK_SIZE);
+                    if new_size < chunk_size {
                         info!(
-                            "AIMD: Increasing IN chunk to {}KB after 200 clean cycles",
-                            new_size / 1024
+                            "AIMD: ENOMEM at {}KB, reducing IN chunk to {}KB",
+                            chunk_size / 1024,
+                            new_size / 1024,
                         );
                         chunk_size = new_size;
                         self.adaptive_in_chunk.store(new_size, Ordering::Relaxed);
+                        continue;
                     }
-                    successful_since_enomem = 0;
+                    error!(
+                        "ENOMEM at minimum IN chunk size ({}KB)",
+                        MIN_URB_CHUNK_SIZE / 1024
+                    );
+                    return Err(e);
+                }
+                Err(e) => {
+                    error!("Bulk IN failed: {}", e);
+                    return Err(e);
                 }
             }
         }
@@ -503,12 +307,14 @@ impl NativeUsbBackend {
         Ok(total_read)
     }
 
-    /// Convenience: bulk OUT with default timeout.
+    // ── Convenience wrappers ──────────────────────────────────────────────
+
+    /// Bulk OUT with default timeout.
     pub fn bulk_out(&self, data: &[u8]) -> std::io::Result<usize> {
         self.bulk_out_with_timeout(data, DEFAULT_TIMEOUT_MS)
     }
 
-    /// Convenience: bulk IN with default timeout.
+    /// Bulk IN with default timeout.
     pub fn bulk_in(&self, data: &mut [u8]) -> std::io::Result<usize> {
         self.bulk_in_with_timeout(data, DEFAULT_TIMEOUT_MS)
     }

@@ -9,37 +9,30 @@
 /// creating the characteristic burst pattern:
 ///   - Initial 100MB/s+ (pipeline filling)
 ///   - Settles to device sustained speed (~30MB/s USB 2.0, ~100MB/s USB 3.0)
-/// Legacy constant, no longer used as a strict limit but as a baseline for calculations.
 pub const URB_PIPELINE_DEPTH: usize = 32;
 
-/// Target total bytes to keep in-flight simultaneously across the pipeline.
-/// 8MB fits within typical Android kernel DMA pool (usbfs_memory_mb >= 12MB),
-/// preventing ENOMEM oscillation seen at 16MB.
-pub const TARGET_IN_FLIGHT_BYTES: usize = 8 * 1024 * 1024;
-
 /// Number of buffers in the async pool.
-pub const BUFFER_COUNT: usize = 16;
+/// 4 buffers × 32MB = 128MB pre-fetch cushion. Lower count reduces DMA
+/// memory pressure while still providing ample read-ahead at 18 MB/s.
+pub const BUFFER_COUNT: usize = 4;
 
 /// Size of each buffer in the async pool.
-/// 4MB is optimal for filling the 32-URB pipeline.
-pub const ASYNC_BUFFER_SIZE: usize = 4 * 1024 * 1024;
+/// 32MB matches the original High-Saturation Engine design.
+pub const ASYNC_BUFFER_SIZE: usize = 32 * 1024 * 1024;
 
 /// Maximum transfer size for a single SCSI WRITE(10)/READ(10) command.
-/// 4MB matches the async buffer size, so each buffer = 1 SCSI command.
-/// Falls back dynamically on CSW failure (see mass_storage.rs).
+/// 4MB is proven stable on this device. Larger sizes trigger CSW fallback
+/// retries that degrade throughput. Falls back dynamically on CSW failure.
 pub const SCSI_MAX_TRANSFER_SIZE: usize = 4 * 1024 * 1024;
 
 /// Minimum transfer size floor for SCSI adaptive fallback.
 pub const SCSI_MIN_TRANSFER_SIZE: usize = 512 * 1024;
 
 /// Initial chunk size per URB.
-/// 32KB is the stable default for Android DMA pools (~8MB).
-/// AIMD additively increases to 64KB+ on devices with larger pools.
-pub const INITIAL_URB_CHUNK_SIZE: usize = 32 * 1024;
+/// AIMD halves on ENOMEM and additively recovers after 200 clean cycles.
+pub const INITIAL_URB_CHUNK_SIZE: usize = 256 * 1024;
 
 /// Minimum URB chunk size (16KB).
-/// Slightly smaller than the stable 32KB working size gives AIMD room
-/// to fall back if transient DMA pressure occurs.
 pub const MIN_URB_CHUNK_SIZE: usize = 16 * 1024;
 
 /// File read chunk size for the flasher.

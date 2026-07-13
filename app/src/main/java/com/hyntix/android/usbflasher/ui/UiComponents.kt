@@ -150,13 +150,14 @@ fun FlashingSheet(
             if (isSuccess) {
                 Spacer(modifier = Modifier.height(32.dp))
             } else {
-                // Spring animation tracks the monotonic progress closely without overshoot.
-                // Critical damping (dampingRatio = 1f) means it never overshoots.
+                // Underdamped spring gives fluid motion that subtly "flows" past each
+                // percentage point before settling — mimics water-filling behavior while
+                // matching the actual hardware progress within <200ms of each update.
                 val animatedProgress by animateFloatAsState(
                     targetValue = progress.percentage / 100f,
                     animationSpec = spring(
-                        stiffness = 2000f,
-                        dampingRatio = 1f,
+                        stiffness = 4000f,
+                        dampingRatio = 0.7f,
                     ),
                     label = "progressAnimation"
                 )
@@ -168,7 +169,7 @@ fun FlashingSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp),
-                    strokeCap = StrokeCap.Butt,
+                    strokeCap = StrokeCap.Round,
                     trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f),
                 )
                 

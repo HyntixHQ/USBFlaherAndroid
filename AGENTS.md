@@ -12,7 +12,19 @@ Three layers, no DI, no Jetpack Navigation:
 
 1. **`:app` module** — Jetpack Compose UI (MVI-lite). Single `MainActivity`, single screen with conditional overlays. One `FlashViewModel` with `StateFlow<FlashState>`.
 2. **`:androidusbflasher` module** — UniFFI + JNA bridge. `AndroidUsbFlasher.kt` is the hand-written wrapper; `UsbFlasherNative.kt` is **auto-generated** by UniFFI.
-3. **Rust workspace** (`androidusbflasher/rust-lib/`) — 11 crates, produces `libusbflasher.so` (cdylib). UniFFI 0.31.0, JNA 5.18.1, Rust edition 2024 (requires Rust 1.85+).
+3. **Rust workspace** (`androidusbflasher/rust-lib/`) — 11 crates, produces `libusbflasher.so` (cdylib). UniFFI 0.31.2, JNA 5.18.1, Rust edition 2024 (requires Rust 1.85+).
+
+## USB stack architecture
+
+- **USBDEVFS_BULK** synchronous ioctl (not `SUBMITURB`/`REAPURB`). Kernel manages DMA internally,
+  bypassing the `usbfs_memory_mb` userspace pool limit that forced 32KB URBs with the old pipeline.
+- **32-URB depth** is a holdover constant; actual pipelining is managed inside the kernel.
+- **AIMD with floor locking**: chunk size halved on ENOMEM, additively increases after 200 clean
+  calls, but NEVER exceeds `last_failing_size / 2`. This prevents 64KB↔128KB oscillation.
+- **SCSI 4MB WRITE(10)** per command, 32MB async buffers, 4× buffer pool (128MB total).
+- **Per-SCSI progress**: `write_blocks_with_progress()` updates `physical_pos` after each SCSI command,
+  polled at 10Hz from the main thread during both read and acquire-wait phases.
+- **BLAKE3 hashing** computed inline during source reads (not as a post-read batch).
 
 ## Key conventions & gotchas
 
@@ -61,7 +73,7 @@ androidusbflasher/src/main/java/com/hyntix/lib/androidusbflasher/
 androidusbflasher/rust-lib/crates/
 ├── hyntix-usb-flasher-jni/ — cdylib entry point, UniFFI exports -> libusbflasher.so
 ├── hyntix-usb-flasher/ — core flash orchestration logic
-├── hyntix-usb/ — SCSI BOT protocol, URB pipelining
+├── hyntix-usb/ — SCSI BOT protocol, USBDEVFS_BULK
 ├── hyntix-common/ — shared error types
 ├── hyntix-iso/, hyntix-udf/, hyntix-wim/ — filesystem parsers
 ├── hyntix-fat32/ — FAT32 formatting + GPT partition table

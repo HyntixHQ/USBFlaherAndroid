@@ -41,10 +41,10 @@ fn log_diagnostics() {
     }
 
     info!(
-        "Diagnostics: SCSI_MAX_TRANSFER_SIZE={}KB, INITIAL_URB_CHUNK_SIZE={}KB, TARGET_IN_FLIGHT_BYTES={}KB",
+        "Diagnostics: SCSI_MAX_TRANSFER_SIZE={}KB, INITIAL_URB_CHUNK_SIZE={}KB, URB_PIPELINE_DEPTH={}",
         hyntix_usb::config::SCSI_MAX_TRANSFER_SIZE / 1024,
         hyntix_usb::config::INITIAL_URB_CHUNK_SIZE / 1024,
-        hyntix_usb::config::TARGET_IN_FLIGHT_BYTES / 1024,
+        hyntix_usb::config::URB_PIPELINE_DEPTH,
     );
 }
 

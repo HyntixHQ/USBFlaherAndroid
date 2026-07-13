@@ -12,6 +12,8 @@ use super::scsi::{
 };
 use hyntix_common::{Error, Result};
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
 /// Maximum retry attempts for failed commands.
 const MAX_RETRIES: u32 = 20;
 
@@ -370,6 +372,53 @@ impl UsbMassStorage {
 
             offset += bytes_to_write;
             current_block += blocks_to_write as u64;
+        }
+
+        Ok(())
+    }
+
+    /// Write blocks with per-SCSI progress updates.
+    /// Updates `phys_progress` after each SCSI WRITE(10) command for smooth UI.
+    pub fn write_blocks_with_progress(
+        &mut self,
+        start_block: u64,
+        buffer: &[u8],
+        phys_progress: &AtomicU64,
+        base_pos: u64,
+    ) -> Result<()> {
+        if buffer.len() % self.block_size as usize != 0 {
+            return Err(Error::UsbError(
+                "Buffer size must be multiple of block size".into(),
+            ));
+        }
+
+        let max_blocks_per_transfer =
+            (self.max_transfer_size() / self.block_size as usize).min(u16::MAX as usize);
+
+        let mut offset = 0;
+        let mut current_block = start_block;
+        let total_buffer = buffer.len();
+
+        while offset < total_buffer {
+            let blocks_remaining = (total_buffer - offset) / self.block_size as usize;
+            let blocks_to_write = blocks_remaining.min(max_blocks_per_transfer) as u16;
+            let bytes_to_write = blocks_to_write as usize * self.block_size as usize;
+
+            let cbw = ScsiWrite10::cbw(
+                self.next_tag(),
+                self.lun,
+                current_block as u32,
+                blocks_to_write,
+                self.block_size,
+            );
+
+            self.transfer_command(cbw, None, Some(&buffer[offset..offset + bytes_to_write]))?;
+
+            offset += bytes_to_write;
+            current_block += blocks_to_write as u64;
+
+            // Update physical progress after each SCSI command
+            phys_progress.store(base_pos + offset as u64, Ordering::Release);
         }
 
         Ok(())

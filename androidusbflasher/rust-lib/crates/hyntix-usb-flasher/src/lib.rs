@@ -6,6 +6,7 @@ use hyntix_usb::UsbMassStorage;
 use std::io::{Read, Seek, SeekFrom};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::info;
 
 pub mod config;
@@ -117,6 +118,7 @@ impl Flasher {
 
             // Read a chunk from source directly into the pool buffer
             let mut bytes_in_buf = 0;
+            let mut last_poll_pos: u64 = 0;
             while bytes_in_buf < hyntix_usb::config::READ_CHUNK_SIZE {
                 let remaining = total_size - total_written - bytes_in_buf as u64;
                 if remaining == 0 {
@@ -126,7 +128,17 @@ impl Flasher {
                     (hyntix_usb::config::READ_CHUNK_SIZE - bytes_in_buf).min(remaining as usize);
                 match source.read(&mut buf[bytes_in_buf..bytes_in_buf + to_read]) {
                     Ok(0) => break,
-                    Ok(n) => bytes_in_buf += n,
+                    Ok(n) => {
+                        source_hasher.update(&buf[bytes_in_buf..bytes_in_buf + n]);
+                        bytes_in_buf += n;
+                        // Poll physical progress every 4MB read to keep UI smooth.
+                        // Worker may have advanced physical_position since last check.
+                        let pos = writer.physical_position();
+                        if pos - last_poll_pos >= 4 * 1024 * 1024 {
+                            last_poll_pos = pos;
+                            progress(FlashPhase::Flashing, pos, total_size);
+                        }
+                    }
                     Err(e) => return Err(hyntix_common::Error::Io(e)),
                 }
             }
@@ -134,8 +146,6 @@ impl Flasher {
             if bytes_in_buf == 0 {
                 break;
             }
-
-            source_hasher.update(&buf[..bytes_in_buf]);
 
             buf.truncate(bytes_in_buf);
 
@@ -147,14 +157,27 @@ impl Flasher {
 
             total_written += bytes_in_buf as u64;
 
-            // Acquire the next buffer from the pool for the next iteration
-            buf = writer
-                .acquire_buffer()
-                .map_err(|e| hyntix_common::Error::Io(e))?;
+            // Acquire the next buffer — poll physical progress every 100ms while waiting.
+            // This captures per-SCSI-position updates from the worker in realtime,
+            // giving smooth UI feedback that accurately tracks the hardware state.
+            buf = loop {
+                match writer.try_acquire_buffer() {
+                    Ok(Some(b)) => break b,
+                    Ok(None) => {
+                        let phys = writer.physical_position();
+                        progress(FlashPhase::Flashing, phys, total_size);
+                        if self.cancelled.load(Ordering::Relaxed) {
+                            return Err(hyntix_common::Error::Cancelled);
+                        }
+                        std::thread::sleep(Duration::from_millis(100));
+                        continue;
+                    }
+                    Err(e) => return Err(hyntix_common::Error::Io(e)),
+                }
+            };
 
-            // Report progress using the physical position (actual bytes confirmed written)
-            let phys = writer.physical_position();
-            progress(FlashPhase::Flashing, phys, total_size);
+            // Report progress after acquiring the buffer too (last known position)
+            progress(FlashPhase::Flashing, writer.physical_position(), total_size);
         }
 
         // Flush: drain the pipeline and wait for all pending writes to complete

@@ -102,7 +102,12 @@ impl AsyncUsbWriter {
                             && write_job.buffer.len() % block_size as usize == 0
                         {
                             let lba = write_job.position / block_size;
-                            storage.write_blocks(lba, &write_job.buffer)
+                            storage.write_blocks_with_progress(
+                                lba,
+                                &write_job.buffer,
+                                &physical_pos,
+                                write_job.position,
+                            )
                         } else {
                             // Read-Modify-Write (RMW) for unaligned or partial writes
                             let start_lba = write_job.position / block_size;
@@ -126,7 +131,12 @@ impl AsyncUsbWriter {
                                     .copy_from_slice(&write_job.buffer);
 
                                 // 3. Write back
-                                let result = storage.write_blocks(start_lba, &full_buffer);
+                                let result = storage.write_blocks_with_progress(
+                                    start_lba,
+                                    &full_buffer,
+                                    &physical_pos,
+                                    write_job.position,
+                                );
                                 result
                             }
                         }
@@ -138,12 +148,6 @@ impl AsyncUsbWriter {
                         if err_guard.is_none() {
                             *err_guard = Some(e);
                         }
-                    } else {
-                        // Update physical position after successful write
-                        physical_pos.store(
-                            write_job.position + write_job.buffer.len() as u64,
-                            Ordering::SeqCst,
-                        );
                     }
 
                     // Recycle buffer based on capacity rather than used length to reclaim
@@ -211,6 +215,19 @@ impl AsyncUsbWriter {
             .map_err(|_| {
                 std::io::Error::new(std::io::ErrorKind::Other, "Buffer pool channel closed")
             })
+    }
+
+    /// Try to acquire a buffer without blocking.
+    /// Returns `Ok(None)` if no buffer is available yet (caller should poll and retry).
+    pub fn try_acquire_buffer(&self) -> std::io::Result<Option<Vec<u8>>> {
+        match self.buffer_rx.try_recv() {
+            Ok(buf) => Ok(Some(buf)),
+            Err(crossbeam_channel::TryRecvError::Empty) => Ok(None),
+            Err(crossbeam_channel::TryRecvError::Disconnected) => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Buffer pool channel closed",
+            )),
+        }
     }
 
     /// Write a pre-acquired buffer directly to the USB device, avoiding a copy.
