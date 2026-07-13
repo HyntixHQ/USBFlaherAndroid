@@ -400,7 +400,7 @@ checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hyntix-common"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "thiserror",
  "tracing",
@@ -408,7 +408,7 @@ dependencies = [
 
 [[package]]
 name = "hyntix-fat32"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "crc",
  "hyntix-common",
@@ -421,7 +421,7 @@ dependencies = [
 
 [[package]]
 name = "hyntix-iso"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "hyntix-common",
  "nom",
@@ -431,7 +431,7 @@ dependencies = [
 
 [[package]]
 name = "hyntix-linux"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "hyntix-common",
  "hyntix-iso",
@@ -440,7 +440,7 @@ dependencies = [
 
 [[package]]
 name = "hyntix-udf"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "thiserror",
  "tracing",
@@ -448,7 +448,7 @@ dependencies = [
 
 [[package]]
 name = "hyntix-usb"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "crossbeam-channel",
  "hyntix-common",
@@ -458,7 +458,7 @@ dependencies = [
 
 [[package]]
 name = "hyntix-usb-flasher"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "anyhow",
  "blake3",
@@ -476,7 +476,7 @@ dependencies = [
 
 [[package]]
 name = "hyntix-usb-flasher-jni"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "anyhow",
  "hyntix-common",
@@ -492,7 +492,7 @@ dependencies = [
 
 [[package]]
 name = "hyntix-wim"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "thiserror",
  "tracing",
@@ -500,7 +500,7 @@ dependencies = [
 
 [[package]]
 name = "hyntix-windows"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "hyntix-common",
  "hyntix-fat32",
@@ -513,7 +513,7 @@ dependencies = [
 
 [[package]]
 name = "hyntix-windows-cli"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "anyhow",
  "clap",

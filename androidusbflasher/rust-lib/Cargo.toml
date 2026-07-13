@@ -11,7 +11,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "1.0.2"
+version = "1.0.3"
 authors = ["Hyntix <dev@hyntix.com>"]
 license = "AGPL-3.0-or-later"
 edition = "2024"
