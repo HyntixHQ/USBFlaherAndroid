@@ -144,14 +144,13 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     
-                    MainScreen(
+                     MainScreen(
                         viewModel = viewModel,
                         onSelectFile = {
                             filePickerLauncher.launch(arrayOf(
                                 "application/x-iso9660-image",
                                 "application/x-raw-disk-image",
                                 "application/octet-stream",
-                                "*/*"
                             ))
                         },
                         onRequestPermission = { deviceInfo ->

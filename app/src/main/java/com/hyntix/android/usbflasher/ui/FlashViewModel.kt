@@ -9,9 +9,12 @@ import com.hyntix.android.usbflasher.domain.FlashRepository
 import com.hyntix.android.usbflasher.util.AppLogger
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -47,6 +50,10 @@ class FlashViewModel(
 
     private val _selectedDeviceInfo = MutableStateFlow<UsbDeviceInfo?>(null)
     val selectedDeviceInfo: StateFlow<UsbDeviceInfo?> = _selectedDeviceInfo.asStateFlow()
+
+    // One-shot UI feedback (Snackbar messages)
+    private val _feedbackMessage = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val feedbackMessage: SharedFlow<String> = _feedbackMessage.asSharedFlow()
 
     // Auto-scan job
     private var scanJob: Job? = null
@@ -98,17 +105,26 @@ class FlashViewModel(
 
     fun onFileSelected(uri: Uri, name: String, size: Long) {
         viewModelScope.launch(Dispatchers.IO) {
-            val context = repository.context // Need to expose context or pass it
+            val context = repository.context
             val pfd = context.contentResolver.openFileDescriptor(uri, "r")
-            val isWindows = if (pfd != null) {
-                val check = repository.isWindowsIso(pfd)
+            if (pfd != null) {
+                val isLinux = repository.isLinuxIso(pfd)
+                val isWindows = repository.isWindowsIso(pfd)
                 pfd.close()
-                check
-            } else false
 
-            val image = ImageFileInfo(uri, name, size, isWindows)
-            _selectedImageInfo.value = image
-            checkReadyState()
+                if (!isLinux && !isWindows) {
+                    _feedbackMessage.tryEmit(
+                        "\"$name\" is not a supported ISO file. Please select a Linux or Windows installation ISO."
+                    )
+                    return@launch
+                }
+
+                val image = ImageFileInfo(uri, name, size, isWindows)
+                _selectedImageInfo.value = image
+                checkReadyState()
+            } else {
+                _feedbackMessage.tryEmit("Could not open the selected file.")
+            }
         }
     }
 

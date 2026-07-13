@@ -50,8 +50,20 @@ fun MainScreen(
     // Windows ISO is now supported via WIM Splitting!
     val winIsoWarning = null
 
+    // Snackbar for file validation feedback
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) {
+        viewModel.feedbackMessage.collect { msg ->
+            snackbarHostState.showSnackbar(
+                message = msg,
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
+            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             topBar = {
                 TopAppBar(
                     title = { 

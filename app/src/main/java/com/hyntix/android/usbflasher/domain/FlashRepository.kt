@@ -21,6 +21,10 @@ class FlashRepository(
     val context: Context,
     private val usbFlasher: AndroidUsbFlasher
 ) {
+    fun isLinuxIso(pfd: ParcelFileDescriptor): Boolean {
+        return usbFlasher.isLinuxIso(pfd)
+    }
+
     fun isWindowsIso(pfd: ParcelFileDescriptor): Boolean {
         return usbFlasher.isWindowsIso(pfd)
     }
