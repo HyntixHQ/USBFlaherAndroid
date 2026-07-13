@@ -10,6 +10,7 @@ import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import com.hyntix.lib.androidusbflasher.AndroidUsbFlasher
+import com.hyntix.android.usbflasher.R
 import com.hyntix.android.usbflasher.data.UsbDeviceInfo
 import com.hyntix.android.usbflasher.data.ImageFileInfo
 import kotlinx.coroutines.sync.Mutex
@@ -86,8 +87,10 @@ class FlashRepository(
                     }
                 }
                 
+                val manufacturer = device.manufacturerName?.trim() ?: context.getString(R.string.device_generic)
+                val product = device.productName?.trim() ?: context.getString(R.string.device_usb_drive)
                 UsbDeviceInfo(
-                    name = "${device.manufacturerName?.trim() ?: "Generic"} ${device.productName?.trim() ?: "USB Drive"}".replace(Regex("\\s+"), " ").trim(),
+                    name = "$manufacturer $product".replace(Regex("\\s+"), " ").trim(),
                     vendorId = device.vendorId,
                     productId = device.productId,
                     capacityBytes = capacity,
@@ -151,7 +154,7 @@ class FlashRepository(
         
         if (msInterface == null) {
             AppLogger.e("FlashRepository", "performFlash: No MS interface found")
-            callback.onError("Not a supported USB drive.")
+            callback.onError(context.getString(R.string.err_not_supported))
             return
         }
         
@@ -167,7 +170,7 @@ class FlashRepository(
         
         if (inEp == null || outEp == null) {
              AppLogger.e("FlashRepository", "performFlash: Bulk endpoints not found")
-             callback.onError("Unable to communicate with drive.")
+             callback.onError(context.getString(R.string.err_no_communication))
              return
         }
         
@@ -175,7 +178,7 @@ class FlashRepository(
         val connection = manager.openDevice(device)
         if (connection == null) {
              AppLogger.e("FlashRepository", "performFlash: openDevice failed")
-             callback.onError("USB permission denied. Reconnect and try again.")
+             callback.onError(context.getString(R.string.err_permission_denied))
              return
         }
 
@@ -183,7 +186,7 @@ class FlashRepository(
         if (!connection.claimInterface(msInterface, true)) {
              AppLogger.e("FlashRepository", "performFlash: claimInterface failed")
              connection.close()
-             callback.onError("Drive is in use by another app.")
+             callback.onError(context.getString(R.string.err_drive_in_use))
              return
         }
         
@@ -193,14 +196,14 @@ class FlashRepository(
         } catch (e: Exception) {
             AppLogger.e("FlashRepository", "performFlash: Failed to open PFD", e)
             connection.close()
-            callback.onError("Cannot read the selected file.")
+            callback.onError(context.getString(R.string.err_cannot_read_file))
             return
         }
 
         if (pfd == null) {
             AppLogger.e("FlashRepository", "performFlash: PFD is null")
             connection.close()
-            callback.onError("Cannot read the selected file.")
+            callback.onError(context.getString(R.string.err_cannot_read_file))
             return
         }
 

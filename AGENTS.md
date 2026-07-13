@@ -12,7 +12,7 @@ Three layers, no DI, no Jetpack Navigation:
 
 1. **`:app` module** — Jetpack Compose UI (MVI-lite). Single `MainActivity`, single screen with conditional overlays. One `FlashViewModel` with `StateFlow<FlashState>`.
 2. **`:androidusbflasher` module** — UniFFI + JNA bridge. `AndroidUsbFlasher.kt` is the hand-written wrapper; `UsbFlasherNative.kt` is **auto-generated** by UniFFI.
-3. **Rust workspace** (`androidusbflasher/rust-lib/`) — 11 crates, produces `libusbflasher.so` (cdylib). UniFFI 0.31.2, JNA 5.18.1, Rust edition 2024 (requires Rust 1.85+).
+3. **Rust workspace** (`androidusbflasher/rust-lib/`) — 11 crates, produces `libusbflasher.so` (cdylib). UniFFI 0.31.2, JNA 5.19.1, Rust edition 2024 (requires Rust 1.85+).
 
 ## USB stack architecture
 
@@ -37,6 +37,10 @@ Three layers, no DI, no Jetpack Navigation:
 - Rust logs tagged `"UsbFlasherRust"`; `AppLogger` captures them from logcat via a daemon thread.
 - Native flash calls block the calling thread — `AndroidUsbFlasher` wraps them in `Thread(runnable).start()`.
 - No DI framework: `ViewModelProvider.Factory` manual construction in `MainActivity`.
+- Splash screen via `androidx.core:core-splashscreen` (Android 12+ API). Two logo variants:
+  `ic_splash_logo_white` (dark mode) and `ic_splash_logo_dark` (light mode, #2B2C30).
+- All user-visible strings in `res/values/strings.xml` — use `stringResource()` in composables
+  and `context.getString()` in ViewModel/Repository.
 
 ## Tests
 

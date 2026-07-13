@@ -1,3 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App -->
     <string name="app_name">USB Flasher</string>
+    <string name="unknown_file">Unknown.iso</string>
+
+    <!-- Top bars -->
+    <string name="topbar_title">USB Flasher</string>
+    <string name="logs_title">Logs</string>
+
+    <!-- Content descriptions -->
+    <string name="cd_view_logs">View logs</string>
+    <string name="cd_back">Back</string>
+    <string name="cd_share_logs">Share logs</string>
+    <string name="cd_clear_logs">Clear logs</string>
+
+    <!-- Home screen cards -->
+    <string name="card_image_title">Image File</string>
+    <string name="card_image_placeholder">Tap to Select</string>
+    <string name="card_image_windows_desc">Windows (FAT32/UEFI Bootable)</string>
+    <string name="card_drive_title">Target Drive</string>
+    <string name="card_drive_placeholder">Connect a USB Drive</string>
+    <string name="devices_detected">%d drives detected. Tap above to choose.</string>
+
+    <!-- Buttons -->
+    <string name="btn_flash">Flash</string>
+    <string name="btn_erase_and_flash">Erase and Flash</string>
+    <string name="btn_done">Done</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_ok">OK</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_device_picker_title">Select USB Drive</string>
+    <string name="dialog_confirm_flash_title">Confirm Flashing</string>
+    <string name="dialog_confirm_flash_body">This will PERMANENTLY ERASE all data on %s. Are you sure you want to proceed?</string>
+    <string name="dialog_error_title">Something went wrong</string>
+
+    <!-- Flashing sheet -->
+    <string name="sheet_title_flashing">Flashing…</string>
+    <string name="sheet_title_verifying">Verifying…</string>
+    <string name="sheet_title_complete">Complete</string>
+    <string name="eta_prefix">ETA: %s</string>
+
+    <!-- Share -->
+    <string name="share_logs_title">Share Logs</string>
+
+    <!-- Empty state -->
+    <string name="logs_empty">No logs yet</string>
+
+    <!-- Validation -->
+    <string name="file_invalid">&#8220;%s&#8221; is not a supported ISO file. Please select a Linux or Windows installation ISO.</string>
+    <string name="file_cannot_open">Could not open the selected file.</string>
+
+    <!-- Device fallback names -->
+    <string name="device_generic">Generic</string>
+    <string name="device_usb_drive">USB Drive</string>
+
+    <!-- Repository errors -->
+    <string name="err_not_supported">Not a supported USB drive.</string>
+    <string name="err_no_communication">Unable to communicate with drive.</string>
+    <string name="err_permission_denied">USB permission denied. Reconnect and try again.</string>
+    <string name="err_drive_in_use">Drive is in use by another app.</string>
+    <string name="err_cannot_read_file">Cannot read the selected file.</string>
+
+    <!-- ViewModel error mappings -->
+    <string name="err_cancelled">Cancelled by user.</string>
+    <string name="err_verification_failed">Verification failed. Data may be corrupted.</string>
+    <string name="err_usb_permission">USB permission denied. Reconnect and try again.</string>
+    <string name="err_disconnected">USB drive was disconnected.</string>
+    <string name="err_too_large">Image is larger than the drive.</string>
+    <string name="err_usb_transfer">USB transfer failed. Try reconnecting the drive.</string>
+    <string name="err_drive_communication">Drive communication error. Try a different USB port.</string>
+    <string name="err_timeout">Drive not responding. Please reconnect.</string>
 </resources>

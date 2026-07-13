@@ -10,7 +10,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.hyntix.android.usbflasher.R
 import com.hyntix.android.usbflasher.data.FlashState
 import com.hyntix.android.usbflasher.data.UsbDeviceInfo
 import com.adamglin.PhosphorIcons
@@ -65,18 +67,19 @@ fun MainScreen(
         Scaffold(
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             topBar = {
-                TopAppBar(
-                    title = { 
-                        Text(
-                            "USB Flasher", 
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                        ) 
-                    },
+                Column {
+                    TopAppBar(
+                        title = { 
+                            Text(
+                                stringResource(R.string.topbar_title),
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            ) 
+                        },
                     actions = {
                         IconButton(onClick = { showLogViewer = true }) {
                             Icon(
                                 imageVector = PhosphorIcons.Regular.Terminal,
-                                contentDescription = "View logs",
+                                contentDescription = stringResource(R.string.cd_view_logs),
                                 tint = MaterialTheme.colorScheme.onBackground
                             )
                         }
@@ -86,6 +89,11 @@ fun MainScreen(
                         titleContentColor = MaterialTheme.colorScheme.onBackground
                     )
                 )
+                HorizontalDivider(
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                )
+                }
             },
             containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
@@ -103,7 +111,7 @@ fun MainScreen(
                             .height(56.dp),
                         shape = MaterialTheme.shapes.medium
                     ) {
-                        Text("Flash", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.btn_flash), style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
@@ -117,14 +125,14 @@ fun MainScreen(
             ) {
                 // Image File Card
                 val isoDescription = if (selectedImage?.isWindows == true) {
-                    "Windows (FAT32/UEFI Bootable)"
+                    stringResource(R.string.card_image_windows_desc)
                 } else {
                     null
                 }
 
                 StatusCard(
-                    title = "Image File",
-                    value = selectedImage?.name ?: "Tap to Select",
+                    title = stringResource(R.string.card_image_title),
+                    value = selectedImage?.name ?: stringResource(R.string.card_image_placeholder),
                     subtitle = selectedImage?.sizeFormatted,
                     icon = PhosphorIcons.Regular.Disc,
                     description = isoDescription,
@@ -134,8 +142,8 @@ fun MainScreen(
 
                 // Target Drive Card
                 StatusCard(
-                    title = "Target Drive",
-                    value = selectedDevice?.name ?: "Connect a USB Drive",
+                    title = stringResource(R.string.card_drive_title),
+                    value = selectedDevice?.name ?: stringResource(R.string.card_drive_placeholder),
                     subtitle = selectedDevice?.capacityFormatted,
                     icon = PhosphorIcons.Regular.Usb,
                     onClick = { 
@@ -154,7 +162,7 @@ fun MainScreen(
                 
                 if (availableDevices.size > 1 && selectedDevice == null) {
                     Text(
-                        text = "${availableDevices.size} drives detected. Tap above to choose.",
+                        text = stringResource(R.string.devices_detected, availableDevices.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 8.dp)
@@ -167,7 +175,7 @@ fun MainScreen(
         if (showDevicePicker) {
             AlertDialog(
                 onDismissRequest = { showDevicePicker = false },
-                title = { Text("Select USB Drive") },
+                title = { Text(stringResource(R.string.dialog_device_picker_title)) },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         availableDevices.forEach { device ->
@@ -204,7 +212,7 @@ fun MainScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = { showDevicePicker = false }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.btn_cancel))
                     }
                 }
             )
@@ -214,9 +222,9 @@ fun MainScreen(
         if (showConfirmDialog) {
             AlertDialog(
                 onDismissRequest = { showConfirmDialog = false },
-                title = { Text("Confirm Flashing") },
+                title = { Text(stringResource(R.string.dialog_confirm_flash_title)) },
                 text = { 
-                    Text("This will PERMANENTLY ERASE all data on ${selectedDevice?.name}. Are you sure you want to proceed?") 
+                    Text(stringResource(R.string.dialog_confirm_flash_body, selectedDevice?.name ?: "")) 
                 },
                 confirmButton = {
                     Button(
@@ -228,12 +236,12 @@ fun MainScreen(
                             containerColor = MaterialTheme.colorScheme.error
                         )
                     ) {
-                        Text("Erase and Flash")
+                        Text(stringResource(R.string.btn_erase_and_flash))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { showConfirmDialog = false }) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.btn_cancel))
                     }
                 }
             )
@@ -247,12 +255,12 @@ fun MainScreen(
     // Error Dialog (Simple Alert)
     if (state is FlashState.Error) {
         AlertDialog(
-            onDismissRequest = { viewModel.cancel() }, // Reset to Idle
-            title = { Text("Something went wrong") },
+            onDismissRequest = { viewModel.cancel() },
+            title = { Text(stringResource(R.string.dialog_error_title)) },
             text = { Text((state as FlashState.Error).message) },
             confirmButton = {
                 TextButton(onClick = { viewModel.cancel() }) {
-                    Text("OK")
+                    Text(stringResource(R.string.btn_ok))
                 }
             }
         )

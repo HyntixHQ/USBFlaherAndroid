@@ -20,9 +20,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import com.hyntix.android.usbflasher.R
 import com.hyntix.android.usbflasher.util.AppLogger
 import kotlinx.coroutines.launch
 import androidx.activity.compose.BackHandler
@@ -39,6 +41,8 @@ fun LogViewerScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val horizontalScrollState = rememberScrollState()
+    val shareLogsTitle = stringResource(R.string.share_logs_title)
+    val logsEmpty = stringResource(R.string.logs_empty)
 
     // Track whether user has manually scrolled away from the bottom.
     // When true, new logs won't force-scroll to bottom.
@@ -67,12 +71,13 @@ fun LogViewerScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Logs") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(PhosphorIcons.Regular.ArrowLeft, contentDescription = "Back")
-                    }
+            Column {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.logs_title)) },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(PhosphorIcons.Regular.ArrowLeft, contentDescription = stringResource(R.string.cd_back))
+                        }
                 },
                 actions = {
                     // Share button
@@ -90,7 +95,7 @@ fun LogViewerScreen(
                                     putExtra(Intent.EXTRA_STREAM, uri)
                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
-                                context.startActivity(Intent.createChooser(shareIntent, "Share Logs"))
+                                context.startActivity(Intent.createChooser(shareIntent, shareLogsTitle))
                             } catch (e: Exception) {
                                 // FileProvider not configured — fall back to text share
                                 scope.launch {
@@ -99,18 +104,18 @@ fun LogViewerScreen(
                                         type = "text/plain"
                                         putExtra(Intent.EXTRA_TEXT, text)
                                     }
-                                    context.startActivity(Intent.createChooser(shareIntent, "Share Logs"))
+                                    context.startActivity(Intent.createChooser(shareIntent, shareLogsTitle))
                                 }
                             }
                         }
                     }) {
-                        Icon(PhosphorIcons.Regular.ShareNetwork, contentDescription = "Share logs")
+                        Icon(PhosphorIcons.Regular.ShareNetwork, contentDescription = stringResource(R.string.cd_share_logs))
                     }
                     // Clear button
                     IconButton(onClick = {
                         scope.launch { AppLogger.clearLogs() }
                     }) {
-                        Icon(PhosphorIcons.Regular.Trash, contentDescription = "Clear logs")
+                        Icon(PhosphorIcons.Regular.Trash, contentDescription = stringResource(R.string.cd_clear_logs))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -118,6 +123,11 @@ fun LogViewerScreen(
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            )
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
@@ -130,7 +140,7 @@ fun LogViewerScreen(
                 contentAlignment = androidx.compose.ui.Alignment.Center
             ) {
                 Text(
-                    "No logs yet",
+                    logsEmpty,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

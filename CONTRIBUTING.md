@@ -1,6 +1,6 @@
 # Contributing to USB Flasher for Android
 
-## 🛠️ Development Setup
+## Development Setup
 
 The project is an atomic workspace combining Android (Kotlin/Compose) and Rust (USB core).
 
@@ -18,12 +18,12 @@ The project is an atomic workspace combining Android (Kotlin/Compose) and Rust (
 
 ### Key Architecture
 - **USB I/O**: `USBDEVFS_BULK` synchronous ioctl (not `SUBMITURB`/`REAPURB`). Kernel manages DMA internally.
-- **SCSI**: BOT protocol, 4MB WRITE(10) commands, 32MB async buffers, 4× buffer pool.
+- **SCSI**: BOT protocol, 4MB WRITE(10) commands, 32MB async buffers, 4x buffer pool.
 - **AIMD Flow Control**: Chunk size halves on ENOMEM, additively increases after 200 clean cycles, but never exceeds `last_failing_size / 2`.
 - **Progress**: `physical_position` updates per-SCSI command, polled at 10Hz from main thread.
 - **Verification**: Triple-buffered BLAKE3 read-ahead (separate reader thread + main hash thread).
 
-## 🚀 How to Contribute
+## How to Contribute
 
 1. **Fork the Project**
 2. **Create a Branch**: `git checkout -b feature/AmazingFeature`
@@ -43,13 +43,13 @@ cargo check
 cargo build --release --target aarch64-linux-android -p hyntix-usb-flasher-jni
 ```
 
-## ⚠️ Gotchas
+## Gotchas
 - Do NOT edit `UsbFlasherNative.kt` by hand — modify the Rust `hyntix-usb-flasher-jni` crate and regenerate via `uniffi-bindgen`.
 - `.cargo/config.toml` has machine-specific NDK paths (not portable). The Gradle `cargoBuild` task sets the linker dynamically.
 - ARM64 only (`arm64-v8a`). No x86/x86_64.
 - `keystore.properties` is tracked in git (plaintext passwords — treat as sensitive).
 - No DI framework: `ViewModelProvider.Factory` manual construction in `MainActivity`.
 
-## ⚖️ License
+## License
 
-By contributing, you agree that your contributions will be licensed under AGPL v3.
+By contributing, you agree that your contributions will be licensed under GPL v3.

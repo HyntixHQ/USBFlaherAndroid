@@ -10,8 +10,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.hyntix.android.usbflasher.R
 import com.hyntix.android.usbflasher.data.FlashProgress
 import com.hyntix.android.usbflasher.data.FlashState
 import com.adamglin.PhosphorIcons
@@ -135,9 +137,9 @@ fun FlashingSheet(
         ) {
             Text(
                 text = when (state) {
-                    is FlashState.Verifying -> "Verifying..."
-                    is FlashState.Success -> "Complete"
-                    else -> "Flashing..."
+                    is FlashState.Verifying -> stringResource(R.string.sheet_title_verifying)
+                    is FlashState.Success -> stringResource(R.string.sheet_title_complete)
+                    else -> stringResource(R.string.sheet_title_flashing)
                 },
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
@@ -189,7 +191,7 @@ fun FlashingSheet(
                         style = MaterialTheme.typography.labelMedium
                     )
                     Text(
-                        text = "ETA: ${progress.etaFormatted}",
+                        text = stringResource(R.string.eta_prefix, progress.etaFormatted),
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
@@ -205,7 +207,7 @@ fun FlashingSheet(
                     contentColor = if (isSuccess) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onErrorContainer
                 )
             ) {
-                Text(if (isSuccess) "Done" else "Cancel")
+                Text(if (isSuccess) stringResource(R.string.btn_done) else stringResource(R.string.btn_cancel))
             }
         }
     }

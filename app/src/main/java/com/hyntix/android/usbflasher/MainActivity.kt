@@ -2,6 +2,7 @@ package com.hyntix.android.usbflasher
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -80,6 +81,7 @@ class MainActivity : ComponentActivity() {
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         
         // Initialize in-app logger before anything else
@@ -118,7 +120,7 @@ class MainActivity : ComponentActivity() {
                         contract = ActivityResultContracts.OpenDocument()
                     ) { uri ->
                         uri?.let { 
-                            var name = "Unknown.iso"
+                            var name = getString(R.string.unknown_file)
                             var size = 0L
                             
                             contentResolver.query(it, null, null, null, null)?.use { cursor ->

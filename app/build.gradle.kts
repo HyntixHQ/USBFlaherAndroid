@@ -14,8 +14,8 @@ android {
         applicationId = "com.hyntix.android.usbflasher"
         minSdk = 33
         targetSdk = 37
-        versionCode = 4
-        versionName = "1.0.3"
+        versionCode = 5
+        versionName = "1.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -94,5 +94,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     implementation(libs.phosphor.compose)
+    implementation(libs.androidx.splashscreen)
     implementation(project(":androidusbflasher"))
 }

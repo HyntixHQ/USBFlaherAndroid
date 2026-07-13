@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hyntix.android.usbflasher.R
 import com.hyntix.android.usbflasher.data.*
 import com.hyntix.android.usbflasher.domain.FlashRepository
 import com.hyntix.android.usbflasher.util.AppLogger
@@ -114,7 +115,7 @@ class FlashViewModel(
 
                 if (!isLinux && !isWindows) {
                     _feedbackMessage.tryEmit(
-                        "\"$name\" is not a supported ISO file. Please select a Linux or Windows installation ISO."
+                        repository.context.getString(R.string.file_invalid, name)
                     )
                     return@launch
                 }
@@ -123,7 +124,7 @@ class FlashViewModel(
                 _selectedImageInfo.value = image
                 checkReadyState()
             } else {
-                _feedbackMessage.tryEmit("Could not open the selected file.")
+                _feedbackMessage.tryEmit(repository.context.getString(R.string.file_cannot_open))
             }
         }
     }
@@ -268,23 +269,23 @@ class FlashViewModel(
     /** Map raw Rust/technical errors to concise user-friendly messages. */
     private fun toUserMessage(raw: String): String {
         val lower = raw.lowercase()
+        val ctx = repository.context
         return when {
-            lower.contains("cancel") -> "Cancelled by user."
+            lower.contains("cancel") -> ctx.getString(R.string.err_cancelled)
             lower.contains("verification") || lower.contains("mismatch") || lower.contains("hash") ->
-                "Verification failed. Data may be corrupted."
+                ctx.getString(R.string.err_verification_failed)
             lower.contains("permission") || lower.contains("access") ->
-                "USB permission denied. Reconnect and try again."
+                ctx.getString(R.string.err_usb_permission)
             lower.contains("disconnected") || lower.contains("detach") || lower.contains("no device") ->
-                "USB drive was disconnected."
+                ctx.getString(R.string.err_disconnected)
             lower.contains("no space") || lower.contains("capacity") || lower.contains("too large") ->
-                "Image is larger than the drive."
+                ctx.getString(R.string.err_too_large)
             lower.contains("usb") || lower.contains("pipe") || lower.contains("i/o") || lower.contains("ioctl") ->
-                "USB transfer failed. Try reconnecting the drive."
+                ctx.getString(R.string.err_usb_transfer)
             lower.contains("scsi") || lower.contains("csw") || lower.contains("cbw") ->
-                "Drive communication error. Try a different USB port."
+                ctx.getString(R.string.err_drive_communication)
             lower.contains("timeout") ->
-                "Drive not responding. Please reconnect."
-            // Already user-friendly messages from FlashRepository pass through as-is
+                ctx.getString(R.string.err_timeout)
             else -> raw
         }
     }

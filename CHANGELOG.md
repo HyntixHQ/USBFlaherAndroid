@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - Unreleased
+
+### Added
+- **Splash Screen**: Native Android 12+ SplashScreen API with app logo. White logo on dark
+  background in dark mode, colored logo (#2B2C30) on white in light mode.
+- **Separator Lines**: Subtle 0.5dp divider below TopAppBar in both MainScreen and LogViewerScreen.
+- **String Resource Extraction**: All 45 user-visible strings extracted from code into
+  `strings.xml` for future localization support.
+
+### Changed
+- App icons updated.
+- License changed from AGPL-3.0 to GPL-3.0 (more appropriate for a client-side Android app).
+- JNA version catalog entry removed (used via raw `@aar` string, not `libs.jna`).
+
+### Internal
+- `androidx.core:core-splashscreen:1.2.0` dependency added.
+
 ## [1.0.3] - 2026-07-13
 
 ### Added
