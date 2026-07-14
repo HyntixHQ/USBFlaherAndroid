@@ -9,9 +9,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use tracing::info;
 
-pub mod config;
-pub use config::FlashConfig;
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum FlashPhase {
     Validating,
@@ -19,18 +16,6 @@ pub enum FlashPhase {
     Flashing,
     Verifying,
     Finalizing,
-}
-
-impl FlashPhase {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            FlashPhase::Validating => "Validating",
-            FlashPhase::Formatting => "Formatting",
-            FlashPhase::Flashing => "Flashing",
-            FlashPhase::Verifying => "Verifying",
-            FlashPhase::Finalizing => "Finalizing",
-        }
-    }
 }
 
 pub struct Flasher {

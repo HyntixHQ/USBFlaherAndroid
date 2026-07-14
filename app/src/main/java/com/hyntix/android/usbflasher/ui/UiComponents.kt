@@ -16,10 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.hyntix.android.usbflasher.R
 import com.hyntix.android.usbflasher.data.FlashProgress
 import com.hyntix.android.usbflasher.data.FlashState
-import com.adamglin.PhosphorIcons
-import com.adamglin.phosphoricons.Regular
-import com.adamglin.phosphoricons.regular.Disc
-import com.adamglin.phosphoricons.regular.Usb
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

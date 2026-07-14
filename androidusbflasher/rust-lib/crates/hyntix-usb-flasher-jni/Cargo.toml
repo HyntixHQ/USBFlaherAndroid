@@ -15,7 +15,6 @@ hyntix-usb = { workspace = true }
 hyntix-common = { workspace = true }
 tracing.workspace = true
 tracing-subscriber.workspace = true
-anyhow.workspace = true
 uniffi = { workspace = true }
 thiserror.workspace = true
 libc.workspace = true

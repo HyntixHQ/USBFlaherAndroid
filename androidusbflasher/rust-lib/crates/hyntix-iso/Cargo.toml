@@ -7,7 +7,4 @@ license.workspace = true
 
 [dependencies]
 hyntix-common = { workspace = true }
-nom.workspace = true
-
-unicode-normalization.workspace = true
 tracing = { workspace = true }

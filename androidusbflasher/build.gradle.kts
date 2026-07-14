@@ -32,9 +32,6 @@ android {
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation("net.java.dev.jna:jna:${libs.versions.jna.get()}@aar")
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
 }
 
 // Build Rust library for the library module

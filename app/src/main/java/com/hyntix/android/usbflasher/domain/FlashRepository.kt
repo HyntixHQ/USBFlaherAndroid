@@ -1,13 +1,14 @@
 package com.hyntix.android.usbflasher.domain
 
 import android.content.Context
-import android.net.Uri
 import android.content.BroadcastReceiver
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.ParcelFileDescriptor
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
+import android.hardware.usb.UsbEndpoint
+import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import com.hyntix.lib.androidusbflasher.AndroidUsbFlasher
 import com.hyntix.android.usbflasher.R
@@ -32,8 +33,6 @@ class FlashRepository(
     private val capacityCache = ConcurrentHashMap<String, Long>()
     private val usbMutex = Mutex()
     private var onDevicesChanged: (() -> Unit)? = null
-    private val usbFilter: IntentFilter
-
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == UsbManager.ACTION_USB_DEVICE_ATTACHED ||
@@ -43,11 +42,12 @@ class FlashRepository(
         }
     }
 
+    private val usbFilter = IntentFilter().apply {
+        addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+        addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+    }
+
     init {
-        usbFilter = IntentFilter().apply {
-            addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
-            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
-        }
         context.registerReceiver(usbReceiver, usbFilter)
     }
 
@@ -100,21 +100,11 @@ class FlashRepository(
             }
     }
     
-    fun requestPermission(device: android.hardware.usb.UsbDevice, pendingIntent: android.app.PendingIntent) {
-        val manager = context.getSystemService(Context.USB_SERVICE) as android.hardware.usb.UsbManager
-        manager.requestPermission(device, pendingIntent)
-    }
-
-    fun hasPermission(device: android.hardware.usb.UsbDevice): Boolean {
-        val manager = context.getSystemService(Context.USB_SERVICE) as android.hardware.usb.UsbManager
-        return manager.hasPermission(device)
-    }
-    
-    private fun isMassStorage(device: android.hardware.usb.UsbDevice): Boolean {
+    private fun isMassStorage(device: UsbDevice): Boolean {
         for (i in 0 until device.interfaceCount) {
-             if (device.getInterface(i).interfaceClass == android.hardware.usb.UsbConstants.USB_CLASS_MASS_STORAGE) {
-                 return true
-             }
+            if (device.getInterface(i).interfaceClass == UsbConstants.USB_CLASS_MASS_STORAGE) {
+                return true
+            }
         }
         return false
     }
@@ -143,10 +133,10 @@ class FlashRepository(
     ) {
         AppLogger.d("FlashRepository", "performFlash: Starting for ${device.deviceName}")
         // Resolve Endpoints
-        var msInterface: android.hardware.usb.UsbInterface? = null
+        var msInterface: UsbInterface? = null
         for (i in 0 until device.interfaceCount) {
             val iface = device.getInterface(i)
-            if (iface.interfaceClass == android.hardware.usb.UsbConstants.USB_CLASS_MASS_STORAGE) {
+            if (iface.interfaceClass == UsbConstants.USB_CLASS_MASS_STORAGE) {
                 msInterface = iface
                 break
             }
@@ -158,12 +148,12 @@ class FlashRepository(
             return
         }
         
-        var inEp: android.hardware.usb.UsbEndpoint? = null
-        var outEp: android.hardware.usb.UsbEndpoint? = null
+        var inEp: UsbEndpoint? = null
+        var outEp: UsbEndpoint? = null
         for (i in 0 until msInterface.endpointCount) {
             val ep = msInterface.getEndpoint(i)
-            if (ep.type == android.hardware.usb.UsbConstants.USB_ENDPOINT_XFER_BULK) {
-                if (ep.direction == android.hardware.usb.UsbConstants.USB_DIR_IN) inEp = ep
+            if (ep.type == UsbConstants.USB_ENDPOINT_XFER_BULK) {
+                if (ep.direction == UsbConstants.USB_DIR_IN) inEp = ep
                 else outEp = ep
             }
         }
@@ -252,10 +242,6 @@ class FlashRepository(
         }
     }
 
-    fun clearCache() {
-        capacityCache.clear()
-    }
-
     fun cancel() {
         usbFlasher.cancel()
     }
@@ -274,22 +260,22 @@ class FlashRepository(
         }
 
         // Find mass storage interface and endpoints
-        var msInterface: android.hardware.usb.UsbInterface? = null
+        var msInterface: UsbInterface? = null
         for (i in 0 until device.interfaceCount) {
             val iface = device.getInterface(i)
-            if (iface.interfaceClass == android.hardware.usb.UsbConstants.USB_CLASS_MASS_STORAGE) {
+            if (iface.interfaceClass == UsbConstants.USB_CLASS_MASS_STORAGE) {
                 msInterface = iface
                 break
             }
         }
         if (msInterface == null) return
 
-        var inEp: android.hardware.usb.UsbEndpoint? = null
-        var outEp: android.hardware.usb.UsbEndpoint? = null
+        var inEp: UsbEndpoint? = null
+        var outEp: UsbEndpoint? = null
         for (i in 0 until msInterface.endpointCount) {
             val ep = msInterface.getEndpoint(i)
-            if (ep.type == android.hardware.usb.UsbConstants.USB_ENDPOINT_XFER_BULK) {
-                if (ep.direction == android.hardware.usb.UsbConstants.USB_DIR_IN) inEp = ep
+            if (ep.type == UsbConstants.USB_ENDPOINT_XFER_BULK) {
+                if (ep.direction == UsbConstants.USB_DIR_IN) inEp = ep
                 else outEp = ep
             }
         }
@@ -332,6 +318,7 @@ class FlashRepository(
         }
     }
 
+    @Suppress("unused")
     fun close() {
         try {
             context.unregisterReceiver(usbReceiver)

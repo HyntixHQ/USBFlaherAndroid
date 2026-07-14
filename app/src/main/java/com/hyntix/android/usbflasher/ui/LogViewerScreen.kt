@@ -96,7 +96,7 @@ fun LogViewerScreen(
                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
                                 context.startActivity(Intent.createChooser(shareIntent, shareLogsTitle))
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                                 // FileProvider not configured — fall back to text share
                                 scope.launch {
                                     val text = AppLogger.getAllLogs()

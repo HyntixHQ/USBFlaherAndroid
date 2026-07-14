@@ -60,10 +60,7 @@ object AppLogger {
     fun d(tag: String, message: String) = log(Level.DEBUG, tag, message)
     fun i(tag: String, message: String) = log(Level.INFO, tag, message)
     fun w(tag: String, message: String) = log(Level.WARN, tag, message)
-    fun w(tag: String, message: String, throwable: Throwable) {
-        log(Level.WARN, tag, "$message: ${throwable.message}")
-        log(Level.WARN, tag, throwable.stackTraceToString().take(500))
-    }
+
     fun e(tag: String, message: String) = log(Level.ERROR, tag, message)
     fun e(tag: String, message: String, throwable: Throwable) {
         log(Level.ERROR, tag, "$message: ${throwable.message}")
@@ -169,9 +166,6 @@ object AppLogger {
         }
     }
 
-    fun getRecentLogs(): List<String> = synchronized(ringLock) {
-        ringBuffer.toList()
-    }
 
     suspend fun getAllLogs(): String = withContext(Dispatchers.IO) {
         try {

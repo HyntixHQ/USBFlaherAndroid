@@ -21,9 +21,4 @@
     <init>();
 }
 
-# JNA / UniFFI
--keep class com.sun.jna.** { *; }
--keep class * extends com.sun.jna.** { *; }
--keepclassmembers class * extends com.sun.jna.** { public *; }
--keepattributes Signature,RuntimeVisibleAnnotations,AnnotationDefault
--dontwarn com.sun.jna.**
+# JNA rules are provided by :androidusbflasher's consumer-rules.pro

@@ -17,10 +17,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - App icons updated.
 - License changed from AGPL-3.0 to GPL-3.0 (more appropriate for a client-side Android app).
-- JNA version catalog entry removed (used via raw `@aar` string, not `libs.jna`).
+
+### Removed
+- **Rust dead code**: ~440 lines removed including `UsbMassStorageWriter` (213 lines), `UsbBackend::Callbacks`,
+  `ScsiRequestSense`, `ScsiStartStopUnit`, `ScsiSynchronizeCache`, `Error::code()`, `FlashConfig`, `FlashPhase::as_str()`.
+- **Unused Rust dependencies**: 12 removals — `anyhow`, `nom`, `clap`, redundant `tracing`/`tracing-subscriber`/`hyntix-*`
+  workspace dependencies across 8 crates.
+- **`hyntix-windows-cli`**: Entire crate deleted (was only for testing ISO parsing).
+- **`UsbDeviceScanner.kt`**: Entire file deleted (functionality duplicated in `FlashRepository` and `MainActivity`).
+- **Test stubs**: 4 stub test files (`ExampleUnitTest`, `ExampleInstrumentedTest` in both modules).
+- **Test dependencies**: Removed `junit`, `androidx-junit`, `espresso-core`, `compose-ui-test-*` from version catalog
+  and build files.
+- **Duplicate ProGuard rules**: Redundant JNA rules removed from `app/proguard-rules.pro`
+  (covered by `androidusbflasher/consumer-rules.pro`).
+- **Dead code from Kotlin**: Removed `requestPermission()`, `hasPermission()`, `clearCache()` from `FlashRepository`;
+  replaced `println()` calls with `android.util.Log` in `AndroidUsbFlasher.kt`.
 
 ### Internal
 - `androidx.core:core-splashscreen:1.2.0` dependency added.
+- `android.hardware.usb.UsbEndpoint` and `UsbInterface` imports added to `FlashRepository`.
+- `usbFilter` declaration merged with `init` block in `FlashRepository`.
 
 ## [1.0.3] - 2026-07-13
 

@@ -49,9 +49,6 @@ fun MainScreen(
         onDispose { viewModel.stopDeviceScan() }
     }
 
-    // Windows ISO is now supported via WIM Splitting!
-    val winIsoWarning = null
-
     // Snackbar for file validation feedback
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(Unit) {

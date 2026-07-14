@@ -44,7 +44,7 @@ Three layers, no DI, no Jetpack Navigation:
 
 ## Tests
 
-All 4 test files are stubs (`assertEquals(4, 2 + 2)`). No meaningful tests exist for any layer. The `:app` instrumented test still references the old package name `dev.libretools.android.usbflaher` (should be `com.hyntix.android.usbflasher`).
+No tests are currently written for any layer. Stub test files and their dependencies were removed in v1.0.4.
 
 ## Environment
 
@@ -68,8 +68,7 @@ app/src/main/java/com/hyntix/android/usbflasher/
 
 androidusbflasher/src/main/java/com/hyntix/lib/androidusbflasher/
 ├── AndroidUsbFlasher.kt — hand-written Kotlin wrapper (edit this for bridge changes)
-├── UsbFlasherNative.kt — UniFFI-generated (do NOT edit manually)
-└── UsbDeviceScanner.kt — USB mass storage device enumeration
+└── UsbFlasherNative.kt — UniFFI-generated (do NOT edit manually)
 ```
 
 ### Rust crates
@@ -82,5 +81,5 @@ androidusbflasher/rust-lib/crates/
 ├── hyntix-iso/, hyntix-udf/, hyntix-wim/ — filesystem parsers
 ├── hyntix-fat32/ — FAT32 formatting + GPT partition table
 ├── hyntix-linux/, hyntix-windows/ — platform-specific ISO detection
-└── hyntix-windows-cli/ — standalone CLI (not part of Android build)
+└── hyntix-windows-cli/ — removed in v1.0.4 (was CLI test tool)
 ```

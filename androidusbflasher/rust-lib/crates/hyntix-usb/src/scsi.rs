@@ -92,7 +92,11 @@ impl ScsiReadCapacity {
     /// Parse READ CAPACITY response.
     /// Returns (last_block_address, block_size).
     pub fn parse_response(data: &[u8]) -> Option<(u32, u32)> {
-        tracing::debug!("ScsiReadCapacity: Raw response (len={}): {:02X?}", data.len(), data);
+        tracing::debug!(
+            "ScsiReadCapacity: Raw response (len={}): {:02X?}",
+            data.len(),
+            data
+        );
         if data.len() < 8 {
             return None;
         }
@@ -101,7 +105,11 @@ impl ScsiReadCapacity {
         let last_block_address = u32::from_be_bytes([data[0], data[1], data[2], data[3]]);
         let block_size = u32::from_be_bytes([data[4], data[5], data[6], data[7]]);
 
-        tracing::debug!("ScsiReadCapacity: Parsed LBA={}, BlockSize={}", last_block_address, block_size);
+        tracing::debug!(
+            "ScsiReadCapacity: Parsed LBA={}, BlockSize={}",
+            last_block_address,
+            block_size
+        );
         Some((last_block_address, block_size))
     }
 }
@@ -195,92 +203,5 @@ impl ScsiWrite10 {
             lun,
             &Self::command(lba, transfer_blocks),
         )
-    }
-}
-
-/// SCSI REQUEST SENSE command (0x03).
-/// Gets detailed error information after a failed command.
-pub struct ScsiRequestSense;
-
-impl ScsiRequestSense {
-    /// Op code for REQUEST SENSE.
-    pub const OPCODE: u8 = 0x03;
-
-    /// Standard response size (18 bytes).
-    pub const RESPONSE_SIZE: u8 = 18;
-
-    /// Create REQUEST SENSE command bytes.
-    pub fn command(allocation_length: u8) -> [u8; 6] {
-        [
-            Self::OPCODE,
-            0x00,              // Reserved
-            0x00,              // Reserved
-            0x00,              // Reserved
-            allocation_length, // Allocation length
-            0x00,              // Control
-        ]
-    }
-
-    /// Create CBW for REQUEST SENSE.
-    pub fn cbw(tag: u32, lun: u8) -> CommandBlockWrapper {
-        CommandBlockWrapper::new(
-            tag,
-            Self::RESPONSE_SIZE as u32,
-            Direction::In,
-            lun,
-            &Self::command(Self::RESPONSE_SIZE),
-        )
-    }
-}
-
-/// SCSI START STOP UNIT command (0x1B).
-/// Used to eject the media or stop the motor.
-pub struct ScsiStartStopUnit;
-
-impl ScsiStartStopUnit {
-    /// Op code for START STOP UNIT.
-    pub const OPCODE: u8 = 0x1B;
-
-    /// Create START STOP UNIT command bytes.
-    /// @param start If true, start the unit. If false, stop it.
-    /// @param loej If true, load/eject the media.
-    pub fn command(start: bool, loej: bool) -> [u8; 6] {
-        let mut cmd = [0u8; 6];
-        cmd[0] = Self::OPCODE;
-        let mut byte4 = 0u8;
-        if start {
-            byte4 |= 0x01;
-        }
-        if loej {
-            byte4 |= 0x02;
-        }
-        cmd[4] = byte4;
-        cmd
-    }
-
-    /// Create CBW for START STOP UNIT.
-    pub fn cbw(tag: u32, lun: u8, start: bool, loej: bool) -> CommandBlockWrapper {
-        CommandBlockWrapper::new(tag, 0, Direction::Out, lun, &Self::command(start, loej))
-    }
-}
-
-/// SCSI SYNCHRONIZE CACHE (10) command (0x35).
-/// Flushes the device's internal write cache to physical storage.
-pub struct ScsiSynchronizeCache;
-
-impl ScsiSynchronizeCache {
-    /// Op code for SYNCHRONIZE CACHE (10).
-    pub const OPCODE: u8 = 0x35;
-
-    /// Create SYNCHRONIZE CACHE (10) command bytes.
-    pub fn command() -> [u8; 10] {
-        let mut cmd = [0u8; 10];
-        cmd[0] = Self::OPCODE;
-        cmd
-    }
-
-    /// Create CBW for SYNCHRONIZE CACHE (10).
-    pub fn cbw(tag: u32, lun: u8) -> CommandBlockWrapper {
-        CommandBlockWrapper::new(tag, 0, Direction::Out, lun, &Self::command())
     }
 }

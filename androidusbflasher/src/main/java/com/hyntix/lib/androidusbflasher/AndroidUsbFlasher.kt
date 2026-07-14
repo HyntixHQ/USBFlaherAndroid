@@ -2,11 +2,7 @@ package com.hyntix.lib.androidusbflasher
 
 import android.content.Context
 import android.os.ParcelFileDescriptor
-import java.io.File
 import com.hyntix.lib.androidusbflasher.UsbFlasher as NativeFlasher
-import com.hyntix.lib.androidusbflasher.FlashCallback
-import com.hyntix.lib.androidusbflasher.FlashPhase
-// import com.hyntix.lib.androidusbflasher.FlasherError // UniFFI generates this
 
 class AndroidUsbFlasher(private val context: Context) {
 
@@ -33,11 +29,11 @@ class AndroidUsbFlasher(private val context: Context) {
         }
         
         val iface = massStorageIface ?: run {
-            println("AndroidUsbFlasher: No Mass Storage interface found for ${device.deviceName}")
+            android.util.Log.e("AndroidUsbFlasher", "No Mass Storage interface found for ${device.deviceName}")
             return 0L
         }
         
-        println("AndroidUsbFlasher: Found MS interface ${iface.id} for ${device.deviceName}")
+        android.util.Log.d("AndroidUsbFlasher", "Found MS interface ${iface.id} for ${device.deviceName}")
         
         // Find endpoints
         var inEp: android.hardware.usb.UsbEndpoint? = null
@@ -55,22 +51,22 @@ class AndroidUsbFlasher(private val context: Context) {
         }
         
         val inEndpoint = inEp ?: run {
-            println("AndroidUsbFlasher: No IN endpoint found for ${device.deviceName}")
+            android.util.Log.e("AndroidUsbFlasher", "No IN endpoint found for ${device.deviceName}")
             return 0L
         }
         val outEndpoint = outEp ?: run {
-            println("AndroidUsbFlasher: No OUT endpoint found for ${device.deviceName}")
+            android.util.Log.e("AndroidUsbFlasher", "No OUT endpoint found for ${device.deviceName}")
             return 0L
         }
         
-        println("AndroidUsbFlasher: Using endpoints IN=${inEndpoint.address}, OUT=${outEndpoint.address}")
+        android.util.Log.d("AndroidUsbFlasher", "Using endpoints IN=${inEndpoint.address}, OUT=${outEndpoint.address}")
         
         return try {
             val connection = manager.openDevice(device) ?: run {
-                println("AndroidUsbFlasher: Failed to openDevice ${device.deviceName}")
+                android.util.Log.e("AndroidUsbFlasher", "Failed to openDevice ${device.deviceName}")
                 return 0L
             }
-            println("AndroidUsbFlasher: Opened device ${device.deviceName}, FD=${connection.fileDescriptor}")
+            android.util.Log.d("AndroidUsbFlasher", "Opened device ${device.deviceName}, FD=${connection.fileDescriptor}")
             try {
                 if (connection.claimInterface(iface, true)) {
                      android.util.Log.d("AndroidUsbFlasher", "getDeviceCapacity: Claimed interface ${iface.id}")
@@ -90,8 +86,7 @@ class AndroidUsbFlasher(private val context: Context) {
                 connection.close()
             }
         } catch (e: Exception) {
-            println("AndroidUsbFlasher: Exception in getDeviceCapacity: ${e.message}")
-            e.printStackTrace()
+            android.util.Log.e("AndroidUsbFlasher", "Exception in getDeviceCapacity", e)
             0L
         }
     }
@@ -99,7 +94,7 @@ class AndroidUsbFlasher(private val context: Context) {
     fun isLinuxIso(pfd: ParcelFileDescriptor): Boolean {
         return try {
             nativeFlasher.isLinuxIso(pfd.fd)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
@@ -107,7 +102,7 @@ class AndroidUsbFlasher(private val context: Context) {
     fun isWindowsIso(pfd: ParcelFileDescriptor): Boolean {
         return try {
             nativeFlasher.isWindowsIso(pfd.fd)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
@@ -152,7 +147,7 @@ class AndroidUsbFlasher(private val context: Context) {
             } finally {
                 try {
                     pfd.close()
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Ignore
                 }
             }
@@ -203,7 +198,7 @@ class AndroidUsbFlasher(private val context: Context) {
             } finally {
                 try {
                     pfd.close()
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // Ignore
                 }
             }

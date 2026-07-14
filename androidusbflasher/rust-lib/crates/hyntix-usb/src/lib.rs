@@ -14,7 +14,7 @@ pub mod scsi;
 pub use async_writer::AsyncUsbWriter;
 pub use cbw::CommandBlockWrapper;
 pub use csw::CommandStatusWrapper;
-pub use mass_storage::{UsbMassStorage, UsbMassStorageWriter};
+pub use mass_storage::UsbMassStorage;
 pub use native::NativeUsbBackend;
 
 /// Trait for types that can report their physical I/O progress.
