@@ -152,6 +152,7 @@ fun LogViewerScreen(
                     .fillMaxSize()
                     .padding(padding)
                     .padding(horizontal = 8.dp),
+                contentPadding = PaddingValues(top = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(1.dp)
             ) {
                 items(logs) { line ->
