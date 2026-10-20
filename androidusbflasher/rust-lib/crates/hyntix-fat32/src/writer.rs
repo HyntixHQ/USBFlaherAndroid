@@ -697,13 +697,20 @@ impl<'b, 'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32FileWri
 
         // Ensure writer is at the correct position
         if self.parent.writer.stream_position()? != start_disk_offset {
-            tracing::debug!("Fat32FileWriter: Seeking to cluster offset {}", start_disk_offset);
+            tracing::debug!(
+                "Fat32FileWriter: Seeking to cluster offset {}",
+                start_disk_offset
+            );
             self.parent
                 .writer
                 .seek(SeekFrom::Start(start_disk_offset))?;
         }
 
-        tracing::debug!("Fat32FileWriter: Writing {} bytes to disk at {}", data.len(), start_disk_offset);
+        tracing::debug!(
+            "Fat32FileWriter: Writing {} bytes to disk at {}",
+            data.len(),
+            start_disk_offset
+        );
         self.parent.writer.write_all(data)?;
 
         let mut total_processed_bytes = 0;
@@ -711,7 +718,7 @@ impl<'b, 'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32FileWri
 
         while total_processed_bytes < data.len() {
             let remaining_in_data = data.len() - total_processed_bytes;
-            
+
             // Calculate how much we can write to the CURRENT cluster
             let offset_in_cluster = (self.bytes_written % bytes_per_cluster as u64) as usize;
             let space_in_cluster = bytes_per_cluster - offset_in_cluster;
@@ -723,7 +730,11 @@ impl<'b, 'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32FileWri
             // If we just finished a cluster, allocate the next one
             if self.bytes_written % bytes_per_cluster as u64 == 0 {
                 let next_cluster = self.parent.formatter.allocate_cluster();
-                tracing::debug!("Fat32FileWriter: Advancing from cluster {} to {}", self.current_cluster, next_cluster);
+                tracing::debug!(
+                    "Fat32FileWriter: Advancing from cluster {} to {}",
+                    self.current_cluster,
+                    next_cluster
+                );
                 self.parent
                     .fat_cache
                     .push((self.current_cluster, next_cluster));

@@ -18,20 +18,20 @@ edition = "2024"
 repository = "https://github.com/HyntixHQ/USBFlaherAndroid"
 
 [workspace.dependencies]
-thiserror = "2.0.18"
-libc = "0.2.184"
-unicode-normalization = "0.1.25"
+thiserror = "2.0.21"
+libc = "0.2.191"
+unicode-normalization = "0.1.26"
 crc = "3.4.0"
-crossbeam-channel = "0.5.15"
-uuid = { version = "1.23.4", features = ["v4"] }
+crossbeam-channel = "0.5.17"
+uuid = { version = "1.28.0", features = ["v4"] }
 
-blake3 = "1.8.5"
+blake3 = "1.8.7"
 tracing = "0.1.44"
 tracing-subscriber = "0.3.23"
 tracing-android = "0.2.0"
 
-zerocopy = { version = "0.8.52", features = ["derive"] }
-uniffi = { version = "0.32.0", features = ["cli", "build"] }
+zerocopy = { version = "0.8.63", features = ["derive"] }
+uniffi = { version = "0.32.2", features = ["cli", "build"] }
 
 # Internal crates
 hyntix-common = { path = "crates/hyntix-common" }

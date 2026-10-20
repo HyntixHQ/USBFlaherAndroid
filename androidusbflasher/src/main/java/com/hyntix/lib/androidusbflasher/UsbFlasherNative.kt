@@ -695,6 +695,8 @@ internal object IntegrityCheckingUniffiLib {
         uniffiCheckContractApiVersion(this)
         uniffiCheckApiChecksums(this)
     }
+
+    internal fun ensureInitialized() = Unit
     external fun uniffi_usbflasher_checksum_method_usbflasher_cancel(
     ): Int
     external fun uniffi_usbflasher_checksum_method_usbflasher_flash_device(
@@ -730,6 +732,8 @@ internal object UniffiLib {
         uniffiCallbackInterfaceFlashCallback.register(this)
         
     }
+
+    internal fun ensureInitialized() = Unit
     external fun uniffi_usbflasher_fn_clone_usbflasher(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
     ): Long
     external fun uniffi_usbflasher_fn_free_usbflasher(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
@@ -869,28 +873,28 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
-    if (lib.uniffi_usbflasher_checksum_method_usbflasher_cancel() != 21469) {
+    if ((lib.uniffi_usbflasher_checksum_method_usbflasher_cancel() and 0xFFFF) != 21469) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_method_usbflasher_flash_device() != 34762) {
+    if ((lib.uniffi_usbflasher_checksum_method_usbflasher_flash_device() and 0xFFFF) != 34762) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_method_usbflasher_flash_windows_device() != 17514) {
+    if ((lib.uniffi_usbflasher_checksum_method_usbflasher_flash_windows_device() and 0xFFFF) != 17514) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_method_usbflasher_get_device_capacity() != 47983) {
+    if ((lib.uniffi_usbflasher_checksum_method_usbflasher_get_device_capacity() and 0xFFFF) != 47983) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_method_usbflasher_is_linux_iso() != 12693) {
+    if ((lib.uniffi_usbflasher_checksum_method_usbflasher_is_linux_iso() and 0xFFFF) != 12693) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_method_usbflasher_is_windows_iso() != 6428) {
+    if ((lib.uniffi_usbflasher_checksum_method_usbflasher_is_windows_iso() and 0xFFFF) != 6428) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_constructor_usbflasher_new() != 38916) {
+    if ((lib.uniffi_usbflasher_checksum_constructor_usbflasher_new() and 0xFFFF) != 38916) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if (lib.uniffi_usbflasher_checksum_method_flashcallback_on_progress() != 7185) {
+    if ((lib.uniffi_usbflasher_checksum_method_flashcallback_on_progress() and 0xFFFF) != 7185) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -899,10 +903,10 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
  * @suppress
  */
 public fun uniffiEnsureInitialized() {
-    IntegrityCheckingUniffiLib
-    // UniffiLib() initialized as objects are used, but we still need to explicitly
-    // reference it so initialization across crates works as expected.
-    UniffiLib
+    // Call arbitrary methods on IntegrityCheckingUniffiLib and UniffiLib to ensure that
+    // their init blocks run. This ensures initialization across crates works as expected.
+    IntegrityCheckingUniffiLib.ensureInitialized()
+    UniffiLib.ensureInitialized()
 }
 
 // Async support

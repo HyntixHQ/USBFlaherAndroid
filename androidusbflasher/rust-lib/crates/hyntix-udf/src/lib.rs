@@ -19,8 +19,8 @@ const TAG_LOGICAL_VOLUME_DESC: u16 = 6;
 const TAG_TERMINATING_DESC: u16 = 8;
 const TAG_FILE_SET_DESC: u16 = 256;
 const TAG_FILE_IDENT_DESC: u16 = 257;
-const TAG_FILE_ENTRY: u16 = 261;         // ECMA-167 §14.9
-const TAG_EXT_FILE_ENTRY: u16 = 266;     // ECMA-167 §14.17
+const TAG_FILE_ENTRY: u16 = 261; // ECMA-167 §14.9
+const TAG_EXT_FILE_ENTRY: u16 = 266; // ECMA-167 §14.17
 
 // File Identifier Descriptor characteristics (ECMA-167 §14.4.3)
 const FID_CHAR_DIRECTORY: u8 = 0x02;
@@ -133,8 +133,7 @@ impl<R: Read + Seek> UdfReader<R> {
 
         let partition_start =
             partition_start.ok_or(UdfError::MissingDescriptor("Partition Descriptor"))?;
-        let fsd_lbn =
-            fsd_lbn.ok_or(UdfError::MissingDescriptor("Logical Volume Descriptor"))?;
+        let fsd_lbn = fsd_lbn.ok_or(UdfError::MissingDescriptor("Logical Volume Descriptor"))?;
 
         // ── Step 3: Read File Set Descriptor ─────────────────────────────
         let fsd_sector = partition_start + fsd_lbn;
@@ -435,8 +434,14 @@ fn u32_at(buf: &[u8; SECTOR_SIZE as usize], off: usize) -> u32 {
 #[inline(always)]
 fn u64_at(buf: &[u8; SECTOR_SIZE as usize], off: usize) -> u64 {
     u64::from_le_bytes([
-        buf[off], buf[off + 1], buf[off + 2], buf[off + 3],
-        buf[off + 4], buf[off + 5], buf[off + 6], buf[off + 7],
+        buf[off],
+        buf[off + 1],
+        buf[off + 2],
+        buf[off + 3],
+        buf[off + 4],
+        buf[off + 5],
+        buf[off + 6],
+        buf[off + 7],
     ])
 }
 

@@ -45,7 +45,7 @@ A high-performance, rootless, open-source USB flashing utility for Android. Enab
 
 ### Building from Source
 1.  Install Android NDK r28+, Rust 1.85+, `rustup target add aarch64-linux-android`
-2.  Install `uniffi-bindgen` matching the crate version: `cargo install uniffi --version 0.31.2 --features cli`
+2.  Install `uniffi-bindgen` matching the crate version: `cargo install uniffi --version 0.32.2 --features cli`
 3.  Build: `./gradlew assembleRelease`
 4.  APK at `app/build/outputs/apk/release/app-arm64-v8a-release.apk`
 

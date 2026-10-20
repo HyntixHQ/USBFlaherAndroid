@@ -4,7 +4,7 @@
 
 - **Full build:** `./gradlew assembleRelease` — compiles Kotlin, cross-compiles Rust for ARM64, runs `uniffi-bindgen` to regenerate `UsbFlasherNative.kt`
 - **Rust only:** `cargo build --release --target aarch64-linux-android -p hyntix-usb-flasher-jni`
-- `uniffi-bindgen` must be on `$PATH` (from `cargo install uniffi`, version matching 0.31.2)
+- `uniffi-bindgen` must be on `$PATH` (from `cargo install uniffi`, version matching 0.32.2)
 
 ## Architecture
 
@@ -12,7 +12,7 @@ Three layers, no DI, no Jetpack Navigation:
 
 1. **`:app` module** — Jetpack Compose UI (MVI-lite). Single `MainActivity`, single screen with conditional overlays. One `FlashViewModel` with `StateFlow<FlashState>`.
 2. **`:androidusbflasher` module** — UniFFI + JNA bridge. `AndroidUsbFlasher.kt` is the hand-written wrapper; `UsbFlasherNative.kt` is **auto-generated** by UniFFI.
-3. **Rust workspace** (`androidusbflasher/rust-lib/`) — 11 crates, produces `libusbflasher.so` (cdylib). UniFFI 0.31.2, JNA 5.19.1, Rust edition 2024 (requires Rust 1.85+).
+3. **Rust workspace** (`androidusbflasher/rust-lib/`) — 11 crates, produces `libusbflasher.so` (cdylib). UniFFI 0.32.2, JNA 5.19.1, Rust edition 2024 (requires Rust 1.85+).
 
 ## USB stack architecture
 
@@ -48,7 +48,7 @@ No tests are currently written for any layer. Stub test files and their dependen
 
 ## Environment
 
-- Rust 1.85+ (edition 2024), Kotlin 2.3.21, AGP 9.2.1, Compose BOM 2026.05.00
+- Rust 1.85+ (edition 2024), Kotlin 2.4.21, AGP 9.4.1, Compose BOM 2026.09.00
 - `rustup target add aarch64-linux-android`
 - `ANDROID_NDK_HOME` pointing to NDK 30+
 

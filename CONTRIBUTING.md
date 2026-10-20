@@ -9,7 +9,7 @@ The project is an atomic workspace combining Android (Kotlin/Compose) and Rust (
 - **Android SDK & NDK**: API 33+ (Android 13), NDK r28+ (required for 16KB page support on Android 15+).
 - **Rust**: 1.85+ installed via [rustup](https://rustup.rs/), edition 2024.
 - **Rust Android Target**: `rustup target add aarch64-linux-android`
-- **UniFFI Bindgen**: `cargo install uniffi --version 0.31.2 --features cli` (must match the crate version in `Cargo.toml`)
+- **UniFFI Bindgen**: `cargo install uniffi --version 0.32.2 --features cli` (must match the crate version in `Cargo.toml`)
 
 ### Project Structure
 - `app/`: Jetpack Compose UI (MVI-lite).
