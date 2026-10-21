@@ -3,15 +3,35 @@
 //! Writes files and directories to the FAT32 filesystem with proper
 //! cluster allocation and FAT updates.
 
-use super::format::{Fat32Formatter, FAT32_EOC};
+use super::format::{FAT32_EOC, Fat32Formatter};
 use hyntix_common::{Error, Result};
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use unicode_normalization::UnicodeNormalization;
 
 /// Maximum filename length for LFN.
 const _MAX_LFN_LENGTH: usize = 255;
+
+/// Copy buffer used while streaming a file into the filesystem.
+const FILE_COPY_BUFFER_SIZE: usize = 2 * 1024 * 1024;
+
+/// Maximum FAT run (in 512-byte sectors) read/modified/written as one batch.
+/// 8192 sectors = 4MB, matching the stable SCSI transfer size.
+const MAX_FAT_FLUSH_RUN_SECTORS: u64 = 8192;
+
+/// Shared zero block used to initialise directory clusters without allocating
+/// a fresh `bytes_per_cluster` vector for every directory.
+const ZERO_BLOCK: [u8; 16 * 1024] = [0u8; 16 * 1024];
+
+fn write_zeros<W: Write>(writer: &mut W, mut len: usize) -> std::io::Result<()> {
+    while len > 0 {
+        let n = len.min(ZERO_BLOCK.len());
+        writer.write_all(&ZERO_BLOCK[..n])?;
+        len -= n;
+    }
+    Ok(())
+}
 
 /// Attribute flags for directory entries.
 #[derive(Debug, Clone, Copy)]
@@ -109,8 +129,7 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
 
         // Zero out rest of cluster
         let remaining = self.formatter.boot_sector.bytes_per_cluster() as usize - 64;
-        let zeros = vec![0u8; remaining];
-        self.writer.write_all(&zeros)?;
+        write_zeros(self.writer, remaining)?;
 
         // Track that this new directory has 2 entries (. and ..) already written
         self.dir_entry_tracker.insert(dir_cluster, 2);
@@ -134,7 +153,7 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
         parent_cluster: u32,
         reader: &mut R,
         size: u64,
-        mut progress: impl FnMut(u64, u64),
+        mut progress: impl FnMut(u64, u64, u64),
     ) -> Result<u32> {
         if size == 0 {
             // Empty file, no clusters needed
@@ -146,8 +165,10 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
         let first_cluster = {
             let mut writer = self.open_file_writer(name, parent_cluster, size)?;
 
-            // Use 2MB buffer for efficient copying from reader (matching async writer)
-            let mut buffer = vec![0u8; 2 * 1024 * 1024];
+            // Size the copy buffer to the file instead of allocating a full
+            // 2MB zeroed vector for every (often tiny) file in the ISO.
+            let buffer_size = (size as usize).min(FILE_COPY_BUFFER_SIZE).max(512);
+            let mut buffer = vec![0u8; buffer_size];
             let mut limited_reader = reader.take(size);
 
             loop {
@@ -164,10 +185,11 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
                 }
 
                 writer.write_all(&buffer[..n])?;
-                progress(writer.bytes_written, size);
+                progress(writer.bytes_written, size, writer.physical_position());
             }
 
-            // Explicitly flush/finalize
+            // Finalize the directory entry. The data stays in the async
+            // pipeline; the caller drains it once before finalising the FAT.
             writer.flush()?;
             writer.first_cluster
         };
@@ -205,9 +227,11 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
 
         let entries_per_cluster = self.formatter.boot_sector.bytes_per_cluster() / 32;
 
-        // Group entries by parent cluster for efficient writing
-        let mut by_cluster: std::collections::HashMap<u32, Vec<Vec<[u8; 32]>>> =
-            std::collections::HashMap::new();
+        // Group entries by parent cluster for efficient writing. A BTreeMap
+        // keeps directories in cluster order, which turns the subsequent
+        // writes into a mostly-forward seek pattern.
+        let mut by_cluster: std::collections::BTreeMap<u32, Vec<Vec<[u8; 32]>>> =
+            std::collections::BTreeMap::new();
 
         for pending in self.pending_dir_entries.drain(..) {
             by_cluster
@@ -221,11 +245,7 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
             // Get or initialize the entry tracker for this directory
             let start_index = *self.dir_entry_tracker.get(&parent_cluster).unwrap_or(&{
                 // For root dir, start at 0; for subdirs, start at 2 (after . and ..)
-                if parent_cluster == 2 {
-                    0
-                } else {
-                    2
-                }
+                if parent_cluster == 2 { 0 } else { 2 }
             });
 
             let mut current_index = start_index;
@@ -245,8 +265,10 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
                         .boot_sector
                         .cluster_offset(self.formatter.partition_offset, new_cluster);
                     self.writer.seek(SeekFrom::Start(new_offset))?;
-                    let zeros = vec![0u8; self.formatter.boot_sector.bytes_per_cluster() as usize];
-                    self.writer.write_all(&zeros)?;
+                    write_zeros(
+                        self.writer,
+                        self.formatter.boot_sector.bytes_per_cluster() as usize,
+                    )?;
 
                     current_cluster = new_cluster;
                     current_index = 0;
@@ -480,8 +502,24 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
         Ok(self.create_dir_entry_raw(&sfn, first_cluster, attrs, size))
     }
 
-    /// Flush FAT cache to disk.
+    /// Flush FAT cache to disk and drain the write pipeline.
     pub fn flush_fat(&mut self) -> Result<()> {
+        self.flush_fat_with_progress(|_| {})?;
+        let mut noop = |_| {};
+        self.writer.drain_with_progress(&mut noop)?;
+        Ok(())
+    }
+
+    /// Flush FAT cache to disk without draining the async write pipeline.
+    ///
+    /// Groups dirty FAT sectors into contiguous runs, loads each run from the
+    /// first FAT copy in one read, patches all entries in memory, then writes
+    /// the run to every FAT copy. This replaces the old one-read-and-write per
+    /// 512-byte sector pattern, which was the main cause of the long stall near
+    /// the end of a Windows flash.
+    ///
+    /// `on_written` receives the number of FAT bytes queued by each run.
+    pub fn flush_fat_with_progress(&mut self, mut on_written: impl FnMut(u64)) -> Result<()> {
         // First, flush all pending directory entries
         self.flush_pending_dir_entries()?;
 
@@ -489,59 +527,75 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
             return Ok(());
         }
 
-        // Sort by cluster to allow batched sector writes
+        // Stable sort by cluster so multiple updates to the same cluster keep
+        // their insertion order (the last value wins when patching).
         self.fat_cache.sort_by_key(|(cluster, _)| *cluster);
 
         let fat_offset = self.formatter.partition_offset
             + self.formatter.boot_sector.reserved_sectors as u64 * 512;
+        let fat_count = self.formatter.boot_sector.fat_count as u64;
+        let fat_copy_bytes = self.formatter.boot_sector.sectors_per_fat as u64 * 512;
+        let entry_count = self.fat_cache.len();
+        let mut idx = 0usize;
 
-        // Process each FAT copy
-        for i in 0..self.formatter.boot_sector.fat_count {
-            let fat_start =
-                fat_offset + i as u64 * self.formatter.boot_sector.sectors_per_fat as u64 * 512;
+        while idx < entry_count {
+            let start_sector = (self.fat_cache[idx].0 as u64 * 4) / 512;
+            let mut end_sector = start_sector;
+            let mut end_idx = idx;
 
-            let mut current_sector: Option<u64> = None;
-            let mut sector_data = [0u8; 512];
-
-            for &(cluster, next) in &self.fat_cache {
-                let entry_offset = cluster as u64 * 4;
-                let sector = entry_offset / 512;
-                let offset_in_sector = (entry_offset % 512) as usize;
-
-                if current_sector != Some(sector) {
-                    // Flush previous sector if dirty
-                    if let Some(prev_s) = current_sector {
-                        self.writer
-                            .seek(SeekFrom::Start(fat_start + prev_s * 512))?;
-                        self.writer.write_all(&sector_data)?;
-                    }
-
-                    // Load new sector
-                    current_sector = Some(sector);
-                    self.writer
-                        .seek(SeekFrom::Start(fat_start + sector * 512))?;
-                    std::io::Read::read_exact(
-                        std::io::Read::by_ref(self.writer),
-                        &mut sector_data,
-                    )?;
+            // Build the largest contiguous run that does not exceed the cap.
+            while end_idx < entry_count {
+                let sector = (self.fat_cache[end_idx].0 as u64 * 4) / 512;
+                if sector > end_sector + 1 {
+                    break; // gap: start a new run
                 }
-
-                // Update entry in buffer
-                sector_data[offset_in_sector..offset_in_sector + 4]
-                    .copy_from_slice(&next.to_le_bytes());
+                if sector >= start_sector + MAX_FAT_FLUSH_RUN_SECTORS {
+                    break; // run cap reached
+                }
+                end_sector = end_sector.max(sector);
+                end_idx += 1;
             }
 
-            // Flush last sector
-            if let Some(prev_s) = current_sector {
-                self.writer
-                    .seek(SeekFrom::Start(fat_start + prev_s * 512))?;
+            debug_assert!(end_idx > idx);
+            let sector_count = (end_sector - start_sector + 1) as usize;
+            let byte_count = sector_count * 512;
+            let mut sector_data = vec![0u8; byte_count];
+
+            // Load the run once from FAT #1 so entries allocated outside this
+            // writer (reserved entries, pre-existing data) are preserved.
+            let run_offset = fat_offset + start_sector * 512;
+            self.writer.seek(SeekFrom::Start(run_offset))?;
+            self.writer.read_exact(&mut sector_data)?;
+
+            for &(cluster, next) in &self.fat_cache[idx..end_idx] {
+                let entry_offset = cluster as usize * 4 - start_sector as usize * 512;
+                sector_data[entry_offset..entry_offset + 4].copy_from_slice(&next.to_le_bytes());
+            }
+
+            for copy in 0..fat_count {
+                let copy_offset = fat_offset + copy * fat_copy_bytes + start_sector * 512;
+                self.writer.seek(SeekFrom::Start(copy_offset))?;
                 self.writer.write_all(&sector_data)?;
             }
+
+            // Report the delta for this run; callers accumulate it themselves.
+            on_written(byte_count as u64 * fat_count);
+            idx = end_idx;
         }
 
         self.fat_cache.clear();
-        self.writer.flush()?;
         Ok(())
+    }
+
+    /// Drain buffered USB writes while reporting physical progress.
+    pub fn drain_with_progress(&mut self, progress: &mut dyn FnMut(u64)) -> Result<()> {
+        self.writer.drain_with_progress(progress)?;
+        Ok(())
+    }
+
+    /// Physical device position (bytes written by the USB worker).
+    pub fn physical_position(&self) -> u64 {
+        self.writer.physical_position()
     }
 
     /// Get the partition offset.
@@ -578,7 +632,9 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
             current_cluster: first_cluster,
             bytes_written: 0,
             total_size: size,
-            buffer: Vec::with_capacity(2 * 1024 * 1024),
+            // Small files only need a small buffer. Large writes bypass the
+            // buffer entirely, so there is no reason to reserve 2MB per file.
+            buffer: Vec::with_capacity((size as usize).min(FILE_COPY_BUFFER_SIZE)),
             cancel_handle,
         })
     }
@@ -602,7 +658,7 @@ impl<'b, 'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Write
 {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let mut total_written = 0;
-        const BATCH_SIZE: usize = 2 * 1024 * 1024;
+        const BATCH_SIZE: usize = FILE_COPY_BUFFER_SIZE;
 
         // Optimization: If buffer is empty and input is large, bypass internal buffering
         if self.buffer.is_empty() && buf.len() >= BATCH_SIZE {
@@ -663,7 +719,11 @@ impl<'b, 'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Write
             )
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
 
-        self.parent.writer.flush()
+        // Do NOT drain the async pipeline here. File data is queued in order
+        // and the final drain happens once, after all files have been written.
+        // Draining per file serialised the entire USB pipeline and was a major
+        // cause of slow Windows flashing.
+        Ok(())
     }
 }
 

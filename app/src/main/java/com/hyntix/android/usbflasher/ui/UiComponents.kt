@@ -12,7 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.adamglin.PhosphorIcons
+import com.adamglin.phosphoricons.Regular
+import com.adamglin.phosphoricons.regular.CheckCircle
 import com.hyntix.android.usbflasher.R
 import com.hyntix.android.usbflasher.data.FlashProgress
 import com.hyntix.android.usbflasher.data.FlashState
@@ -117,8 +122,37 @@ fun FlashingSheet(
     val progress = when (state) {
         is FlashState.Flashing -> state.progress
         is FlashState.Verifying -> state.progress
+        is FlashState.Cancelling -> state.progress
         is FlashState.Success -> FlashProgress(100, 100)
         else -> return
+    }
+
+    val isSuccess = state is FlashState.Success
+    val isCancelling = state is FlashState.Cancelling
+    val currentFile = (state as? FlashState.Flashing)?.currentFile
+    val copyingFile = currentFile?.takeIf {
+        state is FlashState.Flashing &&
+            state.status.equals("Flashing", ignoreCase = true) &&
+            it.isNotBlank()
+    }
+
+    val title = when {
+        isCancelling -> stringResource(R.string.sheet_title_cancelling)
+        isSuccess -> stringResource(R.string.sheet_title_complete)
+        state is FlashState.Verifying -> stringResource(R.string.sheet_title_verifying)
+        state is FlashState.Flashing -> when {
+            state.status.equals("Formatting", ignoreCase = true) ->
+                stringResource(R.string.stage_formatting)
+            state.status.equals("Finalizing", ignoreCase = true) ->
+                stringResource(R.string.stage_finalizing)
+            state.status.equals("Validating", ignoreCase = true) ->
+                stringResource(R.string.stage_validating)
+            state.status.equals("Flashing", ignoreCase = true) &&
+                !currentFile.isNullOrBlank() ->
+                stringResource(R.string.stage_copying)
+            else -> stringResource(R.string.stage_writing_image)
+        }
+        else -> stringResource(R.string.sheet_title_flashing)
     }
 
     Surface(
@@ -132,79 +166,154 @@ fun FlashingSheet(
                 .padding(24.dp)
                 .navigationBarsPadding()
         ) {
-            Text(
-                text = when (state) {
-                    is FlashState.Verifying -> stringResource(R.string.sheet_title_verifying)
-                    is FlashState.Success -> stringResource(R.string.sheet_title_complete)
-                    else -> stringResource(R.string.sheet_title_flashing)
-                },
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            val isSuccess = remember(state) { state is FlashState.Success }
-            
             if (isSuccess) {
-                Spacer(modifier = Modifier.height(32.dp))
-            } else {
-                // Underdamped spring gives fluid motion that subtly "flows" past each
-                // percentage point before settling — mimics water-filling behavior while
-                // matching the actual hardware progress within <200ms of each update.
-                val animatedProgress by animateFloatAsState(
-                    targetValue = progress.percentage / 100f,
-                    animationSpec = spring(
-                        stiffness = 4000f,
-                        dampingRatio = 0.7f,
-                    ),
-                    label = "progressAnimation"
-                )
-
-                val clampedProgress = animatedProgress.coerceIn(0f, 1f)
-
-                LinearProgressIndicator(
-                    progress = { clampedProgress },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp),
-                    strokeCap = StrokeCap.Round,
-                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f),
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    Icon(
+                        imageVector = PhosphorIcons.Regular.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(56.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "${(clampedProgress * 100).toInt().coerceIn(0, 100)}%",
-                        style = MaterialTheme.typography.labelLarge,
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
+                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = progress.speedFormatted,
-                        style = MaterialTheme.typography.labelMedium
+                        text = stringResource(R.string.sheet_success_message),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 8.dp)
                     )
-                    Text(
-                        text = stringResource(R.string.eta_prefix, progress.etaFormatted),
-                        style = MaterialTheme.typography.labelMedium
-                    )
+                    Spacer(modifier = Modifier.height(24.dp))
                 }
-                
+            } else {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                if (copyingFile != null) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = copyingFile,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                } else {
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+
+                if (isCancelling) {
+                    Text(
+                        text = stringResource(R.string.sheet_cancelling_message),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp),
+                        strokeCap = StrokeCap.Round,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f),
+                    )
+                } else {
+                    Text(
+                        text = progress.bytesProgressFormatted,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    val targetProgress = (progress.percentage / 100f).coerceIn(0f, 1f)
+
+                    // Critically damped: the displayed value can never overshoot
+                    // the last real hardware position. The stiffness is tuned so
+                    // the bar keeps moving continuously between 4 MB SCSI
+                    // completion updates instead of stopping and starting.
+                    val animatedProgress by animateFloatAsState(
+                        targetValue = targetProgress,
+                        animationSpec = spring(
+                            stiffness = 1200f,
+                            dampingRatio = 1f,
+                        ),
+                        label = "progressAnimation"
+                    )
+
+                    // Hard guarantee: never display more progress than the device
+                    // has actually written, even for a single frame.
+                    val clampedProgress = animatedProgress.coerceIn(0f, targetProgress)
+
+                    LinearProgressIndicator(
+                        progress = { clampedProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp),
+                        strokeCap = StrokeCap.Round,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f),
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "${(clampedProgress * 100).toInt().coerceIn(0, 100)}%",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = progress.speedFormatted,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                        Text(
+                            text = if (progress.speedBytesPerSecond > 0) {
+                                stringResource(R.string.eta_prefix, progress.etaFormatted)
+                            } else {
+                                stringResource(R.string.eta_pending)
+                            },
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
             Button(
                 onClick = onCancel,
+                enabled = !isCancelling,
                 modifier = Modifier.fillMaxWidth().height(50.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isSuccess) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.errorContainer,
                     contentColor = if (isSuccess) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onErrorContainer
                 )
             ) {
-                Text(if (isSuccess) stringResource(R.string.btn_done) else stringResource(R.string.btn_cancel))
+                Text(
+                    when {
+                        isCancelling -> stringResource(R.string.btn_cancelling)
+                        isSuccess -> stringResource(R.string.btn_done)
+                        else -> stringResource(R.string.btn_cancel)
+                    }
+                )
             }
         }
     }

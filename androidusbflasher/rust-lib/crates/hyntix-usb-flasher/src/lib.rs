@@ -294,7 +294,8 @@ impl Flasher {
         source: R,
         dest: UsbMassStorage,
         _total_size: u64,
-        progress: impl Fn(FlashPhase, u64, u64),
+        progress: impl Fn(FlashPhase, u64, u64) + Send + Sync + 'static,
+        file_progress: impl Fn(&str) + Send + Sync,
     ) -> Result<()>
     where
         R: Read + Seek + Send,
@@ -304,9 +305,18 @@ impl Flasher {
         let mut flasher = hyntix_windows::WindowsFlasher::new(writer);
 
         flasher
-            .flash(source, |current, total| {
-                progress(FlashPhase::Flashing, current, total);
-            })
+            .flash(
+                source,
+                move |phase, current, total| {
+                    let phase = match phase {
+                        hyntix_windows::WindowsPhase::Formatting => FlashPhase::Formatting,
+                        hyntix_windows::WindowsPhase::Flashing => FlashPhase::Flashing,
+                        hyntix_windows::WindowsPhase::Finalizing => FlashPhase::Finalizing,
+                    };
+                    progress(phase, current, total);
+                },
+                file_progress,
+            )
             .map_err(|e| {
                 hyntix_common::Error::Io(std::io::Error::new(
                     std::io::ErrorKind::Other,

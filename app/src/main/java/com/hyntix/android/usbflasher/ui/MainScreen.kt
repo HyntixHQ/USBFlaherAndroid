@@ -100,7 +100,10 @@ fun MainScreen(
                 ) {
                     Button(
                         onClick = { showConfirmDialog = true },
-                        enabled = selectedImage != null && selectedDevice != null && (selectedDevice?.hasPermission == true),
+                        enabled = state is FlashState.Ready &&
+                            selectedImage != null &&
+                            selectedDevice != null &&
+                            selectedDevice?.hasPermission == true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -269,7 +272,11 @@ fun MainScreen(
 @Composable
 private fun FlashOverlay(viewModel: FlashViewModel) {
     val state by viewModel.state.collectAsState()
-    if (state is FlashState.Flashing || state is FlashState.Verifying || state is FlashState.Success) {
+    if (state is FlashState.Flashing ||
+        state is FlashState.Verifying ||
+        state is FlashState.Cancelling ||
+        state is FlashState.Success
+    ) {
         Box(modifier = Modifier.fillMaxSize()) {
             // Scrim
             Box(

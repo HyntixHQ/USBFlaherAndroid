@@ -344,7 +344,7 @@ internal inline fun<T, reified E: Throwable> uniffiTraitInterfaceCallWithError(
         }
     }
 }
-// Initial value and increment amount for handles. 
+// Initial value and increment amount for handles.
 // These ensure that Kotlin-generated handles always have the lowest bit set
 private const val UNIFFI_HANDLEMAP_INITIAL = 1.toLong()
 private const val UNIFFI_HANDLEMAP_DELTA = 2.toLong()
@@ -354,7 +354,7 @@ private const val UNIFFI_HANDLEMAP_DELTA = 2.toLong()
 // This is used pass an opaque 64-bit handle representing a foreign object to the Rust code.
 internal class UniffiHandleMap<T: Any> {
     private val map = ConcurrentHashMap<Long, T>()
-    // Start 
+    // Start
     private val counter = java.util.concurrent.atomic.AtomicLong(UNIFFI_HANDLEMAP_INITIAL)
 
     val size: Int
@@ -653,22 +653,28 @@ internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
 internal interface UniffiCallbackInterfaceFlashCallbackMethod0 : com.sun.jna.Callback {
     fun callback(`uniffiHandle`: Long,`phase`: RustBuffer.ByValue,`current`: Long,`total`: Long,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
 }
-@Structure.FieldOrder("uniffiFree", "uniffiClone", "onProgress")
+internal interface UniffiCallbackInterfaceFlashCallbackMethod1 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`name`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
+}
+@Structure.FieldOrder("uniffiFree", "uniffiClone", "onProgress", "onFile")
 internal open class UniffiVTableCallbackInterfaceFlashCallback(
     @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
     @JvmField internal var `uniffiClone`: UniffiCallbackInterfaceClone? = null,
     @JvmField internal var `onProgress`: UniffiCallbackInterfaceFlashCallbackMethod0? = null,
+    @JvmField internal var `onFile`: UniffiCallbackInterfaceFlashCallbackMethod1? = null,
 ) : Structure() {
     class UniffiByValue(
         `uniffiFree`: UniffiCallbackInterfaceFree? = null,
         `uniffiClone`: UniffiCallbackInterfaceClone? = null,
         `onProgress`: UniffiCallbackInterfaceFlashCallbackMethod0? = null,
-    ): UniffiVTableCallbackInterfaceFlashCallback(`uniffiFree`,`uniffiClone`,`onProgress`,), Structure.ByValue
+        `onFile`: UniffiCallbackInterfaceFlashCallbackMethod1? = null,
+    ): UniffiVTableCallbackInterfaceFlashCallback(`uniffiFree`,`uniffiClone`,`onProgress`,`onFile`,), Structure.ByValue
 
    internal fun uniffiSetValue(other: UniffiVTableCallbackInterfaceFlashCallback) {
         `uniffiFree` = other.`uniffiFree`
         `uniffiClone` = other.`uniffiClone`
         `onProgress` = other.`onProgress`
+        `onFile` = other.`onFile`
     }
 
 }
@@ -713,54 +719,56 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_usbflasher_checksum_method_flashcallback_on_progress(
     ): Int
+    external fun uniffi_usbflasher_checksum_method_flashcallback_on_file(
+    ): Int
     external fun ffi_usbflasher_uniffi_contract_version(
     ): Int
 
-        
+
 }
 
 internal object UniffiLib {
-    
+
     // The Cleaner for the whole library
     internal val CLEANER: UniffiCleaner by lazy {
         UniffiCleaner.create()
     }
-    
+
 
     init {
         Native.register(UniffiLib::class.java, findLibraryName(componentName = "usbflasher"))
         uniffiCallbackInterfaceFlashCallback.register(this)
-        
+
     }
 
     internal fun ensureInitialized() = Unit
-    external fun uniffi_usbflasher_fn_clone_usbflasher(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_clone_usbflasher(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
-    external fun uniffi_usbflasher_fn_free_usbflasher(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_free_usbflasher(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun uniffi_usbflasher_fn_constructor_usbflasher_new(uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_constructor_usbflasher_new(uniffi_out_err: UniffiRustCallStatus,
     ): Long
-    external fun uniffi_usbflasher_fn_method_usbflasher_cancel(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_method_usbflasher_cancel(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun uniffi_usbflasher_fn_method_usbflasher_flash_device(`ptr`: Long,`imageFd`: Int,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`verify`: Byte,`callback`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_method_usbflasher_flash_device(`ptr`: Long,`imageFd`: Int,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`verify`: Byte,`callback`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun uniffi_usbflasher_fn_method_usbflasher_flash_windows_device(`ptr`: Long,`imageFd`: Int,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`callback`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_method_usbflasher_flash_windows_device(`ptr`: Long,`imageFd`: Int,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`callback`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun uniffi_usbflasher_fn_method_usbflasher_get_device_capacity(`ptr`: Long,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_method_usbflasher_get_device_capacity(`ptr`: Long,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): Long
-    external fun uniffi_usbflasher_fn_method_usbflasher_is_linux_iso(`ptr`: Long,`fd`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_method_usbflasher_is_linux_iso(`ptr`: Long,`fd`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
-    external fun uniffi_usbflasher_fn_method_usbflasher_is_windows_iso(`ptr`: Long,`fd`: Int,uniffi_out_err: UniffiRustCallStatus, 
+    external fun uniffi_usbflasher_fn_method_usbflasher_is_windows_iso(`ptr`: Long,`fd`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
     external fun uniffi_usbflasher_fn_init_callback_vtable_flashcallback(`vtable`: UniffiVTableCallbackInterfaceFlashCallback,
     ): Unit
-    external fun ffi_usbflasher_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun ffi_usbflasher_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rustbuffer_from_bytes(`bytes`: ForeignBytes.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-    external fun ffi_usbflasher_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rustbuffer_free(`buf`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun ffi_usbflasher_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rustbuffer_reserve(`buf`: RustBuffer.ByValue,`additional`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun ffi_usbflasher_rust_future_poll_u8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -768,7 +776,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_usbflasher_rust_future_free_u8(`handle`: Long,
     ): Unit
-    external fun ffi_usbflasher_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_u8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
     external fun ffi_usbflasher_rust_future_poll_i8(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -776,7 +784,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_usbflasher_rust_future_free_i8(`handle`: Long,
     ): Unit
-    external fun ffi_usbflasher_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_i8(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
     external fun ffi_usbflasher_rust_future_poll_u16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -784,7 +792,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_usbflasher_rust_future_free_u16(`handle`: Long,
     ): Unit
-    external fun ffi_usbflasher_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_u16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
     external fun ffi_usbflasher_rust_future_poll_i16(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -792,7 +800,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_usbflasher_rust_future_free_i16(`handle`: Long,
     ): Unit
-    external fun ffi_usbflasher_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_i16(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Short
     external fun ffi_usbflasher_rust_future_poll_u32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -800,7 +808,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_usbflasher_rust_future_free_u32(`handle`: Long,
     ): Unit
-    external fun ffi_usbflasher_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_u32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
     external fun ffi_usbflasher_rust_future_poll_i32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -808,7 +816,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_usbflasher_rust_future_free_i32(`handle`: Long,
     ): Unit
-    external fun ffi_usbflasher_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_i32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Int
     external fun ffi_usbflasher_rust_future_poll_u64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -816,7 +824,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_usbflasher_rust_future_free_u64(`handle`: Long,
     ): Unit
-    external fun ffi_usbflasher_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_u64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
     external fun ffi_usbflasher_rust_future_poll_i64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -824,7 +832,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_usbflasher_rust_future_free_i64(`handle`: Long,
     ): Unit
-    external fun ffi_usbflasher_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_i64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Long
     external fun ffi_usbflasher_rust_future_poll_f32(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -832,7 +840,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_usbflasher_rust_future_free_f32(`handle`: Long,
     ): Unit
-    external fun ffi_usbflasher_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_f32(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Float
     external fun ffi_usbflasher_rust_future_poll_f64(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -840,7 +848,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_usbflasher_rust_future_free_f64(`handle`: Long,
     ): Unit
-    external fun ffi_usbflasher_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_f64(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Double
     external fun ffi_usbflasher_rust_future_poll_rust_buffer(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -848,7 +856,7 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_usbflasher_rust_future_free_rust_buffer(`handle`: Long,
     ): Unit
-    external fun ffi_usbflasher_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_rust_buffer(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun ffi_usbflasher_rust_future_poll_void(`handle`: Long,`callback`: UniffiRustFutureContinuationCallback,`callbackData`: Long,
     ): Unit
@@ -856,10 +864,10 @@ internal object UniffiLib {
     ): Unit
     external fun ffi_usbflasher_rust_future_free_void(`handle`: Long,
     ): Unit
-    external fun ffi_usbflasher_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus, 
+    external fun ffi_usbflasher_rust_future_complete_void(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
 
-        
+
 }
 
 private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
@@ -895,6 +903,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_usbflasher_checksum_method_flashcallback_on_progress() and 0xFFFF) != 7185) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_usbflasher_checksum_method_flashcallback_on_file() and 0xFFFF) != 12624) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -972,7 +983,7 @@ inline fun <T : Disposable?, R> T.use(block: (T) -> R) =
         }
     }
 
-/** 
+/**
  * Placeholder object used to signal that we're constructing an interface with a FFI handle.
  *
  * This is the first argument for interface constructors that input a raw handle. It exists is that
@@ -983,7 +994,7 @@ inline fun <T : Disposable?, R> T.use(block: (T) -> R) =
  * */
 object UniffiWithHandle
 
-/** 
+/**
  * Used to instantiate an interface without an actual pointer, for fakes in tests, mostly.
  *
  * @suppress
@@ -1335,19 +1346,19 @@ public object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
 
 
 public interface UsbFlasherInterface {
-    
+
     fun `cancel`()
-    
+
     fun `flashDevice`(`imageFd`: kotlin.Int, `usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte, `verify`: kotlin.Boolean, `callback`: FlashCallback)
-    
+
     fun `flashWindowsDevice`(`imageFd`: kotlin.Int, `usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte, `callback`: FlashCallback)
-    
+
     fun `getDeviceCapacity`(`usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte): kotlin.ULong
-    
+
     fun `isLinuxIso`(`fd`: kotlin.Int): kotlin.Boolean
-    
+
     fun `isWindowsIso`(`fd`: kotlin.Int): kotlin.Boolean
-    
+
     companion object
 }
 
@@ -1376,10 +1387,10 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
         this.cleanable = null
     }
     constructor() :
-        this(UniffiWithHandle, 
+        this(UniffiWithHandle,
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_usbflasher_fn_constructor_usbflasher_new(
-    
+
         _status)
 }
     )
@@ -1461,7 +1472,7 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
     }
 
     override fun `cancel`()
-        = 
+        =
     callWithHandle {
     uniffiRustCall() { _status ->
     UniffiLib.uniffi_usbflasher_fn_method_usbflasher_cancel(
@@ -1469,17 +1480,17 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
         _status)
 }
     }
-    
-    
 
-    
+
+
+
     @Throws(FlasherException::class)override fun `flashDevice`(`imageFd`: kotlin.Int, `usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte, `verify`: kotlin.Boolean, `callback`: FlashCallback)
-        = 
+        =
     callWithHandle {
     uniffiRustCallWithError(FlasherException) { _status ->
     UniffiLib.uniffi_usbflasher_fn_method_usbflasher_flash_device(
         it,
-        
+
         FfiConverterInt.lower(`imageFd`),
         FfiConverterInt.lower(`usbFd`),
         FfiConverterUByte.lower(`interface`),
@@ -1489,17 +1500,17 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
         FfiConverterTypeFlashCallback.lower(`callback`),_status)
 }
     }
-    
-    
 
-    
+
+
+
     @Throws(FlasherException::class)override fun `flashWindowsDevice`(`imageFd`: kotlin.Int, `usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte, `callback`: FlashCallback)
-        = 
+        =
     callWithHandle {
     uniffiRustCallWithError(FlasherException) { _status ->
     UniffiLib.uniffi_usbflasher_fn_method_usbflasher_flash_windows_device(
         it,
-        
+
         FfiConverterInt.lower(`imageFd`),
         FfiConverterInt.lower(`usbFd`),
         FfiConverterUByte.lower(`interface`),
@@ -1508,17 +1519,17 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
         FfiConverterTypeFlashCallback.lower(`callback`),_status)
 }
     }
-    
-    
 
-    
+
+
+
     @Throws(FlasherException::class)override fun `getDeviceCapacity`(`usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte): kotlin.ULong {
             return FfiConverterULong.lift(
     callWithHandle {
     uniffiRustCallWithError(FlasherException) { _status ->
     UniffiLib.uniffi_usbflasher_fn_method_usbflasher_get_device_capacity(
         it,
-        
+
         FfiConverterInt.lower(`usbFd`),
         FfiConverterUByte.lower(`interface`),
         FfiConverterUByte.lower(`inEp`),
@@ -1527,50 +1538,50 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
     }
     )
     }
-    
 
-    
+
+
     @Throws(FlasherException::class)override fun `isLinuxIso`(`fd`: kotlin.Int): kotlin.Boolean {
             return FfiConverterBoolean.lift(
     callWithHandle {
     uniffiRustCallWithError(FlasherException) { _status ->
     UniffiLib.uniffi_usbflasher_fn_method_usbflasher_is_linux_iso(
         it,
-        
+
         FfiConverterInt.lower(`fd`),_status)
 }
     }
     )
     }
-    
 
-    
+
+
     @Throws(FlasherException::class)override fun `isWindowsIso`(`fd`: kotlin.Int): kotlin.Boolean {
             return FfiConverterBoolean.lift(
     callWithHandle {
     uniffiRustCallWithError(FlasherException) { _status ->
     UniffiLib.uniffi_usbflasher_fn_method_usbflasher_is_windows_iso(
         it,
-        
+
         FfiConverterInt.lower(`fd`),_status)
 }
     }
     )
     }
-    
-
-    
-
-    
 
 
-    
-    
+
+
+
+
+
+
+
     /**
      * @suppress
      */
     companion object
-    
+
 }
 
 
@@ -1601,14 +1612,14 @@ public object FfiConverterTypeUsbFlasher: FfiConverter<UsbFlasher, Long> {
 
 
 enum class FlashPhase {
-    
+
     VALIDATING,
     FORMATTING,
     FLASHING,
     VERIFYING,
     FINALIZING;
 
-    
+
 
 
     companion object
@@ -1639,54 +1650,54 @@ public object FfiConverterTypeFlashPhase: FfiConverterRustBuffer<FlashPhase> {
 
 
 sealed class FlasherException: kotlin.Exception() {
-    
+
     class IoException(
-        
+
         val `msg`: kotlin.String
         ) : FlasherException() {
         override val message
             get() = "msg=${ `msg` }"
     }
-    
+
     class UsbException(
-        
+
         val `msg`: kotlin.String
         ) : FlasherException() {
         override val message
             get() = "msg=${ `msg` }"
     }
-    
+
     class Cancelled(
         ) : FlasherException() {
         override val message
             get() = ""
     }
-    
-    class InvalidIso(
-        
-        val `msg`: kotlin.String
-        ) : FlasherException() {
-        override val message
-            get() = "msg=${ `msg` }"
-    }
-    
-    class Unknown(
-        
-        val `msg`: kotlin.String
-        ) : FlasherException() {
-        override val message
-            get() = "msg=${ `msg` }"
-    }
-    
 
-    
+    class InvalidIso(
+
+        val `msg`: kotlin.String
+        ) : FlasherException() {
+        override val message
+            get() = "msg=${ `msg` }"
+    }
+
+    class Unknown(
+
+        val `msg`: kotlin.String
+        ) : FlasherException() {
+        override val message
+            get() = "msg=${ `msg` }"
+    }
+
+
+
 
 
     companion object ErrorHandler : UniffiRustCallStatusErrorHandler<FlasherException> {
         override fun lift(error_buf: RustBuffer.ByValue): FlasherException = FfiConverterTypeFlasherError.lift(error_buf)
     }
 
-    
+
 }
 
 /**
@@ -1694,7 +1705,7 @@ sealed class FlasherException: kotlin.Exception() {
  */
 public object FfiConverterTypeFlasherError : FfiConverterRustBuffer<FlasherException> {
     override fun read(buf: ByteBuffer): FlasherException {
-        
+
 
         return when(buf.getInt()) {
             1 -> FlasherException.IoException(
@@ -1779,9 +1790,15 @@ public object FfiConverterTypeFlasherError : FfiConverterRustBuffer<FlasherExcep
 
 
 public interface FlashCallback {
-    
+
     fun `onProgress`(`phase`: FlashPhase, `current`: kotlin.ULong, `total`: kotlin.ULong)
-    
+
+    /**
+     * Called at file boundaries while copying a Windows ISO. This is a
+     * low-frequency hint for the UI, separate from physical progress.
+     */
+    fun `onFile`(`name`: kotlin.String)
+
     companion object
 }
 
@@ -1797,6 +1814,18 @@ internal object uniffiCallbackInterfaceFlashCallback {
                     FfiConverterTypeFlashPhase.lift(`phase`),
                     FfiConverterULong.lift(`current`),
                     FfiConverterULong.lift(`total`),
+                )
+            }
+            val writeReturn = { _: Unit -> Unit }
+            uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
+        }
+    }
+    internal object `onFile`: UniffiCallbackInterfaceFlashCallbackMethod1 {
+        override fun callback(`uniffiHandle`: Long,`name`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeFlashCallback.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`onFile`(
+                    FfiConverterString.lift(`name`),
                 )
             }
             val writeReturn = { _: Unit -> Unit }
@@ -1820,6 +1849,7 @@ internal object uniffiCallbackInterfaceFlashCallback {
         uniffiFree,
         uniffiClone,
         `onProgress`,
+        `onFile`,
     )
 
     // Registers the foreign callback with the Rust side.

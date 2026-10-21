@@ -99,6 +99,9 @@ impl From<CoreFlashPhase> for FlashPhase {
 #[uniffi::export(callback_interface)]
 pub trait FlashCallback: Send + Sync {
     fn on_progress(&self, phase: FlashPhase, current: u64, total: u64);
+    /// Called at file boundaries while copying a Windows ISO. This is a
+    /// low-frequency hint for the UI, separate from physical progress.
+    fn on_file(&self, name: String);
 }
 
 #[derive(uniffi::Object)]
@@ -272,10 +275,25 @@ impl UsbFlasher {
 
         let core_flasher = CoreFlasher::new(self.cancel_token.clone());
 
+        // The callback is used from both the progress publisher thread and the
+        // flash thread (file boundaries), so share it instead of moving it into
+        // one closure.
+        let callback = Arc::new(callback);
+        let progress_callback = Arc::clone(&callback);
+        let file_callback = Arc::clone(&callback);
+
         core_flasher
-            .flash_windows(source, storage, 0, |phase, current, total| {
-                callback.on_progress(phase.into(), current, total);
-            })
+            .flash_windows(
+                source,
+                storage,
+                0,
+                move |phase, current, total| {
+                    progress_callback.on_progress(phase.into(), current, total);
+                },
+                move |name| {
+                    file_callback.on_file(name.to_string());
+                },
+            )
             .map_err(FlasherError::from)
     }
 

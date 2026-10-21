@@ -54,8 +54,12 @@ pub struct UdfEntry {
     pub is_dir: bool,
     /// Byte-size of the file (0 for directories).
     pub size: u64,
-    /// Sector of the File Entry ICB (partition-relative).
-    icb_location: u32,
+    /// Absolute byte offset of the first data extent, cached during traversal.
+    data_offset: u64,
+    /// Byte length of the first data extent, cached during traversal.
+    data_len: u64,
+    /// Whether the child File Entry was parsed successfully.
+    data_valid: bool,
 }
 
 // ---------------------------------------------------------------------------
@@ -175,7 +179,11 @@ impl<R: Read + Seek> UdfReader<R> {
     /// Recursively list the entire file tree. Returns `(path, entry)` pairs.
     pub fn walk(&mut self) -> Result<Vec<(String, UdfEntry)>, UdfError> {
         let mut out = Vec::new();
-        self.walk_recursive(self.root_icb_loc, String::new(), &mut out)?;
+        // Resolve the root directory once, then reuse the data offset cached
+        // in each entry while descending. This avoids re-reading every File
+        // Entry during the flash pass.
+        let (data_offset, data_len) = self.read_file_entry_data(self.root_icb_loc)?;
+        self.walk_recursive_data(data_offset, data_len, String::new(), &mut out)?;
         Ok(out)
     }
 
@@ -185,9 +193,14 @@ impl<R: Read + Seek> UdfReader<R> {
         if entry.is_dir {
             return Err(UdfError::Parse("Cannot open a directory as a file".into()));
         }
-        let (data_offset, data_len) = self.read_file_entry_data(entry.icb_location)?;
-        self.reader.seek(SeekFrom::Start(data_offset))?;
-        Ok(data_len)
+        if !entry.data_valid {
+            return Err(UdfError::Parse(format!(
+                "Missing data extent for file '{}'",
+                entry.name
+            )));
+        }
+        self.reader.seek(SeekFrom::Start(entry.data_offset))?;
+        Ok(entry.data_len)
     }
 
     /// Read a small file entirely into memory.
@@ -324,11 +337,22 @@ impl<R: Read + Seek> UdfReader<R> {
     /// Read a directory at the given ICB location and return its entries.
     fn read_dir_at(&mut self, icb_lbn: u32) -> Result<Vec<UdfEntry>, UdfError> {
         let (data_offset, data_len) = self.read_file_entry_data(icb_lbn)?;
+        self.read_dir_data(data_offset, data_len)
+    }
 
+    /// Read and parse a directory whose data extent is already known.
+    fn read_dir_data(
+        &mut self,
+        data_offset: u64,
+        data_len: u64,
+    ) -> Result<Vec<UdfEntry>, UdfError> {
         self.reader.seek(SeekFrom::Start(data_offset))?;
         let mut dir_data = vec![0u8; data_len as usize];
         self.reader.read_exact(&mut dir_data)?;
+        self.parse_dir_data(&dir_data)
+    }
 
+    fn parse_dir_data(&mut self, dir_data: &[u8]) -> Result<Vec<UdfEntry>, UdfError> {
         let mut entries = Vec::new();
         let mut pos = 0usize;
 
@@ -367,19 +391,26 @@ impl<R: Read + Seek> UdfReader<R> {
                 let name = decode_dstring(name_bytes);
 
                 if !name.is_empty() {
-                    let size = if !is_dir {
-                        self.read_file_entry_data(icb_loc)
-                            .map(|(_, len)| len)
-                            .unwrap_or(0)
-                    } else {
-                        0
+                    // Resolve the child File Entry once. It contains both the
+                    // size and the data extent used later by `open_file`.
+                    let entry_data = self.read_file_entry_data(icb_loc);
+                    let (data_offset, data_len, data_valid) = match entry_data {
+                        Ok(v) => (v.0, v.1, true),
+                        // Keep the walk tolerant for files so detection still
+                        // works, but remember that the extent is unusable and
+                        // fail when the file is actually opened. Directories
+                        // must be readable to continue the traversal.
+                        Err(e) if is_dir => return Err(e),
+                        Err(_) => (0, 0, false),
                     };
 
                     entries.push(UdfEntry {
                         name,
                         is_dir,
-                        size,
-                        icb_location: icb_loc,
+                        size: if is_dir { 0 } else { data_len },
+                        data_offset,
+                        data_len,
+                        data_valid,
                     });
                 }
             }
@@ -393,13 +424,14 @@ impl<R: Read + Seek> UdfReader<R> {
         Ok(entries)
     }
 
-    fn walk_recursive(
+    fn walk_recursive_data(
         &mut self,
-        icb_lbn: u32,
+        data_offset: u64,
+        data_len: u64,
         prefix: String,
         out: &mut Vec<(String, UdfEntry)>,
     ) -> Result<(), UdfError> {
-        let entries = self.read_dir_at(icb_lbn)?;
+        let entries = self.read_dir_data(data_offset, data_len)?;
         for entry in entries {
             let path = if prefix.is_empty() {
                 entry.name.clone()
@@ -407,10 +439,11 @@ impl<R: Read + Seek> UdfReader<R> {
                 format!("{}/{}", prefix, entry.name)
             };
             let is_dir = entry.is_dir;
-            let icb = entry.icb_location;
+            let child_offset = entry.data_offset;
+            let child_len = entry.data_len;
             out.push((path.clone(), entry));
             if is_dir {
-                self.walk_recursive(icb, path, out)?;
+                self.walk_recursive_data(child_offset, child_len, path, out)?;
             }
         }
         Ok(())

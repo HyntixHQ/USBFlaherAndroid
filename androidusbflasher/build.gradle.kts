@@ -91,6 +91,8 @@ tasks.register<Exec>("generateBindings") {
              } else {
                  "$packageLine\n\n$content"
              }
+             // UniFFI emits whitespace-only blank lines; keep generated source clean.
+             content = content.lines().joinToString("\n") { it.trimEnd() }
 
              destFile.writeText(content)
              println("Generated bindings copied to $destFile")

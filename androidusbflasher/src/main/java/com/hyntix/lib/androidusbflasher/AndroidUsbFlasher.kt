@@ -9,6 +9,8 @@ class AndroidUsbFlasher(private val context: Context) {
     // Helper interface for UI
     interface Callback {
         fun onProgress(phase: String, current: Long, total: Long)
+        /** Current file being copied (Windows only). */
+        fun onFile(name: String) {}
         fun onSuccess()
         fun onError(message: String)
     }
@@ -126,6 +128,10 @@ class AndroidUsbFlasher(private val context: Context) {
                 }
                 callback.onProgress(phaseStr, current.toLong(), total.toLong())
             }
+
+            override fun onFile(name: String) {
+                callback.onFile(name)
+            }
         }
 
         Thread {
@@ -175,6 +181,10 @@ class AndroidUsbFlasher(private val context: Context) {
                     FlashPhase.FINALIZING -> "Finalizing"
                 }
                 callback.onProgress(phaseStr, current.toLong(), total.toLong())
+            }
+
+            override fun onFile(name: String) {
+                callback.onFile(name)
             }
         }
 

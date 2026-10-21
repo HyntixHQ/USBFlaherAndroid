@@ -103,7 +103,9 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val state by viewModel.state.collectAsState()
-                    val isFlashing = state is FlashState.Flashing || state is FlashState.Verifying
+                    val isFlashing = state is FlashState.Flashing ||
+                        state is FlashState.Verifying ||
+                        state is FlashState.Cancelling
                     
                     // Keep screen on during flashing — only react to phase transitions,
                     // not progress ticks. Derived boolean is stable between phase changes.

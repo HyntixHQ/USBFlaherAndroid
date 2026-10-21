@@ -38,6 +38,10 @@ data class FlashProgress(
 ) {
     val percentage: Float
         get() = if (totalBytes > 0) (bytesWritten.toFloat() / totalBytes) * 100f else 0f
+
+    /** Human-readable hardware progress, e.g. "3.1 GB / 5.4 GB". */
+    val bytesProgressFormatted: String
+        get() = "${formatByteCount(bytesWritten)} / ${formatByteCount(totalBytes)}"
     
     val speedFormatted: String
         get() = when {
@@ -86,7 +90,8 @@ sealed class FlashState {
         val imageFile: ImageFileInfo,
         val device: UsbDeviceInfo,
         val progress: FlashProgress,
-        val status: String? = null  // Show granular status
+        val status: String? = null,  // Show granular status
+        val currentFile: String? = null  // Windows: file currently being copied
     ) : FlashState()
     
     data class Verifying(
@@ -101,12 +106,25 @@ sealed class FlashState {
         val device: UsbDeviceInfo,
         val verified: Boolean
     ) : FlashState()
-    
+
+    /** Cancellation requested; waiting for the native operation to stop. */
+    data class Cancelling(
+        val imageFile: ImageFileInfo,
+        val device: UsbDeviceInfo,
+        val progress: FlashProgress
+    ) : FlashState()
+
     data class Error(
         val message: String,
         val imageFile: ImageFileInfo? = null,
         val device: UsbDeviceInfo? = null
     ) : FlashState()
-    
-    data object Cancelled : FlashState()
+}
+
+/** Compact byte formatting for progress readouts. */
+private fun formatByteCount(bytes: Long): String = when {
+    bytes >= 1_000_000_000 -> String.format(Locale.US, "%.1f GB", bytes / 1_000_000_000.0)
+    bytes >= 1_000_000 -> String.format(Locale.US, "%.1f MB", bytes / 1_000_000.0)
+    bytes >= 1_000 -> String.format(Locale.US, "%.1f KB", bytes / 1_000.0)
+    else -> "$bytes B"
 }

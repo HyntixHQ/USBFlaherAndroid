@@ -56,6 +56,8 @@ class FlashRepository(
     }
     interface FlashCallback {
         fun onProgress(phase: String, current: Long, total: Long)
+        /** Current file being copied (Windows only). */
+        fun onFile(name: String) {}
         fun onSuccess()
         fun onError(message: String)
     }
@@ -203,6 +205,9 @@ class FlashRepository(
         val flashCallback = object : AndroidUsbFlasher.Callback {
             override fun onProgress(phase: String, current: Long, total: Long) {
                  callback.onProgress(phase, current, total)
+            }
+            override fun onFile(name: String) {
+                 callback.onFile(name)
             }
             override fun onSuccess() {
                  AppLogger.d("FlashRepository", "performFlash: Success, closing handles")

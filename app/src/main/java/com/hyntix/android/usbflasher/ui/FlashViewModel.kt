@@ -26,7 +26,10 @@ class FlashViewModel(
 
     init {
         repository.setOnDevicesChangedListener {
-            if (_state.value !is FlashState.Flashing && _state.value !is FlashState.Verifying) {
+            if (_state.value !is FlashState.Flashing &&
+                _state.value !is FlashState.Verifying &&
+                _state.value !is FlashState.Cancelling
+            ) {
                 triggerScan()
             }
         }
@@ -56,6 +59,14 @@ class FlashViewModel(
     private val _feedbackMessage = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val feedbackMessage: SharedFlow<String> = _feedbackMessage.asSharedFlow()
 
+    // Serializes cancel requests with native callbacks so a late success/error
+    // can never overwrite the cancelling state or re-show the progress sheet.
+    private val flashLock = Any()
+    @Volatile
+    private var cancelRequested = false
+    @Volatile
+    private var activeFlashId = 0L
+
     // Auto-scan job
     private var scanJob: Job? = null
 
@@ -65,7 +76,10 @@ class FlashViewModel(
         scanJob = viewModelScope.launch(Dispatchers.IO) {
             while (isActive) {
                 delay(3000) // Polling fallback (3s)
-                if (_state.value !is FlashState.Flashing && _state.value !is FlashState.Verifying) {
+                if (_state.value !is FlashState.Flashing &&
+                    _state.value !is FlashState.Verifying &&
+                    _state.value !is FlashState.Cancelling
+                ) {
                     val devices = repository.scanDevices()
                     _availableDevices.value = devices
                     processDeviceList(devices)
@@ -139,7 +153,10 @@ class FlashViewModel(
         val device = _selectedDeviceInfo.value
         
         if (image != null && device != null) {
-            if (_state.value !is FlashState.Flashing && _state.value !is FlashState.Verifying) {
+            if (_state.value !is FlashState.Flashing &&
+                _state.value !is FlashState.Verifying &&
+                _state.value !is FlashState.Cancelling
+            ) {
                  _state.value = FlashState.Ready(image, device)
             }
         } else {
@@ -152,102 +169,219 @@ class FlashViewModel(
     fun startFlash() {
         val image = _selectedImageInfo.value ?: return
         val device = _selectedDeviceInfo.value ?: return
-        
+
+        val flashId = synchronized(flashLock) {
+            val current = _state.value
+            if (current is FlashState.Flashing ||
+                current is FlashState.Verifying ||
+                current is FlashState.Cancelling ||
+                current is FlashState.Success
+            ) {
+                return
+            }
+            cancelRequested = false
+            ++activeFlashId
+            // Move to Flashing synchronously so an immediate Cancel can never
+            // race the coroutine and miss the active session.
+            _state.value = FlashState.Flashing(image, device, FlashProgress(0, image.sizeBytes))
+            activeFlashId
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             stopDeviceScan()
-            _state.value = FlashState.Flashing(image, device, FlashProgress(0, image.sizeBytes))
-            
             repository.flashDevice(image, device, object : FlashRepository.FlashCallback {
-                private var lastSpeedTime = android.os.SystemClock.elapsedRealtime()
-                private var lastSpeedBytes = 0L
+                private val speedSamples = ArrayDeque<SpeedSample>()
                 private var currentSpeed = 0L
-                private val speedHistory = ArrayDeque<Long>(3)
-                
                 private var lastPhase = ""
                 private var lastUpdateTime = 0L
                 private var lastEmittedCurrent = 0L
-                private var lastEmittedPhase = ""
+                private var latestFile: String? = null
+                private var displayedFile: String? = null
+                private var lastFileLabelTime = 0L
 
+                /**
+                 * Windows file hint. This is a low-frequency channel separate
+                 * from physical progress; it never advances the byte counter.
+                 */
+                @Synchronized
+                override fun onFile(name: String) {
+                    if (flashId != activeFlashId || cancelRequested) return
+                    val displayName = name.substringAfterLast('/').ifBlank { name }
+                    if (displayName == latestFile) return
+                    latestFile = displayName
+
+                    val previousDisplayed = displayedFile
+                    advanceFileLabel(android.os.SystemClock.elapsedRealtime())
+                    if (displayedFile != previousDisplayed) {
+                        synchronized(flashLock) {
+                            if (flashId != activeFlashId || cancelRequested) return
+                            val currentState = _state.value
+                            if (currentState is FlashState.Flashing) {
+                                _state.value = currentState.copy(currentFile = displayedFile)
+                            }
+                        }
+                    }
+                }
+
+                /**
+                 * Small files can be announced in bursts. Advance the displayed
+                 * name at most 5 times/second; progress updates call this too,
+                 * so a large file still appears within 200 ms.
+                 */
+                private fun advanceFileLabel(now: Long) {
+                    if (latestFile == displayedFile) return
+                    if (now - lastFileLabelTime < FILE_LABEL_INTERVAL_MS) return
+                    displayedFile = latestFile
+                    lastFileLabelTime = now
+                }
+
+                @Synchronized
                 override fun onProgress(phase: String, current: Long, total: Long) {
+                    if (flashId != activeFlashId || cancelRequested) return
                     val now = android.os.SystemClock.elapsedRealtime()
                     val phaseChanged = phase != lastPhase
-                    
+                    // Never let a report move backwards inside a phase.
+                    // Verification legitimately restarts at zero, so the clamp
+                    // only applies while the phase stays the same.
+                    val safeCurrent = if (phaseChanged) current
+                        else maxOf(current, lastEmittedCurrent)
+
                     if (phaseChanged) {
                         lastPhase = phase
-                        lastSpeedBytes = current
-                        lastSpeedTime = now
                         currentSpeed = 0L
-                        speedHistory.clear()
+                        speedSamples.clear()
                         lastEmittedCurrent = 0L
+                        lastUpdateTime = 0L
                         AppLogger.i("FlashTelemetry", "Phase changed to: $phase")
                     }
-                    
-                    val speedDeltaMs = now - lastSpeedTime
-                    if (speedDeltaMs >= 1000) { 
-                        val instSpeed = ((current - lastSpeedBytes) * 1000) / speedDeltaMs
-                        
-                        if (speedHistory.size >= 3) {
-                            speedHistory.removeFirst()
-                        }
-                        speedHistory.addLast(instSpeed)
-                        
-                        currentSpeed = speedHistory.sum() / speedHistory.size
-                        
-                        AppLogger.i("FlashTelemetry", 
-                            "[$phase] $instSpeed B/s | Smoothed: $currentSpeed B/s")
-                        
-                        lastSpeedBytes = current
-                        lastSpeedTime = now
+
+                    // Every report from the native publisher is a real hardware
+                    // position. Keep a 2 s sliding window so speed is honest,
+                    // responsive, and decays to zero during a genuine stall.
+                    speedSamples.addLast(SpeedSample(now, safeCurrent))
+                    while (speedSamples.isNotEmpty() &&
+                        now - speedSamples.first().timeMs > SPEED_WINDOW_MS
+                    ) {
+                        speedSamples.removeFirst()
                     }
-                    
-                    // Update UI at 10Hz OR immediately on phase change
-                    // Skip if nothing meaningfully changed to reduce object churn
-                    val shouldEmit = (now - lastUpdateTime >= 100 || phaseChanged)
-                            && (current != lastEmittedCurrent || phase != lastEmittedPhase)
+                    if (speedSamples.size >= 2) {
+                        val oldest = speedSamples.first()
+                        val elapsedMs = now - oldest.timeMs
+                        if (elapsedMs >= SPEED_MIN_SAMPLE_MS) {
+                            val delta = (safeCurrent - oldest.bytes).coerceAtLeast(0)
+                            currentSpeed = (delta * 1000L) / elapsedMs
+                        }
+                    }
+
+                    advanceFileLabel(now)
+
+                    // The native publisher already coalesces hardware updates
+                    // and sends a 500 ms heartbeat. Cap UI state churn at 30 Hz;
+                    // Compose's spring animates the bar at display refresh rate.
+                    val shouldEmit = phaseChanged ||
+                        safeCurrent >= total ||
+                        now - lastUpdateTime >= UI_UPDATE_INTERVAL_MS
                     if (shouldEmit) {
                         lastUpdateTime = now
-                        lastEmittedCurrent = current
-                        lastEmittedPhase = phase
-                        val etaSeconds = if (currentSpeed > 0) (total - current) / currentSpeed else 0
-                        
-                        val progress = FlashProgress(current, total, currentSpeed, etaSeconds)
+                        lastEmittedCurrent = safeCurrent
+                        val remaining = (total - safeCurrent).coerceAtLeast(0)
+                        val etaSeconds = if (currentSpeed > 0) remaining / currentSpeed else 0L
+                        val progress = FlashProgress(safeCurrent, total, currentSpeed, etaSeconds)
 
-                        if (phase.equals("Verifying", ignoreCase = true)) {
-                            _state.value = FlashState.Verifying(
-                                image, 
-                                device, 
-                                progress,
-                                phase
-                            )
-                        } else {
-                            _state.value = FlashState.Flashing(
-                                image, 
-                                device, 
-                                progress,
-                                phase
-                            )
+                        synchronized(flashLock) {
+                            if (flashId != activeFlashId || cancelRequested) return
+                            val liveState = _state.value
+                            if (liveState !is FlashState.Flashing &&
+                                liveState !is FlashState.Verifying
+                            ) {
+                                return
+                            }
+
+                            if (phase.equals("Verifying", ignoreCase = true)) {
+                                _state.value = FlashState.Verifying(
+                                    image,
+                                    device,
+                                    progress,
+                                    phase
+                                )
+                            } else {
+                                _state.value = FlashState.Flashing(
+                                    imageFile = image,
+                                    device = device,
+                                    progress = progress,
+                                    status = phase,
+                                    currentFile = displayedFile
+                                )
+                            }
                         }
                     }
                 }
 
                 override fun onSuccess() {
-                    _state.value = FlashState.Success(image, device, true)
-                    startDeviceScan() // Resume scan
+                    synchronized(flashLock) {
+                        if (flashId != activeFlashId) return
+                        if (cancelRequested) {
+                            finishCancellationLocked()
+                        } else {
+                            activeFlashId++
+                            _state.value = FlashState.Success(image, device, true)
+                            startDeviceScan() // Resume scan
+                        }
+                    }
                 }
 
                 override fun onError(message: String) {
-                    _state.value = FlashState.Error(toUserMessage(message), image, device)
-                    startDeviceScan()
+                    synchronized(flashLock) {
+                        if (flashId != activeFlashId) return
+                        if (cancelRequested) {
+                            finishCancellationLocked()
+                        } else {
+                            activeFlashId++
+                            _state.value = FlashState.Error(toUserMessage(message), image, device)
+                            startDeviceScan()
+                        }
+                    }
                 }
             })
         }
     }
 
     fun cancel() {
+        synchronized(flashLock) {
+            when (val current = _state.value) {
+                is FlashState.Flashing ->
+                    beginCancellationLocked(current.imageFile, current.device, current.progress)
+                is FlashState.Verifying ->
+                    beginCancellationLocked(current.imageFile, current.device, current.progress)
+                is FlashState.Cancelling -> Unit
+                else -> {
+                    repository.cancel()
+                    _state.value = FlashState.Idle
+                    startDeviceScan()
+                    checkReadyState()
+                }
+            }
+        }
+    }
+
+    private fun beginCancellationLocked(
+        image: ImageFileInfo,
+        device: UsbDeviceInfo,
+        progress: FlashProgress
+    ) {
+        cancelRequested = true
+        _state.value = FlashState.Cancelling(image, device, progress)
         repository.cancel()
+    }
+
+    private fun finishCancellationLocked() {
+        // Invalidate any callback still in flight for this session.
+        activeFlashId++
+        cancelRequested = false
         _state.value = FlashState.Idle
+        _feedbackMessage.tryEmit(repository.context.getString(R.string.flash_cancelled))
         startDeviceScan()
-        checkReadyState() 
+        checkReadyState()
     }
 
     /** Called when user taps Done after a successful flash. Ejects the drive and clears state. */
@@ -290,3 +424,17 @@ class FlashViewModel(
         }
     }
 }
+
+private data class SpeedSample(val timeMs: Long, val bytes: Long)
+
+/** Sliding window used to derive an honest hardware throughput. */
+private const val SPEED_WINDOW_MS = 2_000L
+
+/** Require at least this much history before showing a speed. */
+private const val SPEED_MIN_SAMPLE_MS = 400L
+
+/** Coalesce native publisher updates to 30 Hz. */
+private const val UI_UPDATE_INTERVAL_MS = 33L
+
+/** Throttle file-name label updates while copying many small files. */
+private const val FILE_LABEL_INTERVAL_MS = 200L

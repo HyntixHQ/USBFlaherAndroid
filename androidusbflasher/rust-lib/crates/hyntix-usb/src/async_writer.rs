@@ -1,11 +1,11 @@
 //! Asynchronous USB writer with double buffering.
 
 use crate::mass_storage::UsbMassStorage;
-use crossbeam_channel::{bounded, Receiver, Sender};
+use crossbeam_channel::{Receiver, Sender, bounded};
 use hyntix_common::{Error, Result};
 use std::io::{Read, Seek, SeekFrom, Write};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use tracing::error;
 
@@ -394,10 +394,11 @@ impl Write for AsyncUsbWriter {
 
 impl Read for AsyncUsbWriter {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        // Only flush if there's pending data - during verification there's nothing to flush
-        if !self.pending_buffer.is_empty() {
-            self.flush()?;
-        }
+        // Reads must observe every previously queued write. Seeking now only
+        // flushes the current pending chunk into the job queue (without
+        // draining), so a read is the point where we synchronise with the
+        // worker thread before touching the device.
+        self.flush()?;
 
         let mut storage = self.storage.lock().unwrap();
         let block_size = storage.block_size() as u64;
@@ -450,10 +451,11 @@ impl Seek for AsyncUsbWriter {
         };
 
         if new_pos != self.current_pos {
-            // Only flush if we have pending data to write at the CURRENT position
-            if !self.pending_buffer.is_empty() {
-                self.flush()?;
-            }
+            // Queue the pending chunk at its current position, but do NOT wait
+            // for the whole pipeline to drain. Jobs are executed in order, so
+            // a later write/read still observes the correct device state.
+            // Reads explicitly drain before accessing the device.
+            self.flush_pending()?;
             self.current_pos = new_pos;
             self.pending_start_pos = self.current_pos;
         }
@@ -477,5 +479,11 @@ impl crate::PhysicalProgress for AsyncUsbWriter {
     }
     fn total_capacity(&self) -> u64 {
         self.capacity()
+    }
+    fn physical_progress_handle(&self) -> Option<std::sync::Arc<std::sync::atomic::AtomicU64>> {
+        Some(std::sync::Arc::clone(&self.physical_pos))
+    }
+    fn drain_with_progress(&mut self, progress: &mut dyn FnMut(u64)) -> std::io::Result<()> {
+        self.flush_with_progress(|p| progress(p))
     }
 }

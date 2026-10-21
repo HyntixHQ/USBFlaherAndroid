@@ -448,6 +448,7 @@ dependencies = [
 name = "hyntix-windows"
 version = "1.0.4"
 dependencies = [
+ "hyntix-common",
  "hyntix-fat32",
  "hyntix-udf",
  "hyntix-usb",

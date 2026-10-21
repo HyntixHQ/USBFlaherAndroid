@@ -39,7 +39,18 @@
     <string name="sheet_title_flashing">Flashing…</string>
     <string name="sheet_title_verifying">Verifying…</string>
     <string name="sheet_title_complete">Complete</string>
+    <string name="stage_formatting">Formatting…</string>
+    <string name="stage_writing_image">Writing image…</string>
+    <string name="stage_copying">Copying…</string>
+    <string name="stage_finalizing">Finalizing…</string>
+    <string name="stage_validating">Validating…</string>
+    <string name="sheet_success_message">Flash completed successfully. You can safely remove the drive.</string>
+    <string name="sheet_title_cancelling">Cancelling…</string>
+    <string name="sheet_cancelling_message">Waiting for the current USB operation to stop…</string>
+    <string name="btn_cancelling">Cancelling…</string>
+    <string name="flash_cancelled">Flash cancelled.</string>
     <string name="eta_prefix">ETA: %s</string>
+    <string name="eta_pending">ETA: —</string>
 
     <!-- Share -->
     <string name="share_logs_title">Share Logs</string>

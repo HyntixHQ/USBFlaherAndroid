@@ -7,6 +7,7 @@ edition.workspace = true
 repository.workspace = true
 
 [dependencies]
+hyntix-common = { workspace = true }
 hyntix-udf = { workspace = true }
 hyntix-wim = { workspace = true }
 hyntix-fat32 = { workspace = true }
