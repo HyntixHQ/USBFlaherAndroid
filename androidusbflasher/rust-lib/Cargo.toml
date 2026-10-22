@@ -6,7 +6,13 @@ members = [
     "crates/hyntix-usb",
     "crates/hyntix-linux",
     "crates/hyntix-usb-flasher",
-    "crates/hyntix-usb-flasher-jni", "crates/hyntix-udf",     "crates/hyntix-wim", "crates/hyntix-windows",
+    "crates/hyntix-usb-flasher-jni",
+    "crates/hyntix-udf",
+    "crates/hyntix-wim",
+    "crates/hyntix-windows",
+    "crates/hyntix-storage",
+    "crates/hyntix-partition",
+    "crates/hyntix-persistence",
 ]
 resolver = "2"
 
@@ -43,6 +49,9 @@ hyntix-usb-flasher = { path = "crates/hyntix-usb-flasher" }
 hyntix-udf = { path = "crates/hyntix-udf" }
 hyntix-wim = { path = "crates/hyntix-wim" }
 hyntix-windows = { path = "crates/hyntix-windows" }
+hyntix-storage = { path = "crates/hyntix-storage" }
+hyntix-partition = { path = "crates/hyntix-partition" }
+hyntix-persistence = { path = "crates/hyntix-persistence" }
 
 [profile.release]
 lto = true

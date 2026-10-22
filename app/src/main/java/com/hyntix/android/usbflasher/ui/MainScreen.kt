@@ -3,6 +3,8 @@ package com.hyntix.android.usbflasher.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,6 +54,7 @@ fun MainScreen(
 
     val isFlashingNow = state is FlashState.Flashing ||
         state is FlashState.Verifying ||
+        state is FlashState.Persisting ||
         state is FlashState.Cancelling
 
     // A download started from the home screen opens its progress sheet once
@@ -165,7 +168,8 @@ fun MainScreen(
                 modifier = Modifier
                     .padding(padding)
                     .padding(16.dp)
-                    .fillMaxSize(),
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // Image File Card
@@ -184,6 +188,21 @@ fun MainScreen(
                     isWarning = false,
                     onClick = { showSourceSheet = true }
                 )
+
+                val persistenceImage = selectedImage
+                if (persistenceImage != null &&
+                    persistenceImage.isLinux &&
+                    persistenceImage.persistenceSupport != null
+                ) {
+                    PersistenceCard(
+                        image = persistenceImage,
+                        maxBytes = viewModel.persistenceMaxBytes(),
+                        enabled = !isFlashingNow,
+                        deviceSelected = selectedDevice != null,
+                        onToggle = viewModel::setPersistenceEnabled,
+                        onSizeSelected = viewModel::setPersistenceSize
+                    )
+                }
 
                 val downloadCard = downloadRecords.firstOrNull { it.status.isActive }
                     ?: downloadRecords.firstOrNull { it.isReady }
@@ -420,8 +439,30 @@ fun MainScreen(
             AlertDialog(
                 onDismissRequest = { showConfirmDialog = false },
                 title = { Text(stringResource(R.string.dialog_confirm_flash_title)) },
-                text = { 
-                    Text(stringResource(R.string.dialog_confirm_flash_body, selectedDevice?.name ?: "")) 
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            stringResource(
+                                R.string.dialog_confirm_flash_body,
+                                selectedDevice?.name ?: ""
+                            )
+                        )
+                        val persistence = selectedImage?.persistence
+                        if (persistence != null) {
+                            Text(
+                                stringResource(
+                                    R.string.dialog_confirm_persistence_body,
+                                    persistence.sizeFormatted,
+                                    persistence.label
+                                )
+                            )
+                            Text(
+                                stringResource(R.string.persistence_not_encrypted),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 },
                 confirmButton = {
                     Button(
@@ -471,6 +512,7 @@ private fun FlashOverlay(viewModel: FlashViewModel) {
     val state by viewModel.state.collectAsState()
     if (state is FlashState.Flashing ||
         state is FlashState.Verifying ||
+        state is FlashState.Persisting ||
         state is FlashState.Cancelling ||
         state is FlashState.Success
     ) {
@@ -496,7 +538,8 @@ private fun FlashOverlay(viewModel: FlashViewModel) {
                     onCancel = {
                         if (state is FlashState.Success) viewModel.done()
                         else viewModel.cancel()
-                    }
+                    },
+                    onRetryPersistence = viewModel::retryPersistence
                 )
             }
         }

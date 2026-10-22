@@ -33,7 +33,43 @@
     <string name="dialog_device_picker_title">Select USB Drive</string>
     <string name="dialog_confirm_flash_title">Confirm Flashing</string>
     <string name="dialog_confirm_flash_body">This will PERMANENTLY ERASE all data on %s. Are you sure you want to proceed?</string>
+    <string name="dialog_confirm_persistence_body">Persistence: %1$s (%2$s)</string>
     <string name="dialog_error_title">Something went wrong</string>
+
+    <!-- Persistent storage -->
+    <string name="persistence_title">Persistent storage</string>
+    <string name="persistence_description">Save changes between reboots. Data is not encrypted.</string>
+    <string name="persistence_toggle">Enable persistent storage</string>
+    <string name="persistence_toggle_state_on">On, %1$s</string>
+    <string name="persistence_toggle_state_off">Off</string>
+    <string name="persistence_size_label">Persistence size</string>
+    <string name="persistence_size_gb">%1$d GB</string>
+    <string name="persistence_size_max">Max</string>
+    <string name="persistence_auto_activation">Automatic</string>
+    <string name="persistence_manual_activation">Manual step required</string>
+    <string name="persistence_manual_casper_steps">At the boot menu, select the live entry, press e, add persistent to the linux line, then boot.</string>
+    <string name="persistence_manual_debian_steps">Select the persistence boot entry. If it is absent, add persistence to the kernel command line.</string>
+    <string name="persistence_not_encrypted">Persistence data is not encrypted.</string>
+    <string name="persistence_reused">Existing persistence partition reused.</string>
+    <string name="persistence_no_space">Not enough free space on the drive for persistent storage.</string>
+    <string name="persistence_progress_planning">Planning persistence…</string>
+    <string name="persistence_progress_creating">Creating persistence partition…</string>
+    <string name="persistence_progress_formatting">Formatting persistence…</string>
+    <string name="persistence_progress_configuring">Writing persistence configuration…</string>
+    <string name="persistence_progress_activating">Enabling persistence at boot…</string>
+    <string name="persistence_progress_verifying">Verifying persistence…</string>
+    <string name="persistence_progress_note">This can take a few minutes. Do not unplug the drive.</string>
+    <string name="persistence_success_title">Persistence enabled</string>
+    <string name="persistence_success_message">%1$s available on %2$s.</string>
+    <string name="persistence_partial_title">Persistence could not be enabled</string>
+    <string name="persistence_partial_message">Bootable USB created, but persistence failed: %1$s</string>
+    <string name="persistence_retry">Retry persistence</string>
+    <string name="persistence_error_no_space">Not enough free space on the drive.</string>
+    <string name="persistence_error_unsupported">This image does not support persistent storage.</string>
+    <string name="persistence_error_partition">The partition table could not be updated safely.</string>
+    <string name="persistence_error_hybrid">This drive uses a hybrid partition table that cannot be extended safely.</string>
+    <string name="persistence_error_verify">The persistence partition failed verification.</string>
+    <string name="persistence_error_unknown">Unknown persistence error.</string>
 
     <!-- Flashing sheet -->
     <string name="sheet_title_flashing">Flashing…</string>

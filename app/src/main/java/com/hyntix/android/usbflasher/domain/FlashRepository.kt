@@ -11,6 +11,8 @@ import android.hardware.usb.UsbEndpoint
 import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
 import com.hyntix.lib.androidusbflasher.AndroidUsbFlasher
+import com.hyntix.lib.androidusbflasher.PersistenceResult
+import com.hyntix.lib.androidusbflasher.PersistenceSupport
 import com.hyntix.android.usbflasher.R
 import com.hyntix.android.usbflasher.data.UsbDeviceInfo
 import com.hyntix.android.usbflasher.data.ImageFileInfo
@@ -29,6 +31,11 @@ class FlashRepository(
 
     fun isWindowsIso(pfd: ParcelFileDescriptor): Boolean {
         return usbFlasher.isWindowsIso(pfd)
+    }
+
+    /** Probe persistence support without touching the USB device. */
+    fun probePersistence(pfd: ParcelFileDescriptor): PersistenceSupport? {
+        return usbFlasher.probePersistence(pfd)
     }
     private val capacityCache = ConcurrentHashMap<String, Long>()
     private val usbMutex = Mutex()
@@ -58,6 +65,8 @@ class FlashRepository(
         fun onProgress(phase: String, current: Long, total: Long)
         /** Current file being copied (Windows only). */
         fun onFile(name: String) {}
+        /** Persistence stage finished after the ISO was written. */
+        fun onPersistenceComplete(result: PersistenceResult?, error: String?) {}
         fun onSuccess()
         fun onError(message: String)
     }
@@ -209,6 +218,9 @@ class FlashRepository(
             override fun onFile(name: String) {
                  callback.onFile(name)
             }
+            override fun onPersistenceComplete(result: PersistenceResult?, error: String?) {
+                 callback.onPersistenceComplete(result, error)
+            }
             override fun onSuccess() {
                  AppLogger.d("FlashRepository", "performFlash: Success, closing handles")
                  connection.close()
@@ -223,6 +235,7 @@ class FlashRepository(
             }
         }
 
+        val persistence = image.persistence
         if (isWindows) {
             AppLogger.d("FlashRepository", "performFlash: Calling usbFlasher.flashWindows")
             usbFlasher.flashWindows(
@@ -231,6 +244,19 @@ class FlashRepository(
                 msInterface.id,
                 inEp.address,
                 outEp.address,
+                flashCallback
+            )
+        } else if (persistence != null) {
+            AppLogger.d("FlashRepository", "performFlash: Calling usbFlasher.flashRawWithPersistence")
+            usbFlasher.flashRawWithPersistence(
+                pfd,
+                connection.fileDescriptor,
+                msInterface.id,
+                inEp.address,
+                outEp.address,
+                true,
+                persistence.profile,
+                persistence.sizeBytes,
                 flashCallback
             )
         } else {
@@ -243,6 +269,100 @@ class FlashRepository(
                 outEp.address,
                 true,
                 flashCallback
+            )
+        }
+    }
+
+    /**
+     * Retry only the persistence stage on a drive whose ISO was already
+     * written. Used after a partial success.
+     */
+    suspend fun retryPersistence(
+        image: ImageFileInfo,
+        deviceInfo: UsbDeviceInfo,
+        callback: FlashCallback
+    ) {
+        val persistence = image.persistence ?: return
+        AppLogger.d("FlashRepository", "retryPersistence: Waiting for usbMutex")
+        usbMutex.withLock {
+            val device = deviceInfo.device
+            val manager = context.getSystemService(Context.USB_SERVICE) as UsbManager
+
+            var msInterface: UsbInterface? = null
+            for (i in 0 until device.interfaceCount) {
+                val iface = device.getInterface(i)
+                if (iface.interfaceClass == UsbConstants.USB_CLASS_MASS_STORAGE) {
+                    msInterface = iface
+                    break
+                }
+            }
+            if (msInterface == null) {
+                callback.onError(context.getString(R.string.err_not_supported))
+                return
+            }
+
+            var inEp: UsbEndpoint? = null
+            var outEp: UsbEndpoint? = null
+            for (i in 0 until msInterface.endpointCount) {
+                val ep = msInterface.getEndpoint(i)
+                if (ep.type == UsbConstants.USB_ENDPOINT_XFER_BULK) {
+                    if (ep.direction == UsbConstants.USB_DIR_IN) inEp = ep
+                    else outEp = ep
+                }
+            }
+            if (inEp == null || outEp == null) {
+                callback.onError(context.getString(R.string.err_no_communication))
+                return
+            }
+
+            val connection = manager.openDevice(device)
+            if (connection == null) {
+                callback.onError(context.getString(R.string.err_permission_denied))
+                return
+            }
+            if (!connection.claimInterface(msInterface, true)) {
+                connection.close()
+                callback.onError(context.getString(R.string.err_drive_in_use))
+                return
+            }
+            val pfd = try {
+                context.contentResolver.openFileDescriptor(image.uri, "r")
+            } catch (e: Exception) {
+                AppLogger.e("FlashRepository", "retryPersistence: Failed to open PFD", e)
+                null
+            }
+            if (pfd == null) {
+                connection.close()
+                callback.onError(context.getString(R.string.err_cannot_read_file))
+                return
+            }
+
+            usbFlasher.applyPersistence(
+                pfd,
+                connection.fileDescriptor,
+                msInterface.id,
+                inEp.address,
+                outEp.address,
+                persistence.profile,
+                persistence.sizeBytes,
+                object : AndroidUsbFlasher.Callback {
+                    override fun onProgress(phase: String, current: Long, total: Long) {
+                        callback.onProgress(phase, current, total)
+                    }
+                    override fun onPersistenceComplete(result: PersistenceResult?, error: String?) {
+                        callback.onPersistenceComplete(result, error)
+                    }
+                    override fun onSuccess() {
+                        connection.close()
+                        pfd.close()
+                        callback.onSuccess()
+                    }
+                    override fun onError(message: String) {
+                        connection.close()
+                        pfd.close()
+                        callback.onError(message)
+                    }
+                }
             )
         }
     }

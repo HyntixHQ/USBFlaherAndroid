@@ -16,6 +16,7 @@ A high-performance, rootless, open-source USB flashing utility for Android. Enab
 - **Windows Deployment Core**: Full Windows 10/11 ISO support with FAT32 formatting and intelligent WIM/SWM splitting for files >4GB.
 - **Per-SCSI Progress**: `physical_position` updates after each SCSI command, polled at 10Hz from the main thread — smooth UI without jank.
 - **BLAKE3 Verification**: Triple-buffered read-ahead verification with BLAKE3 hashing computes integrity check inline during source reads.
+- **Opt-in Linux Persistence**: Appends an ext2 `casper-rw` / `persistence` partition after the ISO so changes survive reboots. Supports Ubuntu, Mint, Pop!_OS (casper) and Debian Live. See [persistence documentation](docs/features/persistence.md).
 - **ISO Validation**: File content-probed at selection via Rust probes — only valid Linux or Windows ISOs accepted, with Snackbar feedback for unsupported files.
 - **Ultra-Lightweight**: Full APK under 3MB.
 - **Auto-Eject**: Drive ejected via SCSI START STOP UNIT on completion.
@@ -24,12 +25,13 @@ A high-performance, rootless, open-source USB flashing utility for Android. Enab
 
 1.  **Android App (`:app`)**: Jetpack Compose UI (MVI-lite). Single `MainActivity`, single screen with conditional overlays.
 2.  **Native SDK (`:androidusbflasher`)**: UniFFI + JNA bridge. `AndroidUsbFlasher.kt` wraps the native calls; `UsbFlasherNative.kt` is auto-generated.
-3.  **Rust Core (11 crates)**:
+3.  **Rust Core (14 crates)**:
     *   `hyntix-usb-flasher-jni`: CDYLIB entry point, UniFFI exports -> `libusbflasher.so`
     *   `hyntix-usb`: SCSI BOT protocol, `USBDEVFS_BULK` with AIMD flow control
     *   `hyntix-usb-flasher`: Flash orchestration, BLAKE3 verification, progress polling
     *   `hyntix-windows`, `hyntix-fat32`: UDF parsing, FAT32/GPT formatting, WIM splitting
     *   `hyntix-iso`, `hyntix-udf`, `hyntix-wim`: Filesystem parsers
+    *   `hyntix-storage`, `hyntix-partition`, `hyntix-persistence`: append-only partition tables, ext2 persistence, and boot activation
 
 ## Performance
 
@@ -48,6 +50,12 @@ A high-performance, rootless, open-source USB flashing utility for Android. Enab
 2.  Install `uniffi-bindgen` matching the crate version: `cargo install uniffi --version 0.32.2 --features cli`
 3.  Build: `./gradlew assembleRelease`
 4.  APK at `app/build/outputs/apk/release/app-arm64-v8a-release.apk`
+
+## Limitations
+
+- ARM64 Android devices only (API 33+).
+- Windows in-app ISO downloads are disabled pending legal review; Windows ISOs can still be flashed from local storage.
+- Linux persistence is unencrypted and limited to casper (Ubuntu/Mint/Pop!_OS) and Debian Live images. Fedora, Arch, openSUSE, Kali, Tails, Parrot, Ventoy, and 4Kn drives are not supported.
 
 ## License
 

@@ -11,6 +11,8 @@ class AndroidUsbFlasher(private val context: Context) {
         fun onProgress(phase: String, current: Long, total: Long)
         /** Current file being copied (Windows only). */
         fun onFile(name: String) {}
+        /** Persistence finished after a successful flash. `error` is set on failure. */
+        fun onPersistenceComplete(result: PersistenceResult?, error: String?) {}
         fun onSuccess()
         fun onError(message: String)
     }
@@ -106,6 +108,20 @@ class AndroidUsbFlasher(private val context: Context) {
             nativeFlasher.isWindowsIso(pfd.fd)
         } catch (_: Exception) {
             false
+        }
+    }
+
+    /**
+     * Probe a Linux ISO for persistence support. Returns null when the image is
+     * not a supported live ISO or the probe fails; an unsupported ISO must
+     * never prevent normal flashing.
+     */
+    fun probePersistence(pfd: ParcelFileDescriptor): PersistenceSupport? {
+        return try {
+            nativeFlasher.probePersistence(pfd.fd)
+        } catch (e: Exception) {
+            android.util.Log.w("AndroidUsbFlasher", "probePersistence failed: ${e.message}", e)
+            null
         }
     }
 
@@ -213,6 +229,167 @@ class AndroidUsbFlasher(private val context: Context) {
                 }
             }
         }.start()
+    }
+
+    /**
+     * Flash a Linux ISO, then append or repair its persistence partition while
+     * the USB connection and image descriptor stay open. A persistence failure
+     * is reported as a partial success so the bootable USB remains usable.
+     */
+    fun flashRawWithPersistence(
+        pfd: ParcelFileDescriptor,
+        usbFd: Int,
+        interfaceId: Int,
+        inEndpoint: Int,
+        outEndpoint: Int,
+        verify: Boolean,
+        profile: PersistenceProfile,
+        sizeBytes: Long,
+        callback: Callback
+    ) {
+        val nativeCallback = flashCallback(callback)
+        var imageWritten = false
+
+        Thread {
+            try {
+                android.util.Log.d(
+                    "AndroidUsbFlasher",
+                    "flashRawWithPersistence: Calling native flashDevice with usbFd=$usbFd"
+                )
+                nativeFlasher.flashDevice(
+                    pfd.fd,
+                    usbFd,
+                    interfaceId.toUByte(),
+                    inEndpoint.toUByte(),
+                    outEndpoint.toUByte(),
+                    verify,
+                    nativeCallback
+                )
+                imageWritten = true
+                android.util.Log.d(
+                    "AndroidUsbFlasher",
+                    "flashRawWithPersistence: Applying persistence"
+                )
+                val result = nativeFlasher.applyPersistence(
+                    pfd.fd,
+                    usbFd,
+                    interfaceId.toUByte(),
+                    inEndpoint.toUByte(),
+                    outEndpoint.toUByte(),
+                    profile,
+                    sizeBytes.toULong(),
+                    persistenceCallback(callback)
+                )
+                callback.onPersistenceComplete(result, null)
+                callback.onSuccess()
+            } catch (e: Exception) {
+                if (imageWritten) {
+                    android.util.Log.e(
+                        "AndroidUsbFlasher",
+                        "flashRawWithPersistence: Persistence failed: ${e.message}",
+                        e
+                    )
+                    callback.onPersistenceComplete(null, e.message ?: "Unknown error")
+                    callback.onSuccess()
+                } else {
+                    android.util.Log.e(
+                        "AndroidUsbFlasher",
+                        "flashRawWithPersistence: Flash failed: ${e.message}",
+                        e
+                    )
+                    callback.onError(e.message ?: "Unknown error")
+                }
+            } finally {
+                try {
+                    pfd.close()
+                } catch (_: Exception) {
+                    // Ignore
+                }
+            }
+        }.start()
+    }
+
+    /** Retry persistence on an already-flashed USB without rewriting the ISO. */
+    fun applyPersistence(
+        pfd: ParcelFileDescriptor,
+        usbFd: Int,
+        interfaceId: Int,
+        inEndpoint: Int,
+        outEndpoint: Int,
+        profile: PersistenceProfile,
+        sizeBytes: Long,
+        callback: Callback
+    ) {
+        Thread {
+            try {
+                val result = nativeFlasher.applyPersistence(
+                    pfd.fd,
+                    usbFd,
+                    interfaceId.toUByte(),
+                    inEndpoint.toUByte(),
+                    outEndpoint.toUByte(),
+                    profile,
+                    sizeBytes.toULong(),
+                    persistenceCallback(callback)
+                )
+                callback.onPersistenceComplete(result, null)
+            } catch (e: Exception) {
+                android.util.Log.e(
+                    "AndroidUsbFlasher",
+                    "applyPersistence: Persistence failed: ${e.message}",
+                    e
+                )
+                callback.onPersistenceComplete(null, e.message ?: "Unknown error")
+            } finally {
+                try {
+                    pfd.close()
+                } catch (_: Exception) {
+                    // Ignore
+                }
+                callback.onSuccess()
+            }
+        }.start()
+    }
+
+    private fun flashCallback(callback: Callback): FlashCallback {
+        return object : FlashCallback {
+            override fun onProgress(phase: FlashPhase, current: ULong, total: ULong) {
+                val phaseStr = when (phase) {
+                    FlashPhase.VALIDATING -> "Validating"
+                    FlashPhase.FORMATTING -> "Formatting"
+                    FlashPhase.FLASHING -> "Flashing"
+                    FlashPhase.VERIFYING -> "Verifying"
+                    FlashPhase.FINALIZING -> "Finalizing"
+                }
+                callback.onProgress(phaseStr, current.toLong(), total.toLong())
+            }
+
+            override fun onFile(name: String) {
+                callback.onFile(name)
+            }
+        }
+    }
+
+    private fun persistenceCallback(callback: Callback): PersistenceCallback {
+        return object : PersistenceCallback {
+            override fun onProgress(phase: PersistencePhase, current: ULong, total: ULong) {
+                // Keep the same CamelCase convention as FlashPhase so the
+                // ViewModel and UI can share their stage labels.
+                val phaseName = when (phase) {
+                    PersistencePhase.PLANNING -> "Planning"
+                    PersistencePhase.FORMATTING -> "Formatting"
+                    PersistencePhase.CONFIGURING -> "Configuring"
+                    PersistencePhase.ACTIVATING_BOOT -> "ActivatingBoot"
+                    PersistencePhase.PARTITIONING -> "Partitioning"
+                    PersistencePhase.VERIFYING -> "Verifying"
+                }
+                callback.onProgress(
+                    "Persistence:$phaseName",
+                    current.toLong(),
+                    total.toLong()
+                )
+            }
+        }
     }
 
     fun cancel() {

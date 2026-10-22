@@ -2,6 +2,9 @@ package com.hyntix.android.usbflasher.data
 
 import android.hardware.usb.UsbDevice
 import android.net.Uri
+import com.hyntix.lib.androidusbflasher.PersistenceActivation
+import com.hyntix.lib.androidusbflasher.PersistenceProfile
+import com.hyntix.lib.androidusbflasher.PersistenceSupport
 import java.util.Locale
 
 /**
@@ -65,7 +68,12 @@ data class ImageFileInfo(
     val uri: Uri,
     val name: String,
     val sizeBytes: Long,
-    val isWindows: Boolean = false
+    val isWindows: Boolean = false,
+    val isLinux: Boolean = false,
+    /** Probe result when the image is a supported live ISO. */
+    val persistenceSupport: PersistenceSupport? = null,
+    /** Non-null only while the user has enabled persistence. */
+    val persistence: PersistenceSelection? = null
 ) {
     val sizeFormatted: String
         get() = when {
@@ -73,6 +81,32 @@ data class ImageFileInfo(
             sizeBytes >= 1_000_000 -> String.format(Locale.US, "%.1f MB", sizeBytes / 1_000_000.0)
             else -> String.format(Locale.US, "%.1f KB", sizeBytes / 1_000.0)
         }
+}
+
+/** User-selected persistence configuration for a Linux live ISO. */
+data class PersistenceSelection(
+    val profile: PersistenceProfile,
+    val activation: PersistenceActivation,
+    val sizeBytes: Long,
+    val label: String
+) {
+    val sizeFormatted: String
+        get() = formatByteCount(sizeBytes)
+}
+
+/** Outcome of the optional persistence stage after a successful ISO write. */
+sealed interface PersistenceOutcome {
+    data class Enabled(
+        val sizeBytes: Long,
+        val activation: PersistenceActivation,
+        val label: String,
+        val reusedExisting: Boolean
+    ) : PersistenceOutcome {
+        val sizeFormatted: String
+            get() = formatByteCount(sizeBytes)
+    }
+
+    data class Failed(val message: String) : PersistenceOutcome
 }
 
 /**
@@ -100,11 +134,20 @@ sealed class FlashState {
         val progress: FlashProgress,
         val status: String? = null  // Show granular status
     ) : FlashState()
-    
+
+    /** The ISO is written; the native persistence stage is running. */
+    data class Persisting(
+        val imageFile: ImageFileInfo,
+        val device: UsbDeviceInfo,
+        val progress: FlashProgress,
+        val status: String
+    ) : FlashState()
+
     data class Success(
         val imageFile: ImageFileInfo,
         val device: UsbDeviceInfo,
-        val verified: Boolean
+        val verified: Boolean,
+        val persistence: PersistenceOutcome? = null
     ) : FlashState()
 
     /** Cancellation requested; waiting for the native operation to stop. */

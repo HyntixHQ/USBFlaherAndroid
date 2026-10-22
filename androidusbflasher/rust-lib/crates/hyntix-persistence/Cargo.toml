@@ -1,0 +1,11 @@
+[package]
+name = "hyntix-persistence"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+hyntix-storage = { workspace = true }
+hyntix-partition = { workspace = true }
+thiserror.workspace = true

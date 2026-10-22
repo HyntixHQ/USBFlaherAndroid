@@ -12,7 +12,7 @@ Three layers, no DI, no Jetpack Navigation:
 
 1. **`:app` module** — Jetpack Compose UI (MVI-lite). Single `MainActivity`, single screen with conditional overlays. One `FlashViewModel` with `StateFlow<FlashState>`.
 2. **`:androidusbflasher` module** — UniFFI + JNA bridge. `AndroidUsbFlasher.kt` is the hand-written wrapper; `UsbFlasherNative.kt` is **auto-generated** by UniFFI.
-3. **Rust workspace** (`androidusbflasher/rust-lib/`) — 11 crates, produces `libusbflasher.so` (cdylib). UniFFI 0.32.2, JNA 5.19.1, Rust edition 2024 (requires Rust 1.85+).
+3. **Rust workspace** (`androidusbflasher/rust-lib/`) — 14 crates, produces `libusbflasher.so` (cdylib). UniFFI 0.32.2, JNA 5.19.1, Rust edition 2024 (requires Rust 1.85+).
 
 ## USB stack architecture
 
@@ -25,6 +25,23 @@ Three layers, no DI, no Jetpack Navigation:
 - **Per-SCSI progress**: `write_blocks_with_progress()` updates `physical_pos` after each SCSI command,
   polled at 10Hz from the main thread during both read and acquire-wait phases.
 - **BLAKE3 hashing** computed inline during source reads (not as a post-read batch).
+
+## Persistence architecture
+
+- Persistence is a second native call (`applyPersistence`) on the **same open USB fd** after
+  `flashDevice`; `flash_raw` and the Windows path are untouched when persistence is off.
+- Feature logic is isolated in `hyntix-storage`, `hyntix-partition`, and `hyntix-persistence`.
+  Do not add persistence logic to `hyntix-usb-flasher`, `hyntix-linux`, `hyntix-fat32`, or
+  `hyntix-usb`.
+- The persistence partition is **appended only**: never move, shrink, or reformat ISO partitions.
+  MBR type `0x83`; GPT type `0FC63DAF-8483-4772-8E79-3D69D8477DE4`.
+- ext2 only: 4 KiB blocks, 256-byte inodes, no journal, `lost+found`, and `/persistence.conf`
+  containing `/ union` for Debian Live.
+- Partition table commit is last. A mid-apply failure restores boot-config patches and leaves
+  the ISO bootable; Kotlin reports partial success with a retry action, not a fatal error.
+- Hybrid MBRs are rejected unless every legacy entry matches a GPT entry; 4Kn drives are rejected.
+- v1 supports casper (Ubuntu/Mint/Pop!_OS) and Debian Live only. No encryption, Windows,
+  Fedora/Arch/openSUSE/Kali/Tails/Parrot, Ventoy, or 4Kn persistence.
 
 ## Key conventions & gotchas
 
@@ -44,7 +61,15 @@ Three layers, no DI, no Jetpack Navigation:
 
 ## Tests
 
-No tests are currently written for any layer. Stub test files and their dependencies were removed in v1.0.4.
+- `cargo test` covers all Rust crates. The persistence crates include host integration tests
+  against sparse disk images: MBR/GPT append, ext2 formatting (`e2fsck`), casper/Debian boot
+  activation, reuse/repair, rollback on an injected GPT commit failure, and cancellation after
+  boot patching but before the table commit.
+- Clippy gate for feature work: `cargo clippy -p hyntix-storage -p hyntix-partition -p hyntix-persistence --all-targets -- -D warnings`.
+- JVM unit tests cover the download helpers in `app/src/test/.../download/`. There are no
+  `FlashViewModel` or instrumentation tests yet (the repository remains a concrete class). Verify
+  UI changes with `:app:compileDebugKotlin`, `:app:assembleDebug`, `:app:testDebugUnitTest`, and a
+  manual device walkthrough.
 
 ## Environment
 
@@ -58,11 +83,11 @@ No tests are currently written for any layer. Stub test files and their dependen
 ```
 app/src/main/java/com/hyntix/android/usbflasher/
 ├── MainActivity.kt — entry point, USB permission BroadcastReceiver
-├── data/FlashState.kt — sealed state: Idle -> Ready -> Flashing/Verifying -> Success/Error
+├── data/FlashState.kt — sealed state: Idle -> Ready -> Flashing/Verifying/Persisting -> Success/Error
 ├── domain/FlashRepository.kt — flash orchestration, delegates to AndroidUsbFlasher
 ├── ui/FlashViewModel.kt — single ViewModel, MVI-lite (method calls, no Action/Event sealed classes)
-├── ui/MainScreen.kt — primary composable screen
-├── ui/UiComponents.kt — StatusCard, FlashingSheet
+├── ui/MainScreen.kt — primary composable screen, persistence toggle and size chips
+├── ui/UiComponents.kt — StatusCard, PersistenceCard, FlashingSheet (incl. partial success)
 ├── ui/LogViewerScreen.kt — full-screen log viewer
 └── util/AppLogger.kt — singleton in-app logger
 
@@ -81,5 +106,9 @@ androidusbflasher/rust-lib/crates/
 ├── hyntix-iso/, hyntix-udf/, hyntix-wim/ — filesystem parsers
 ├── hyntix-fat32/ — FAT32 formatting + GPT partition table
 ├── hyntix-linux/, hyntix-windows/ — platform-specific ISO detection
-└── hyntix-windows-cli/ — removed in v1.0.4 (was CLI test tool)
+├── hyntix-storage/ — BlockDevice abstraction, MemBlockDevice, FileBlockDevice, unaligned I/O
+├── hyntix-partition/ — append-only MBR/GPT editing, journaled commit, rollback, free-tail sizing
+└── hyntix-persistence/ — ISO probe, ext2 formatter, boot activation, plan/apply/verify
+
+docs/features/persistence.md — supported profiles, limitations, boot instructions
 ```

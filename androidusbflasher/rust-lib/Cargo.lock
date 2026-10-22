@@ -392,6 +392,30 @@ name = "hyntix-linux"
 version = "1.0.4"
 
 [[package]]
+name = "hyntix-partition"
+version = "1.0.4"
+dependencies = [
+ "hyntix-storage",
+ "thiserror",
+]
+
+[[package]]
+name = "hyntix-persistence"
+version = "1.0.4"
+dependencies = [
+ "hyntix-partition",
+ "hyntix-storage",
+ "thiserror",
+]
+
+[[package]]
+name = "hyntix-storage"
+version = "1.0.4"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "hyntix-udf"
 version = "1.0.4"
 dependencies = [
@@ -427,6 +451,9 @@ name = "hyntix-usb-flasher-jni"
 version = "1.0.4"
 dependencies = [
  "hyntix-common",
+ "hyntix-partition",
+ "hyntix-persistence",
+ "hyntix-storage",
  "hyntix-usb",
  "hyntix-usb-flasher",
  "libc",

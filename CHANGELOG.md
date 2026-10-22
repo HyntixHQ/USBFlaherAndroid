@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Separator Lines**: Subtle 0.5dp divider below TopAppBar in both MainScreen and LogViewerScreen.
 - **String Resource Extraction**: All 45 user-visible strings extracted from code into
   `strings.xml` for future localization support.
+- **Linux persistent storage (opt-in)**: Appends an ext2 `casper-rw` (Ubuntu/Mint/Pop!_OS)
+  or `persistence` (Debian Live) partition after the ISO, with automatic boot activation when
+  a safe same-length patch exists and manual instructions otherwise. Includes size selection,
+  free-space clamping, rollback on failure, and a retry action for partial success.
+- **Persistence UI**: Toggle, activation badge, size chips, confirmation details, staged
+  progress, and partial-success/retry sheet. New strings are in `strings.xml`.
+- **New Rust crates**: `hyntix-storage` (block devices), `hyntix-partition` (append-only
+  MBR/GPT editing with journaled rollback), and `hyntix-persistence` (ISO probe, ext2,
+  boot activation, plan/apply/verify). See `docs/features/persistence.md`.
 
 ### Changed
 - App icons updated.
@@ -37,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `androidx.core:core-splashscreen:1.2.0` dependency added.
 - `android.hardware.usb.UsbEndpoint` and `UsbInterface` imports added to `FlashRepository`.
 - `usbFilter` declaration merged with `init` block in `FlashRepository`.
+- UniFFI bridge exports `probePersistence` and `applyPersistence`; `UsbFlasherNative.kt` regenerated.
+- Persistence runs as a second native call on the same open USB descriptor, so `flash_raw` and
+  the Windows flash path are unchanged when persistence is off.
 
 ## [1.0.3] - 2026-07-13
 

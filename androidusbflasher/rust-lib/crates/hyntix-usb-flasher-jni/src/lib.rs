@@ -1,7 +1,14 @@
+use hyntix_partition::PartitionError;
+use hyntix_persistence::{
+    self as persistence, PersistenceActivation as CorePersistenceActivation,
+    PersistenceError as CorePersistenceError, PersistencePhase as CorePersistencePhase,
+    PersistenceProfile as CorePersistenceProfile,
+};
+use hyntix_storage::{BlockDevice, StorageError};
 use hyntix_usb::{NativeUsbBackend, UsbMassStorage};
 use hyntix_usb_flasher::{FlashPhase as CoreFlashPhase, Flasher as CoreFlasher};
 use std::fs::File;
-use std::io::{Seek, SeekFrom};
+use std::io::{self, Seek, SeekFrom};
 use std::os::fd::FromRawFd;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -102,6 +109,226 @@ pub trait FlashCallback: Send + Sync {
     /// Called at file boundaries while copying a Windows ISO. This is a
     /// low-frequency hint for the UI, separate from physical progress.
     fn on_file(&self, name: String);
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum PersistenceProfile {
+    Casper,
+    DebianLive,
+}
+
+impl From<CorePersistenceProfile> for PersistenceProfile {
+    fn from(profile: CorePersistenceProfile) -> Self {
+        match profile {
+            CorePersistenceProfile::Casper => PersistenceProfile::Casper,
+            CorePersistenceProfile::DebianLive => PersistenceProfile::DebianLive,
+        }
+    }
+}
+
+impl From<PersistenceProfile> for CorePersistenceProfile {
+    fn from(profile: PersistenceProfile) -> Self {
+        match profile {
+            PersistenceProfile::Casper => CorePersistenceProfile::Casper,
+            PersistenceProfile::DebianLive => CorePersistenceProfile::DebianLive,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum PersistenceActivation {
+    BuiltIn,
+    Patchable,
+    Manual,
+}
+
+impl From<CorePersistenceActivation> for PersistenceActivation {
+    fn from(activation: CorePersistenceActivation) -> Self {
+        match activation {
+            CorePersistenceActivation::BuiltIn => PersistenceActivation::BuiltIn,
+            CorePersistenceActivation::Patchable => PersistenceActivation::Patchable,
+            CorePersistenceActivation::Manual => PersistenceActivation::Manual,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum PersistencePhase {
+    Planning,
+    Formatting,
+    Configuring,
+    ActivatingBoot,
+    Partitioning,
+    Verifying,
+}
+
+impl From<CorePersistencePhase> for PersistencePhase {
+    fn from(phase: CorePersistencePhase) -> Self {
+        match phase {
+            CorePersistencePhase::Planning => PersistencePhase::Planning,
+            CorePersistencePhase::Formatting => PersistencePhase::Formatting,
+            CorePersistencePhase::Configuring => PersistencePhase::Configuring,
+            CorePersistencePhase::ActivatingBoot => PersistencePhase::ActivatingBoot,
+            CorePersistencePhase::Partitioning => PersistencePhase::Partitioning,
+            CorePersistencePhase::Verifying => PersistencePhase::Verifying,
+        }
+    }
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct PersistenceSupport {
+    pub profile: PersistenceProfile,
+    pub activation: PersistenceActivation,
+    pub label: String,
+    pub min_bytes: u64,
+    pub recommended_bytes: u64,
+    pub reason: Option<String>,
+}
+
+impl From<persistence::PersistenceSupport> for PersistenceSupport {
+    fn from(support: persistence::PersistenceSupport) -> Self {
+        Self {
+            profile: support.profile.into(),
+            activation: support.activation.into(),
+            label: support.label,
+            min_bytes: support.min_bytes,
+            recommended_bytes: support.recommended_bytes,
+            reason: support.reason,
+        }
+    }
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct PersistenceResult {
+    pub profile: PersistenceProfile,
+    pub activation: PersistenceActivation,
+    pub label: String,
+    pub size_bytes: u64,
+    pub partition_start_lba: u64,
+    pub partition_index: u32,
+    pub reused_existing: bool,
+    pub patches_applied: bool,
+}
+
+impl From<persistence::PersistenceResult> for PersistenceResult {
+    fn from(result: persistence::PersistenceResult) -> Self {
+        Self {
+            profile: result.profile.into(),
+            activation: result.activation.into(),
+            label: result.label,
+            size_bytes: result.partition_sector_count * 512,
+            partition_start_lba: result.partition_start_lba,
+            partition_index: result.partition_index,
+            reused_existing: result.action == persistence::PersistenceAction::Reuse,
+            patches_applied: result.patches_applied,
+        }
+    }
+}
+
+#[derive(Debug, Error, uniffi::Error)]
+pub enum PersistenceError {
+    #[error("unsupported ISO: {reason}")]
+    UnsupportedIso { reason: String },
+    #[error("insufficient free space: need {need} bytes, have {have}")]
+    InsufficientFreeSpace { need: u64, have: u64 },
+    #[error("no free MBR primary partition slot")]
+    NoMbrSlot,
+    #[error("hybrid MBR layout is not safe to edit")]
+    HybridMbrUnsupported,
+    #[error("unsupported logical sector size: {0}")]
+    UnsupportedSectorSize(u32),
+    #[error("partition table verification failed: {0}")]
+    PartitionVerify(String),
+    #[error("ext2 formatting failed: {0}")]
+    Ext2(String),
+    #[error("boot activation failed: {0}")]
+    Activation(String),
+    #[error("verification failed: {0}")]
+    Verify(String),
+    #[error("cancelled")]
+    Cancelled,
+    #[error("I/O error: {0}")]
+    Io(String),
+}
+
+impl From<CorePersistenceError> for PersistenceError {
+    fn from(error: CorePersistenceError) -> Self {
+        match error {
+            CorePersistenceError::Storage(error) => match error {
+                StorageError::UnsupportedSectorSize(size) => {
+                    PersistenceError::UnsupportedSectorSize(size)
+                }
+                other => PersistenceError::Io(other.to_string()),
+            },
+            CorePersistenceError::Partition(error) => match error {
+                PartitionError::InsufficientSpace { need, have } => {
+                    PersistenceError::InsufficientFreeSpace { need, have }
+                }
+                PartitionError::NoMbrSlot => PersistenceError::NoMbrSlot,
+                PartitionError::HybridMbrUnsupported => PersistenceError::HybridMbrUnsupported,
+                PartitionError::Storage(StorageError::UnsupportedSectorSize(size)) => {
+                    PersistenceError::UnsupportedSectorSize(size)
+                }
+                PartitionError::Storage(other) => PersistenceError::Io(other.to_string()),
+                other => PersistenceError::PartitionVerify(other.to_string()),
+            },
+            CorePersistenceError::UnsupportedIso(reason) => {
+                PersistenceError::UnsupportedIso { reason }
+            }
+            CorePersistenceError::UnsupportedSectorSize(size) => {
+                PersistenceError::UnsupportedSectorSize(size)
+            }
+            CorePersistenceError::Ext2(message) => PersistenceError::Ext2(message),
+            CorePersistenceError::Activation(message) => PersistenceError::Activation(message),
+            CorePersistenceError::Verify(message) => PersistenceError::Verify(message),
+            CorePersistenceError::Cancelled => PersistenceError::Cancelled,
+            CorePersistenceError::Io(message) => PersistenceError::Io(message),
+        }
+    }
+}
+
+#[uniffi::export(callback_interface)]
+pub trait PersistenceCallback: Send + Sync {
+    fn on_progress(&self, phase: PersistencePhase, current: u64, total: u64);
+}
+
+/// Adapter that exposes the USB mass-storage transport as a block device for
+/// the persistence stack.
+struct UsbBlock<'a> {
+    storage: &'a mut UsbMassStorage,
+}
+
+impl BlockDevice for UsbBlock<'_> {
+    fn sector_size(&self) -> u32 {
+        self.storage.block_size()
+    }
+
+    fn sector_count(&self) -> u64 {
+        self.storage.block_count()
+    }
+
+    fn read_sectors(&mut self, lba: u64, out: &mut [u8]) -> hyntix_storage::Result<()> {
+        self.storage
+            .read_blocks(lba, out)
+            .map_err(|error| StorageError::Io(io::Error::other(error.to_string())))
+    }
+
+    fn write_sectors(&mut self, lba: u64, data: &[u8]) -> hyntix_storage::Result<()> {
+        self.storage
+            .write_blocks(lba, data)
+            .map_err(|error| StorageError::Io(io::Error::other(error.to_string())))
+    }
+}
+
+fn dup_file(fd: i32, label: &str) -> Result<File, PersistenceError> {
+    let dup_fd = unsafe { libc::dup(fd) };
+    if dup_fd < 0 {
+        return Err(PersistenceError::Io(format!(
+            "failed to dup {label} FD {fd}: {}",
+            io::Error::last_os_error()
+        )));
+    }
+    Ok(unsafe { File::from_raw_fd(dup_fd) })
 }
 
 #[derive(uniffi::Object)]
@@ -295,6 +522,86 @@ impl UsbFlasher {
                 },
             )
             .map_err(FlasherError::from)
+    }
+
+    /// Inspect an image without touching the USB device. Returns `None` when the
+    /// image is a supported ISO but has no persistence profile.
+    pub fn probe_persistence(
+        &self,
+        image_fd: i32,
+    ) -> Result<Option<PersistenceSupport>, PersistenceError> {
+        let mut source = dup_file(image_fd, "image")?;
+        let image_len = source
+            .seek(SeekFrom::End(0))
+            .map_err(|error| PersistenceError::Io(error.to_string()))?;
+        source
+            .seek(SeekFrom::Start(0))
+            .map_err(|error| PersistenceError::Io(error.to_string()))?;
+
+        match persistence::iso::probe_iso(&mut source, image_len) {
+            Ok(Some(support)) => Ok(Some(support.into())),
+            Ok(None) => Ok(None),
+            Err(CorePersistenceError::UnsupportedIso(reason)) => {
+                Err(PersistenceError::UnsupportedIso { reason })
+            }
+            Err(error) => Err(error.into()),
+        }
+    }
+
+    /// Append (or reuse) a persistence partition on an already-flashed Linux
+    /// live USB. The image file descriptor is read-only from Rust's point of
+    /// view; all writes go through the USB mass-storage handle.
+    #[allow(clippy::too_many_arguments)]
+    pub fn apply_persistence(
+        &self,
+        image_fd: i32,
+        usb_fd: i32,
+        interface: u8,
+        in_ep: u8,
+        out_ep: u8,
+        profile: PersistenceProfile,
+        size_bytes: u64,
+        callback: Box<dyn PersistenceCallback>,
+    ) -> Result<PersistenceResult, PersistenceError> {
+        self.cancel_token.store(false, Ordering::SeqCst);
+
+        info!(
+            "UsbFlasherJni: apply_persistence(usb_fd={}, iface={}, in={}, out={}, profile={:?}, size={})",
+            usb_fd, interface, in_ep, out_ep, profile, size_bytes
+        );
+
+        let backend = NativeUsbBackend::new(usb_fd, interface, in_ep, out_ep);
+        let mut storage =
+            UsbMassStorage::new_native(backend, 0, hyntix_usb::config::SCSI_MAX_TRANSFER_SIZE)
+                .map_err(|error| PersistenceError::Io(error.to_string()))?;
+
+        let mut source = dup_file(image_fd, "image")?;
+        let image_len = source
+            .seek(SeekFrom::End(0))
+            .map_err(|error| PersistenceError::Io(error.to_string()))?;
+        source
+            .seek(SeekFrom::Start(0))
+            .map_err(|error| PersistenceError::Io(error.to_string()))?;
+
+        let mut block = UsbBlock {
+            storage: &mut storage,
+        };
+        let cancel_token = Arc::clone(&self.cancel_token);
+        let cancelled = move || cancel_token.load(Ordering::SeqCst);
+
+        let result = persistence::apply(
+            &mut block,
+            &mut source,
+            image_len,
+            profile.into(),
+            size_bytes,
+            &mut |progress| {
+                callback.on_progress(progress.phase.into(), progress.current, progress.total);
+            },
+            &cancelled,
+        )?;
+
+        Ok(result.into())
     }
 
     pub fn cancel(&self) {

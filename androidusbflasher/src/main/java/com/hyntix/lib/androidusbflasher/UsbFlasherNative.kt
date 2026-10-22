@@ -656,6 +656,9 @@ internal interface UniffiCallbackInterfaceFlashCallbackMethod0 : com.sun.jna.Cal
 internal interface UniffiCallbackInterfaceFlashCallbackMethod1 : com.sun.jna.Callback {
     fun callback(`uniffiHandle`: Long,`name`: RustBuffer.ByValue,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
 }
+internal interface UniffiCallbackInterfacePersistenceCallbackMethod0 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`phase`: RustBuffer.ByValue,`current`: Long,`total`: Long,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,)
+}
 @Structure.FieldOrder("uniffiFree", "uniffiClone", "onProgress", "onFile")
 internal open class UniffiVTableCallbackInterfaceFlashCallback(
     @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
@@ -675,6 +678,25 @@ internal open class UniffiVTableCallbackInterfaceFlashCallback(
         `uniffiClone` = other.`uniffiClone`
         `onProgress` = other.`onProgress`
         `onFile` = other.`onFile`
+    }
+
+}
+@Structure.FieldOrder("uniffiFree", "uniffiClone", "onProgress")
+internal open class UniffiVTableCallbackInterfacePersistenceCallback(
+    @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
+    @JvmField internal var `uniffiClone`: UniffiCallbackInterfaceClone? = null,
+    @JvmField internal var `onProgress`: UniffiCallbackInterfacePersistenceCallbackMethod0? = null,
+) : Structure() {
+    class UniffiByValue(
+        `uniffiFree`: UniffiCallbackInterfaceFree? = null,
+        `uniffiClone`: UniffiCallbackInterfaceClone? = null,
+        `onProgress`: UniffiCallbackInterfacePersistenceCallbackMethod0? = null,
+    ): UniffiVTableCallbackInterfacePersistenceCallback(`uniffiFree`,`uniffiClone`,`onProgress`,), Structure.ByValue
+
+   internal fun uniffiSetValue(other: UniffiVTableCallbackInterfacePersistenceCallback) {
+        `uniffiFree` = other.`uniffiFree`
+        `uniffiClone` = other.`uniffiClone`
+        `onProgress` = other.`onProgress`
     }
 
 }
@@ -703,6 +725,8 @@ internal object IntegrityCheckingUniffiLib {
     }
 
     internal fun ensureInitialized() = Unit
+    external fun uniffi_usbflasher_checksum_method_usbflasher_apply_persistence(
+    ): Int
     external fun uniffi_usbflasher_checksum_method_usbflasher_cancel(
     ): Int
     external fun uniffi_usbflasher_checksum_method_usbflasher_flash_device(
@@ -715,11 +739,15 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_usbflasher_checksum_method_usbflasher_is_windows_iso(
     ): Int
+    external fun uniffi_usbflasher_checksum_method_usbflasher_probe_persistence(
+    ): Int
     external fun uniffi_usbflasher_checksum_constructor_usbflasher_new(
     ): Int
     external fun uniffi_usbflasher_checksum_method_flashcallback_on_progress(
     ): Int
     external fun uniffi_usbflasher_checksum_method_flashcallback_on_file(
+    ): Int
+    external fun uniffi_usbflasher_checksum_method_persistencecallback_on_progress(
     ): Int
     external fun ffi_usbflasher_uniffi_contract_version(
     ): Int
@@ -738,6 +766,7 @@ internal object UniffiLib {
     init {
         Native.register(UniffiLib::class.java, findLibraryName(componentName = "usbflasher"))
         uniffiCallbackInterfaceFlashCallback.register(this)
+        uniffiCallbackInterfacePersistenceCallback.register(this)
 
     }
 
@@ -748,6 +777,8 @@ internal object UniffiLib {
     ): Unit
     external fun uniffi_usbflasher_fn_constructor_usbflasher_new(uniffi_out_err: UniffiRustCallStatus,
     ): Long
+    external fun uniffi_usbflasher_fn_method_usbflasher_apply_persistence(`ptr`: Long,`imageFd`: Int,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`profile`: RustBuffer.ByValue,`sizeBytes`: Long,`callback`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     external fun uniffi_usbflasher_fn_method_usbflasher_cancel(`ptr`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_usbflasher_fn_method_usbflasher_flash_device(`ptr`: Long,`imageFd`: Int,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`verify`: Byte,`callback`: Long,uniffi_out_err: UniffiRustCallStatus,
@@ -760,7 +791,11 @@ internal object UniffiLib {
     ): Byte
     external fun uniffi_usbflasher_fn_method_usbflasher_is_windows_iso(`ptr`: Long,`fd`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
+    external fun uniffi_usbflasher_fn_method_usbflasher_probe_persistence(`ptr`: Long,`imageFd`: Int,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     external fun uniffi_usbflasher_fn_init_callback_vtable_flashcallback(`vtable`: UniffiVTableCallbackInterfaceFlashCallback,
+    ): Unit
+    external fun uniffi_usbflasher_fn_init_callback_vtable_persistencecallback(`vtable`: UniffiVTableCallbackInterfacePersistenceCallback,
     ): Unit
     external fun ffi_usbflasher_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -881,6 +916,9 @@ private fun uniffiCheckContractApiVersion(lib: IntegrityCheckingUniffiLib) {
 }
 @Suppress("UNUSED_PARAMETER")
 private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
+    if ((lib.uniffi_usbflasher_checksum_method_usbflasher_apply_persistence() and 0xFFFF) != 13500) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_usbflasher_checksum_method_usbflasher_cancel() and 0xFFFF) != 21469) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -899,6 +937,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_usbflasher_checksum_method_usbflasher_is_windows_iso() and 0xFFFF) != 6428) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_usbflasher_checksum_method_usbflasher_probe_persistence() and 0xFFFF) != 22329) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_usbflasher_checksum_constructor_usbflasher_new() and 0xFFFF) != 38916) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -906,6 +947,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_usbflasher_checksum_method_flashcallback_on_file() and 0xFFFF) != 12624) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_usbflasher_checksum_method_persistencecallback_on_progress() and 0xFFFF) != 25180) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
 }
@@ -1120,6 +1164,29 @@ public object FfiConverterUByte: FfiConverter<UByte, Byte> {
 
     override fun write(value: UByte, buf: ByteBuffer) {
         buf.put(value.toByte())
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterUInt: FfiConverter<UInt, Int> {
+    override fun lift(value: Int): UInt {
+        return value.toUInt()
+    }
+
+    override fun read(buf: ByteBuffer): UInt {
+        return lift(buf.getInt())
+    }
+
+    override fun lower(value: UInt): Int {
+        return value.toInt()
+    }
+
+    override fun allocationSize(value: UInt) = 4UL
+
+    override fun write(value: UInt, buf: ByteBuffer) {
+        buf.putInt(value.toInt())
     }
 }
 
@@ -1347,6 +1414,13 @@ public object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
 
 public interface UsbFlasherInterface {
 
+    /**
+     * Append (or reuse) a persistence partition on an already-flashed Linux
+     * live USB. The image file descriptor is read-only from Rust's point of
+     * view; all writes go through the USB mass-storage handle.
+     */
+    fun `applyPersistence`(`imageFd`: kotlin.Int, `usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte, `profile`: PersistenceProfile, `sizeBytes`: kotlin.ULong, `callback`: PersistenceCallback): PersistenceResult
+
     fun `cancel`()
 
     fun `flashDevice`(`imageFd`: kotlin.Int, `usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte, `verify`: kotlin.Boolean, `callback`: FlashCallback)
@@ -1358,6 +1432,12 @@ public interface UsbFlasherInterface {
     fun `isLinuxIso`(`fd`: kotlin.Int): kotlin.Boolean
 
     fun `isWindowsIso`(`fd`: kotlin.Int): kotlin.Boolean
+
+    /**
+     * Inspect an image without touching the USB device. Returns `None` when the
+     * image is a supported ISO but has no persistence profile.
+     */
+    fun `probePersistence`(`imageFd`: kotlin.Int): PersistenceSupport?
 
     companion object
 }
@@ -1471,6 +1551,33 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
         }
     }
 
+
+    /**
+     * Append (or reuse) a persistence partition on an already-flashed Linux
+     * live USB. The image file descriptor is read-only from Rust's point of
+     * view; all writes go through the USB mass-storage handle.
+     */
+    @Throws(PersistenceException::class)override fun `applyPersistence`(`imageFd`: kotlin.Int, `usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte, `profile`: PersistenceProfile, `sizeBytes`: kotlin.ULong, `callback`: PersistenceCallback): PersistenceResult {
+            return FfiConverterTypePersistenceResult.lift(
+    callWithHandle {
+    uniffiRustCallWithError(PersistenceException) { _status ->
+    UniffiLib.uniffi_usbflasher_fn_method_usbflasher_apply_persistence(
+        it,
+
+        FfiConverterInt.lower(`imageFd`),
+        FfiConverterInt.lower(`usbFd`),
+        FfiConverterUByte.lower(`interface`),
+        FfiConverterUByte.lower(`inEp`),
+        FfiConverterUByte.lower(`outEp`),
+        FfiConverterTypePersistenceProfile.lower(`profile`),
+        FfiConverterULong.lower(`sizeBytes`),
+        FfiConverterTypePersistenceCallback.lower(`callback`),_status)
+}
+    }
+    )
+    }
+
+
     override fun `cancel`()
         =
     callWithHandle {
@@ -1571,6 +1678,25 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
 
 
 
+    /**
+     * Inspect an image without touching the USB device. Returns `None` when the
+     * image is a supported ISO but has no persistence profile.
+     */
+    @Throws(PersistenceException::class)override fun `probePersistence`(`imageFd`: kotlin.Int): PersistenceSupport? {
+            return FfiConverterOptionalTypePersistenceSupport.lift(
+    callWithHandle {
+    uniffiRustCallWithError(PersistenceException) { _status ->
+    UniffiLib.uniffi_usbflasher_fn_method_usbflasher_probe_persistence(
+        it,
+
+        FfiConverterInt.lower(`imageFd`),_status)
+}
+    }
+    )
+    }
+
+
+
 
 
 
@@ -1605,6 +1731,132 @@ public object FfiConverterTypeUsbFlasher: FfiConverter<UsbFlasher, Long> {
 
     override fun write(value: UsbFlasher, buf: ByteBuffer) {
         buf.putLong(lower(value))
+    }
+}
+
+
+
+data class PersistenceResult (
+    var `profile`: PersistenceProfile
+    ,
+    var `activation`: PersistenceActivation
+    ,
+    var `label`: kotlin.String
+    ,
+    var `sizeBytes`: kotlin.ULong
+    ,
+    var `partitionStartLba`: kotlin.ULong
+    ,
+    var `partitionIndex`: kotlin.UInt
+    ,
+    var `reusedExisting`: kotlin.Boolean
+    ,
+    var `patchesApplied`: kotlin.Boolean
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePersistenceResult: FfiConverterRustBuffer<PersistenceResult> {
+    override fun read(buf: ByteBuffer): PersistenceResult {
+        return PersistenceResult(
+            FfiConverterTypePersistenceProfile.read(buf),
+            FfiConverterTypePersistenceActivation.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterUInt.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: PersistenceResult) = (
+            FfiConverterTypePersistenceProfile.allocationSize(value.`profile`) +
+            FfiConverterTypePersistenceActivation.allocationSize(value.`activation`) +
+            FfiConverterString.allocationSize(value.`label`) +
+            FfiConverterULong.allocationSize(value.`sizeBytes`) +
+            FfiConverterULong.allocationSize(value.`partitionStartLba`) +
+            FfiConverterUInt.allocationSize(value.`partitionIndex`) +
+            FfiConverterBoolean.allocationSize(value.`reusedExisting`) +
+            FfiConverterBoolean.allocationSize(value.`patchesApplied`)
+    )
+
+    override fun write(value: PersistenceResult, buf: ByteBuffer) {
+            FfiConverterTypePersistenceProfile.write(value.`profile`, buf)
+            FfiConverterTypePersistenceActivation.write(value.`activation`, buf)
+            FfiConverterString.write(value.`label`, buf)
+            FfiConverterULong.write(value.`sizeBytes`, buf)
+            FfiConverterULong.write(value.`partitionStartLba`, buf)
+            FfiConverterUInt.write(value.`partitionIndex`, buf)
+            FfiConverterBoolean.write(value.`reusedExisting`, buf)
+            FfiConverterBoolean.write(value.`patchesApplied`, buf)
+    }
+}
+
+
+
+data class PersistenceSupport (
+    var `profile`: PersistenceProfile
+    ,
+    var `activation`: PersistenceActivation
+    ,
+    var `label`: kotlin.String
+    ,
+    var `minBytes`: kotlin.ULong
+    ,
+    var `recommendedBytes`: kotlin.ULong
+    ,
+    var `reason`: kotlin.String?
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePersistenceSupport: FfiConverterRustBuffer<PersistenceSupport> {
+    override fun read(buf: ByteBuffer): PersistenceSupport {
+        return PersistenceSupport(
+            FfiConverterTypePersistenceProfile.read(buf),
+            FfiConverterTypePersistenceActivation.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterOptionalString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: PersistenceSupport) = (
+            FfiConverterTypePersistenceProfile.allocationSize(value.`profile`) +
+            FfiConverterTypePersistenceActivation.allocationSize(value.`activation`) +
+            FfiConverterString.allocationSize(value.`label`) +
+            FfiConverterULong.allocationSize(value.`minBytes`) +
+            FfiConverterULong.allocationSize(value.`recommendedBytes`) +
+            FfiConverterOptionalString.allocationSize(value.`reason`)
+    )
+
+    override fun write(value: PersistenceSupport, buf: ByteBuffer) {
+            FfiConverterTypePersistenceProfile.write(value.`profile`, buf)
+            FfiConverterTypePersistenceActivation.write(value.`activation`, buf)
+            FfiConverterString.write(value.`label`, buf)
+            FfiConverterULong.write(value.`minBytes`, buf)
+            FfiConverterULong.write(value.`recommendedBytes`, buf)
+            FfiConverterOptionalString.write(value.`reason`, buf)
     }
 }
 
@@ -1788,6 +2040,372 @@ public object FfiConverterTypeFlasherError : FfiConverterRustBuffer<FlasherExcep
 
 
 
+enum class PersistenceActivation {
+
+    BUILT_IN,
+    PATCHABLE,
+    MANUAL;
+
+
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePersistenceActivation: FfiConverterRustBuffer<PersistenceActivation> {
+    override fun read(buf: ByteBuffer) = try {
+        PersistenceActivation.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: PersistenceActivation) = 4UL
+
+    override fun write(value: PersistenceActivation, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
+
+sealed class PersistenceException: kotlin.Exception() {
+
+    class UnsupportedIso(
+
+        val `reason`: kotlin.String
+        ) : PersistenceException() {
+        override val message
+            get() = "reason=${ `reason` }"
+    }
+
+    class InsufficientFreeSpace(
+
+        val `need`: kotlin.ULong,
+
+        val `have`: kotlin.ULong
+        ) : PersistenceException() {
+        override val message
+            get() = "need=${ `need` }, have=${ `have` }"
+    }
+
+    class NoMbrSlot(
+        ) : PersistenceException() {
+        override val message
+            get() = ""
+    }
+
+    class HybridMbrUnsupported(
+        ) : PersistenceException() {
+        override val message
+            get() = ""
+    }
+
+    class UnsupportedSectorSize(
+
+        val v1: kotlin.UInt
+        ) : PersistenceException() {
+        override val message
+            get() = "v1=${ v1 }"
+    }
+
+    class PartitionVerify(
+
+        val v1: kotlin.String
+        ) : PersistenceException() {
+        override val message
+            get() = "v1=${ v1 }"
+    }
+
+    class Ext2(
+
+        val v1: kotlin.String
+        ) : PersistenceException() {
+        override val message
+            get() = "v1=${ v1 }"
+    }
+
+    class Activation(
+
+        val v1: kotlin.String
+        ) : PersistenceException() {
+        override val message
+            get() = "v1=${ v1 }"
+    }
+
+    class Verify(
+
+        val v1: kotlin.String
+        ) : PersistenceException() {
+        override val message
+            get() = "v1=${ v1 }"
+    }
+
+    class Cancelled(
+        ) : PersistenceException() {
+        override val message
+            get() = ""
+    }
+
+    class Io(
+
+        val v1: kotlin.String
+        ) : PersistenceException() {
+        override val message
+            get() = "v1=${ v1 }"
+    }
+
+
+
+
+
+    companion object ErrorHandler : UniffiRustCallStatusErrorHandler<PersistenceException> {
+        override fun lift(error_buf: RustBuffer.ByValue): PersistenceException = FfiConverterTypePersistenceError.lift(error_buf)
+    }
+
+
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePersistenceError : FfiConverterRustBuffer<PersistenceException> {
+    override fun read(buf: ByteBuffer): PersistenceException {
+
+
+        return when(buf.getInt()) {
+            1 -> PersistenceException.UnsupportedIso(
+                FfiConverterString.read(buf),
+                )
+            2 -> PersistenceException.InsufficientFreeSpace(
+                FfiConverterULong.read(buf),
+                FfiConverterULong.read(buf),
+                )
+            3 -> PersistenceException.NoMbrSlot()
+            4 -> PersistenceException.HybridMbrUnsupported()
+            5 -> PersistenceException.UnsupportedSectorSize(
+                FfiConverterUInt.read(buf),
+                )
+            6 -> PersistenceException.PartitionVerify(
+                FfiConverterString.read(buf),
+                )
+            7 -> PersistenceException.Ext2(
+                FfiConverterString.read(buf),
+                )
+            8 -> PersistenceException.Activation(
+                FfiConverterString.read(buf),
+                )
+            9 -> PersistenceException.Verify(
+                FfiConverterString.read(buf),
+                )
+            10 -> PersistenceException.Cancelled()
+            11 -> PersistenceException.Io(
+                FfiConverterString.read(buf),
+                )
+            else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: PersistenceException): ULong {
+        return when(value) {
+            is PersistenceException.UnsupportedIso -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.`reason`)
+            )
+            is PersistenceException.InsufficientFreeSpace -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterULong.allocationSize(value.`need`)
+                + FfiConverterULong.allocationSize(value.`have`)
+            )
+            is PersistenceException.NoMbrSlot -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is PersistenceException.HybridMbrUnsupported -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is PersistenceException.UnsupportedSectorSize -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterUInt.allocationSize(value.v1)
+            )
+            is PersistenceException.PartitionVerify -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.v1)
+            )
+            is PersistenceException.Ext2 -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.v1)
+            )
+            is PersistenceException.Activation -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.v1)
+            )
+            is PersistenceException.Verify -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.v1)
+            )
+            is PersistenceException.Cancelled -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is PersistenceException.Io -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+                + FfiConverterString.allocationSize(value.v1)
+            )
+        }
+    }
+
+    override fun write(value: PersistenceException, buf: ByteBuffer) {
+        when(value) {
+            is PersistenceException.UnsupportedIso -> {
+                buf.putInt(1)
+                FfiConverterString.write(value.`reason`, buf)
+                Unit
+            }
+            is PersistenceException.InsufficientFreeSpace -> {
+                buf.putInt(2)
+                FfiConverterULong.write(value.`need`, buf)
+                FfiConverterULong.write(value.`have`, buf)
+                Unit
+            }
+            is PersistenceException.NoMbrSlot -> {
+                buf.putInt(3)
+                Unit
+            }
+            is PersistenceException.HybridMbrUnsupported -> {
+                buf.putInt(4)
+                Unit
+            }
+            is PersistenceException.UnsupportedSectorSize -> {
+                buf.putInt(5)
+                FfiConverterUInt.write(value.v1, buf)
+                Unit
+            }
+            is PersistenceException.PartitionVerify -> {
+                buf.putInt(6)
+                FfiConverterString.write(value.v1, buf)
+                Unit
+            }
+            is PersistenceException.Ext2 -> {
+                buf.putInt(7)
+                FfiConverterString.write(value.v1, buf)
+                Unit
+            }
+            is PersistenceException.Activation -> {
+                buf.putInt(8)
+                FfiConverterString.write(value.v1, buf)
+                Unit
+            }
+            is PersistenceException.Verify -> {
+                buf.putInt(9)
+                FfiConverterString.write(value.v1, buf)
+                Unit
+            }
+            is PersistenceException.Cancelled -> {
+                buf.putInt(10)
+                Unit
+            }
+            is PersistenceException.Io -> {
+                buf.putInt(11)
+                FfiConverterString.write(value.v1, buf)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+
+}
+
+
+
+
+enum class PersistencePhase {
+
+    PLANNING,
+    FORMATTING,
+    CONFIGURING,
+    ACTIVATING_BOOT,
+    PARTITIONING,
+    VERIFYING;
+
+
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePersistencePhase: FfiConverterRustBuffer<PersistencePhase> {
+    override fun read(buf: ByteBuffer) = try {
+        PersistencePhase.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: PersistencePhase) = 4UL
+
+    override fun write(value: PersistencePhase, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
+enum class PersistenceProfile {
+
+    CASPER,
+    DEBIAN_LIVE;
+
+
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePersistenceProfile: FfiConverterRustBuffer<PersistenceProfile> {
+    override fun read(buf: ByteBuffer) = try {
+        PersistenceProfile.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: PersistenceProfile) = 4UL
+
+    override fun write(value: PersistenceProfile, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
 
 public interface FlashCallback {
 
@@ -1865,4 +2483,130 @@ internal object uniffiCallbackInterfaceFlashCallback {
  * @suppress
  */
 public object FfiConverterTypeFlashCallback: FfiConverterCallbackInterface<FlashCallback>()
+
+
+
+
+
+public interface PersistenceCallback {
+
+    fun `onProgress`(`phase`: PersistencePhase, `current`: kotlin.ULong, `total`: kotlin.ULong)
+
+    companion object
+}
+
+
+
+// Put the implementation in an object so we don't pollute the top-level namespace
+internal object uniffiCallbackInterfacePersistenceCallback {
+    internal object `onProgress`: UniffiCallbackInterfacePersistenceCallbackMethod0 {
+        override fun callback(`uniffiHandle`: Long,`phase`: RustBuffer.ByValue,`current`: Long,`total`: Long,`uniffiOutReturn`: Pointer,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypePersistenceCallback.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`onProgress`(
+                    FfiConverterTypePersistencePhase.lift(`phase`),
+                    FfiConverterULong.lift(`current`),
+                    FfiConverterULong.lift(`total`),
+                )
+            }
+            val writeReturn = { _: Unit -> Unit }
+            uniffiTraitInterfaceCall(uniffiCallStatus, makeCall, writeReturn)
+        }
+    }
+
+    internal object uniffiFree: UniffiCallbackInterfaceFree {
+        override fun callback(handle: Long) {
+            FfiConverterTypePersistenceCallback.handleMap.remove(handle)
+        }
+    }
+
+    internal object uniffiClone: UniffiCallbackInterfaceClone {
+        override fun callback(handle: Long): Long {
+            return FfiConverterTypePersistenceCallback.handleMap.clone(handle)
+        }
+    }
+
+    internal var vtable = UniffiVTableCallbackInterfacePersistenceCallback.UniffiByValue(
+        uniffiFree,
+        uniffiClone,
+        `onProgress`,
+    )
+
+    // Registers the foreign callback with the Rust side.
+    // This method is generated for each callback interface.
+    internal fun register(lib: UniffiLib) {
+        lib.uniffi_usbflasher_fn_init_callback_vtable_persistencecallback(vtable)
+    }
+}
+
+/**
+ * The ffiConverter which transforms the Callbacks in to handles to pass to Rust.
+ *
+ * @suppress
+ */
+public object FfiConverterTypePersistenceCallback: FfiConverterCallbackInterface<PersistenceCallback>()
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalString: FfiConverterRustBuffer<kotlin.String?> {
+    override fun read(buf: ByteBuffer): kotlin.String? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterString.read(buf)
+    }
+
+    override fun allocationSize(value: kotlin.String?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterString.allocationSize(value)
+        }
+    }
+
+    override fun write(value: kotlin.String?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterString.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypePersistenceSupport: FfiConverterRustBuffer<PersistenceSupport?> {
+    override fun read(buf: ByteBuffer): PersistenceSupport? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypePersistenceSupport.read(buf)
+    }
+
+    override fun allocationSize(value: PersistenceSupport?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypePersistenceSupport.allocationSize(value)
+        }
+    }
+
+    override fun write(value: PersistenceSupport?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypePersistenceSupport.write(value, buf)
+        }
+    }
+}
 
