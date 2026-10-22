@@ -15,31 +15,76 @@ import androidx.compose.ui.unit.dp
 import com.hyntix.android.usbflasher.R
 import com.hyntix.android.usbflasher.data.FlashState
 import com.hyntix.android.usbflasher.data.UsbDeviceInfo
+import com.hyntix.android.usbflasher.download.DownloadStatus
+import com.hyntix.android.usbflasher.download.LinuxIsoEntry
 import com.adamglin.PhosphorIcons
 import com.adamglin.phosphoricons.Regular
 import com.adamglin.phosphoricons.regular.Disc
 import com.adamglin.phosphoricons.regular.Usb
 import com.adamglin.phosphoricons.regular.Terminal
+import com.adamglin.phosphoricons.regular.DownloadSimple
+import com.adamglin.phosphoricons.regular.FileArrowDown
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     viewModel: FlashViewModel,
+    downloadViewModel: DownloadViewModel,
     onSelectFile: () -> Unit,
+    onRequestDownload: (LinuxIsoEntry) -> Unit,
     onRequestPermission: (UsbDeviceInfo) -> Unit
 ) {
     val state by viewModel.state.collectAsState()
     val availableDevices by viewModel.availableDevices.collectAsState()
     val selectedImage by viewModel.selectedImageInfo.collectAsState()
     val selectedDevice by viewModel.selectedDeviceInfo.collectAsState()
-    
+    val downloadRecords by downloadViewModel.records.collectAsState()
+    val downloadFocusId by downloadViewModel.focusRecordId.collectAsState()
+    val downloadUiError by downloadViewModel.uiError.collectAsState()
+    val downloadMeteredPrompt by downloadViewModel.meteredPrompt.collectAsState()
+
     var showDevicePicker by remember { mutableStateOf(false) }
     var showLogViewer by remember { mutableStateOf(false) }
     var showConfirmDialog by remember { mutableStateOf(false) }
+    var showSourceSheet by remember { mutableStateOf(false) }
+    var showDownloadScreen by remember { mutableStateOf(false) }
+    var downloadSheetId by remember { mutableStateOf<String?>(null) }
+
+    val isFlashingNow = state is FlashState.Flashing ||
+        state is FlashState.Verifying ||
+        state is FlashState.Cancelling
+
+    // A download started from the home screen opens its progress sheet once
+    // the destination has been selected. Downloads started from the download
+    // screen are handled by DownloadScreen's own focus state.
+    LaunchedEffect(showDownloadScreen, downloadFocusId) {
+        if (!showDownloadScreen && downloadFocusId != null) {
+            downloadSheetId = downloadFocusId
+            downloadViewModel.dismissFocus()
+        }
+    }
+    val downloadSheetMissing = downloadSheetId != null &&
+        downloadRecords.none { it.id == downloadSheetId }
+    LaunchedEffect(downloadSheetMissing) {
+        if (downloadSheetMissing) {
+            downloadSheetId = null
+        }
+    }
 
     // Show log viewer as a full-screen overlay
     if (showLogViewer) {
         LogViewerScreen(onBack = { showLogViewer = false })
+        return
+    }
+
+    // Show the download catalog as a full-screen overlay
+    if (showDownloadScreen) {
+        DownloadScreen(
+            viewModel = downloadViewModel,
+            downloadsEnabled = !isFlashingNow,
+            onBack = { showDownloadScreen = false },
+            onRequestDestination = onRequestDownload
+        )
         return
     }
 
@@ -137,8 +182,31 @@ fun MainScreen(
                     icon = PhosphorIcons.Regular.Disc,
                     description = isoDescription,
                     isWarning = false,
-                    onClick = onSelectFile
+                    onClick = { showSourceSheet = true }
                 )
+
+                val downloadCard = downloadRecords.firstOrNull { it.status.isActive }
+                    ?: downloadRecords.firstOrNull { it.isReady }
+                    ?: downloadRecords.firstOrNull { it.status == DownloadStatus.FAILED }
+                if (downloadCard != null) {
+                    DownloadStatusCard(
+                        record = downloadCard,
+                        onClick = {
+                            downloadSheetId = downloadCard.id
+                            downloadViewModel.focus(downloadCard.id)
+                        },
+                        onUseIso = if (downloadCard.isReady) {
+                            { downloadViewModel.useIso(downloadCard.id) }
+                        } else {
+                            null
+                        },
+                        onDelete = if (downloadCard.isReady) {
+                            { downloadViewModel.delete(downloadCard.id) }
+                        } else {
+                            null
+                        }
+                    )
+                }
 
                 // Target Drive Card
                 StatusCard(
@@ -214,6 +282,135 @@ fun MainScreen(
                     TextButton(onClick = { showDevicePicker = false }) {
                         Text(stringResource(R.string.btn_cancel))
                     }
+                }
+            )
+        }
+
+        // Image source picker: existing file or official Linux download
+        if (showSourceSheet) {
+            AlertDialog(
+                onDismissRequest = { showSourceSheet = false },
+                title = { Text(stringResource(R.string.download_source_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            text = stringResource(R.string.download_source_message),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Card(
+                            onClick = {
+                                showSourceSheet = false
+                                onSelectFile()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = PhosphorIcons.Regular.FileArrowDown,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = stringResource(R.string.download_choose_file),
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.download_choose_file_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                        Card(
+                            onClick = {
+                                showSourceSheet = false
+                                showDownloadScreen = true
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = PhosphorIcons.Regular.DownloadSimple,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = stringResource(R.string.download_download_iso),
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.download_download_iso_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSourceSheet = false }) {
+                        Text(stringResource(R.string.btn_cancel))
+                    }
+                }
+            )
+        }
+
+        if (downloadUiError != null) {
+            DownloadErrorDialog(
+                error = downloadUiError!!,
+                onDismiss = downloadViewModel::dismissError
+            )
+        }
+
+        if (downloadMeteredPrompt != null) {
+            MeteredDownloadDialog(
+                prompt = downloadMeteredPrompt!!,
+                onAllow = downloadViewModel::confirmMeteredDownload,
+                onDismiss = downloadViewModel::dismissMeteredPrompt
+            )
+        }
+
+        // Download progress sheet on the home screen
+        val selectedDownload = downloadRecords.firstOrNull { it.id == downloadSheetId }
+        if (selectedDownload != null) {
+            DownloadProgressSheet(
+                record = selectedDownload,
+                onDismiss = {
+                    downloadSheetId = null
+                    downloadViewModel.dismissFocus()
+                },
+                onPause = { downloadViewModel.pause(selectedDownload.id) },
+                onResume = { downloadViewModel.resume(selectedDownload.id) },
+                onCancel = {
+                    downloadViewModel.cancel(selectedDownload.id)
+                    downloadSheetId = null
+                },
+                onDelete = {
+                    downloadViewModel.delete(selectedDownload.id)
+                    downloadSheetId = null
+                },
+                onUseIso = {
+                    downloadViewModel.useIso(selectedDownload.id)
+                    downloadSheetId = null
                 }
             )
         }

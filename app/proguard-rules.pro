@@ -22,3 +22,12 @@
 }
 
 # JNA rules are provided by :androidusbflasher's consumer-rules.pro
+
+# Download records are persisted as Gson JSON in SharedPreferences. Field and
+# enum names must survive R8 so upgrades can still read old records.
+-keep class com.hyntix.android.usbflasher.download.DownloadRecord { *; }
+-keep class com.hyntix.android.usbflasher.download.DownloadError { *; }
+-keep enum com.hyntix.android.usbflasher.download.DownloadStatus { *; }
+-keep enum com.hyntix.android.usbflasher.download.DownloadKind { *; }
+-keep enum com.hyntix.android.usbflasher.download.PauseReason { *; }
+-keep enum com.hyntix.android.usbflasher.download.DownloadErrorCode { *; }

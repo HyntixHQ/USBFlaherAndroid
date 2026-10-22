@@ -62,6 +62,120 @@
     <string name="file_invalid">&#8220;%s&#8221; is not a supported ISO file. Please select a Linux or Windows installation ISO.</string>
     <string name="file_cannot_open">Could not open the selected file.</string>
 
+    <!-- ISO downloads: source picker -->
+    <string name="download_source_title">Add ISO</string>
+    <string name="download_source_message">Choose an image already on this device, or download an official Linux ISO.</string>
+    <string name="download_choose_file">Choose file from device</string>
+    <string name="download_choose_file_desc">Select an existing ISO image</string>
+    <string name="download_download_iso">Download ISO</string>
+    <string name="download_download_iso_desc">Browse official Linux images</string>
+
+    <!-- ISO downloads: catalog -->
+    <string name="download_title">Download ISO</string>
+    <string name="download_linux_tab">Linux</string>
+    <string name="download_catalog_loading">Loading Linux catalog…</string>
+    <string name="download_catalog_error">Could not load the ISO catalog. You can still choose a file from this device.</string>
+    <string name="download_catalog_empty">No Linux images are available in this build.</string>
+    <string name="download_retry">Retry</string>
+    <string name="download_linux_note">Linux images are downloaded directly from official distribution servers. Hyntix does not host, mirror, or modify them.</string>
+    <string name="download_verified_note">Every image is checked against the official SHA-256 before it can be used.</string>
+    <string name="download_size">About %1$s</string>
+    <string name="download_edition_desktop">Desktop</string>
+    <string name="download_edition_live_gnome">Live GNOME</string>
+    <string name="download_edition_cinnamon">Cinnamon</string>
+    <string name="download_edition_workstation">Workstation</string>
+    <string name="download_live_usb">Live USB</string>
+    <string name="download_persistence_supported">Persistence supported</string>
+    <string name="download_persistence_unsupported">Persistence not supported</string>
+    <string name="download_official_site">Official site</string>
+    <string name="download_license">License</string>
+    <string name="download_preparing">Preparing download…</string>
+    <string name="download_select_destination_note">You will choose where to save the ISO. Downloading is limited to Wi-Fi by default.</string>
+    <string name="download_active_section">Your downloads</string>
+    <string name="download_disabled_flashing">Finish the current flash before starting a download.</string>
+
+    <!-- ISO downloads: home card and progress -->
+    <string name="download_card_ready">ISO ready: %1$s</string>
+    <string name="download_progress_text">%1$d%% · %2$s / %3$s</string>
+    <string name="download_eta">%1$s remaining</string>
+    <string name="download_speed_value">%1$s/s</string>
+    <string name="download_eta_hours">%1$s h %2$s min</string>
+    <string name="download_eta_minutes">%1$s min %2$s s</string>
+    <string name="download_eta_seconds">%1$s s</string>
+    <string name="download_value_unknown" translatable="false">—</string>
+    <string name="download_status_queued">Waiting to start…</string>
+    <string name="download_status_resolving">Preparing download…</string>
+    <string name="download_status_downloading">Downloading</string>
+    <string name="download_status_waiting_network">Waiting for network…</string>
+    <string name="download_status_paused">Paused</string>
+    <string name="download_status_interrupted">Download was interrupted</string>
+    <string name="download_status_system_timeout">Android paused this download to save resources</string>
+    <string name="download_status_verifying">Verifying SHA-256…</string>
+    <string name="download_status_completed">Download complete and verified</string>
+    <string name="download_status_failed">Download failed</string>
+    <string name="download_status_cancelled">Download cancelled</string>
+    <string name="download_pause">Pause</string>
+    <string name="download_resume">Resume</string>
+    <string name="download_restart">Restart</string>
+    <string name="download_cancel">Cancel download</string>
+    <string name="download_use_iso">Use ISO</string>
+    <string name="download_delete">Delete download</string>
+    <string name="download_close">Close</string>
+    <string name="download_leave_note">You can leave the app; the download continues in the background.</string>
+    <string name="download_notifications_disabled">Notifications are off. Progress is visible only in the app.</string>
+    <string name="download_range_unsupported">This server does not support pausing. Cancel and restart instead.</string>
+    <string name="download_completed_hint">The ISO passed SHA-256 verification and is ready to flash.</string>
+    <string name="download_cancel_confirm_title">Cancel download?</string>
+    <string name="download_cancel_confirm_body">The partial file will be deleted. This cannot be undone.</string>
+    <string name="download_delete_confirm_title">Delete download?</string>
+    <string name="download_delete_confirm_body">The downloaded ISO file will be deleted. This cannot be undone.</string>
+    <string name="download_keep_file">Keep file</string>
+    <string name="download_delete_file">Delete file</string>
+    <string name="download_metered_title">Use mobile data?</string>
+    <string name="download_metered_body">%1$s is about %2$s. Downloading over mobile data may use a large part of your data plan.</string>
+    <string name="download_metered_allow">Use mobile data</string>
+    <string name="download_metered_wait">Wait for Wi-Fi</string>
+
+    <!-- ISO downloads: notifications -->
+    <string name="download_channel_name">ISO downloads</string>
+    <string name="download_channel_description">Progress for in-app ISO downloads</string>
+    <string name="download_notification_preparing">Preparing download…</string>
+    <string name="download_notification_progress">%1$d%% · %2$s / %3$s</string>
+    <string name="download_notification_complete">ISO ready</string>
+    <string name="download_notification_complete_text">%1$s passed SHA-256 verification.</string>
+    <string name="download_notification_failed">Download failed</string>
+    <string name="download_notification_failed_text">%1$s: %2$s</string>
+    <string name="download_notification_pause">Pause</string>
+    <string name="download_notification_resume">Resume</string>
+    <string name="download_notification_cancel">Cancel</string>
+
+    <!-- ISO downloads: errors -->
+    <string name="download_error_title">Download failed</string>
+    <string name="download_error_no_network">No internet connection. Connect to Wi-Fi and retry.</string>
+    <string name="download_error_metered_blocked">Large downloads are allowed on Wi-Fi only. Connect to Wi-Fi to continue.</string>
+    <string name="download_error_roaming_blocked">Data roaming is off for downloads.</string>
+    <string name="download_error_data_saver">Data Saver is blocking the download.</string>
+    <string name="download_error_no_space">Not enough free storage. Free space and retry.</string>
+    <string name="download_error_destination_unavailable">The save location is no longer available. Choose another.</string>
+    <string name="download_error_destination_unsupported">This save location cannot be written by the app. Choose another.</string>
+    <string name="download_error_http">The server returned an error (%1$d). Try again later.</string>
+    <string name="download_error_checksum_unavailable">Could not get the official checksum. Try again or use the official site.</string>
+    <string name="download_error_checksum_mismatch">The file failed verification and was deleted. No USB was written.</string>
+    <string name="download_error_checksum_table">The official checksum file could not be read.</string>
+    <string name="download_error_file_changed">The downloaded ISO changed after verification. Download it again before flashing.</string>
+    <string name="download_error_invalid_file">The download source did not provide a valid ISO file.</string>
+    <string name="download_error_network">Network error. Check your connection and retry; the download resumes from the last saved point.</string>
+    <string name="download_error_server_unsupported">This server does not support resuming this download.</string>
+    <string name="download_error_active">Another download is already in progress. Finish or cancel it first.</string>
+    <string name="download_active_note">Only one download can run at a time. Finish or cancel your current download to start another.</string>
+    <string name="download_error_service">Android could not start the background download service. Try again.</string>
+    <string name="download_error_html">The server returned a web page instead of an ISO. Check your Wi-Fi sign-in and retry.</string>
+    <string name="download_error_unknown">Download failed. Try again or use your browser.</string>
+
+    <!-- ISO downloads: accessibility -->
+    <string name="download_cd_back">Back from download screen</string>
+    <string name="download_cd_progress">Download progress</string>
+
     <!-- Device fallback names -->
     <string name="device_generic">Generic</string>
     <string name="device_usb_drive">USB Drive</string>

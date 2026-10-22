@@ -5,15 +5,10 @@
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <!-- SAF grants and the documents they point to do not survive a restore. -->
+        <exclude domain="sharedpref" path="iso_downloads.xml"/>
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="sharedpref" path="iso_downloads.xml"/>
     </device-transfer>
-    -->
 </data-extraction-rules>

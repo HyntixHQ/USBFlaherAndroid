@@ -89,5 +89,10 @@ dependencies {
 
     implementation(libs.phosphor.compose)
     implementation(libs.androidx.splashscreen)
+    implementation(libs.okhttp)
+    implementation(libs.gson)
     implementation(project(":androidusbflasher"))
+
+    testImplementation(libs.junit)
+    testImplementation(libs.okhttp.mockwebserver)
 }

@@ -1,7 +1,11 @@
 package com.hyntix.android.usbflasher
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -12,6 +16,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.hyntix.android.usbflasher.download.CreateIsoDocumentContract
+import com.hyntix.android.usbflasher.download.DownloadDestination
+import com.hyntix.android.usbflasher.download.DownloadGraph
+import com.hyntix.android.usbflasher.ui.DownloadViewModel
 import com.hyntix.android.usbflasher.ui.FlashViewModel
 import com.hyntix.android.usbflasher.ui.MainScreen
 import com.hyntix.android.usbflasher.ui.theme.USBFlasherTheme
@@ -49,6 +57,22 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private val downloadViewModel: DownloadViewModel by viewModels {
+        object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val graph = DownloadGraph.init(applicationContext)
+                return DownloadViewModel(
+                    applicationContext,
+                    graph.repository,
+                    graph.store
+                ) as T
+            }
+        }
+    }
+
+    private var notificationPermissionRequested = false
     
     private val usbReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -86,6 +110,7 @@ class MainActivity : ComponentActivity() {
         
         // Initialize in-app logger before anything else
         com.hyntix.android.usbflasher.util.AppLogger.init(applicationContext)
+        DownloadGraph.init(applicationContext)
         
         // Register USB Receiver
         val filter = IntentFilter(ACTION_USB_PERMISSION).apply {
@@ -137,15 +162,64 @@ class MainActivity : ComponentActivity() {
                             viewModel.onFileSelected(it, name, size)
                         }
                     }
-                    
-                     MainScreen(
+
+                    // SAF destination for an in-app ISO download
+                    val createDocumentLauncher = rememberLauncherForActivityResult(
+                        contract = CreateIsoDocumentContract()
+                    ) { uri ->
+                        val entry = downloadViewModel.takeDestinationRequest()
+                        if (uri != null && entry != null) {
+                            DownloadDestination.takePersistablePermission(applicationContext, uri)
+                            downloadViewModel.startDownload(entry, uri)
+                        }
+                    }
+
+                    // Notification permission is requested once, before the
+                    // destination picker, so FGS progress is visible.
+                    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.RequestPermission()
+                    ) {
+                        downloadViewModel.pendingDestinationRequest()?.let { entry ->
+                            createDocumentLauncher.launch(entry.fileName)
+                        }
+                    }
+
+                    val readyIso by downloadViewModel.readyIso.collectAsState()
+                    LaunchedEffect(readyIso) {
+                        readyIso?.let { iso ->
+                            viewModel.onFileSelected(
+                                iso.destinationUri.toUri(),
+                                iso.displayName,
+                                iso.sizeBytes
+                            )
+                            downloadViewModel.consumeReadyIso()
+                        }
+                    }
+
+                    MainScreen(
                         viewModel = viewModel,
+                        downloadViewModel = downloadViewModel,
                         onSelectFile = {
                             filePickerLauncher.launch(arrayOf(
                                 "application/x-iso9660-image",
                                 "application/x-raw-disk-image",
                                 "application/octet-stream",
                             ))
+                        },
+                        onRequestDownload = { entry ->
+                            downloadViewModel.rememberDestinationRequest(entry)
+                            val needsPermission =
+                                ContextCompat.checkSelfPermission(
+                                    this,
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                ) != PackageManager.PERMISSION_GRANTED &&
+                                    !notificationPermissionRequested
+                            if (needsPermission) {
+                                notificationPermissionRequested = true
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            } else {
+                                createDocumentLauncher.launch(entry.fileName)
+                            }
                         },
                         onRequestPermission = { deviceInfo ->
                             requestUsbPermission(deviceInfo.device)
