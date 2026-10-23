@@ -386,7 +386,7 @@ pub fn probe_iso<R: Read + Seek>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_support::{Node, build_casper_iso, build_debian_iso, build_iso};
+    use crate::test_support::{build_casper_iso, build_debian_iso, build_iso, Node};
 
     #[test]
     fn walks_nested_directories_and_files() {
@@ -507,10 +507,8 @@ mod tests {
             data: b"hello".to_vec(),
         }]);
         let mut cursor = std::io::Cursor::new(bytes.clone());
-        assert!(
-            probe_iso(&mut cursor, bytes.len() as u64)
-                .unwrap()
-                .is_none()
-        );
+        assert!(probe_iso(&mut cursor, bytes.len() as u64)
+            .unwrap()
+            .is_none());
     }
 }
