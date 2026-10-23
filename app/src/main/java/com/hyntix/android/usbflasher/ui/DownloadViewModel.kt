@@ -223,12 +223,7 @@ class DownloadViewModel(
                 else -> null
             }
             if (error != null) {
-                store.updateStatus(
-                    id = id,
-                    status = DownloadStatus.FAILED,
-                    error = error,
-                    persistNow = true
-                )
+                repository.markFailed(id, error)
                 _uiError.value = error
                 return@launch
             }

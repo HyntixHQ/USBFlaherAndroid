@@ -20,13 +20,54 @@ class DownloadNotifications(private val context: Context) {
         const val CHANNEL_ID = "iso_downloads"
         const val NOTIFICATION_ID = 4102
 
+        private const val PREFS = "iso_download_notifications"
+        private const val KEY_DISPLAYED_RECORD = "displayed_record_id"
+
+        @Volatile
+        private var displayedRecordId: String? = null
+
+        private fun prefs(context: Context) =
+            context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+
+        private fun ownerFor(context: Context): String? =
+            displayedRecordId ?: prefs(context).getString(KEY_DISPLAYED_RECORD, null)
+
+        private fun setOwner(context: Context, recordId: String?) {
+            displayedRecordId = recordId
+            val editor = prefs(context).edit()
+            if (recordId == null) {
+                editor.remove(KEY_DISPLAYED_RECORD)
+            } else {
+                editor.putString(KEY_DISPLAYED_RECORD, recordId)
+            }
+            editor.apply()
+        }
+
         /**
          * Dismiss the download notification from outside the service. Used when
          * the app cancels or deletes a record while the service is stopped
          * (paused/completed/failed), so the notification cannot outlive it.
          */
         fun dismiss(context: Context) {
+            setOwner(context, null)
             NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+        }
+
+        /**
+         * Dismiss only when the visible notification belongs to [recordId].
+         * Ownership is persisted so a process restart cannot make this delete a
+         * different record's notification. Unknown ownership is treated as ours.
+         * Returns true when a dismissal was performed.
+         */
+        fun dismissFor(context: Context, recordId: String): Boolean {
+            val owner = ownerFor(context)
+            if (owner != null && owner != recordId) return false
+            dismiss(context)
+            return true
+        }
+
+        fun markDisplayed(context: Context, recordId: String) {
+            setOwner(context, recordId)
         }
     }
 
@@ -56,7 +97,7 @@ class DownloadNotifications(private val context: Context) {
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .setProgress(100, (record.percentage * 100).toInt().coerceIn(0, 100), false)
 
-        if (record.status == DownloadStatus.DOWNLOADING) {
+        if (record.status == DownloadStatus.DOWNLOADING && record.rangeSupported) {
             builder.addAction(
                 0,
                 context.getString(R.string.download_notification_pause),
@@ -168,6 +209,7 @@ class DownloadNotifications(private val context: Context) {
     fun paused(record: DownloadRecord): Notification {
         return baseBuilder(record)
             .setContentText(DownloadStrings.statusText(context, record))
+            .setSubText(notificationProgress(record))
             .setOngoing(false)
             .setAutoCancel(false)
             .setOnlyAlertOnce(true)
@@ -184,7 +226,7 @@ class DownloadNotifications(private val context: Context) {
             .build()
     }
 
-    fun notify(notification: Notification) {
+    fun notify(recordId: String, notification: Notification) {
         if (ContextCompat.checkSelfPermission(
                 context,
                 Manifest.permission.POST_NOTIFICATIONS
@@ -192,10 +234,14 @@ class DownloadNotifications(private val context: Context) {
         ) {
             return
         }
-        runCatching { manager.notify(NOTIFICATION_ID, notification) }
+        runCatching {
+            manager.notify(NOTIFICATION_ID, notification)
+            setOwner(context, recordId)
+        }
     }
 
     fun cancel() {
+        setOwner(context, null)
         manager.cancel(NOTIFICATION_ID)
     }
 

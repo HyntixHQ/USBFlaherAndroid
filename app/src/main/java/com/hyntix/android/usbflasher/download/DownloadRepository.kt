@@ -166,11 +166,17 @@ class DownloadRepository(
         }
         val error = startService(id)
         if (error != null) {
-            store.updateStatus(
+            val failed = store.updateStatus(
                 id = id,
                 status = DownloadStatus.FAILED,
                 error = error
             )
+            if (failed != null) {
+                // The service never started, so replace the paused notification
+                // directly instead of leaving a stale "Resume" action behind.
+                val notifications = DownloadNotifications(context)
+                notifications.notify(failed.id, notifications.failed(failed))
+            }
         }
         return error
     }
@@ -189,6 +195,21 @@ class DownloadRepository(
         cancel(id)
     }
 
+    /**
+     * Mark an existing record failed from an app-side validation step (for
+     * example, the completed ISO disappeared). The service is not involved, so
+     * dismiss any notification still showing for that record.
+     */
+    fun markFailed(id: String, error: DownloadError) {
+        store.updateStatus(
+            id = id,
+            status = DownloadStatus.FAILED,
+            error = error,
+            persistNow = true
+        )
+        DownloadNotifications.dismissFor(context, id)
+    }
+
     fun reconcile() {
         store.reconcile(DownloadService.isRunning)
     }
@@ -200,8 +221,8 @@ class DownloadRepository(
             store.remove(id)
         }
         // The service is stopped on this path, so no active download owns the
-        // single notification. Dismiss it even if the record was already gone.
-        DownloadNotifications.dismiss(context)
+        // single notification. Dismiss it only if it belongs to this record.
+        DownloadNotifications.dismissFor(context, id)
     }
 
     private fun startService(id: String): DownloadError? {

@@ -130,6 +130,12 @@ class DownloadService : Service() {
     private var lastWakeRenewAt = 0L
     private var lastNetworkCheckAt = 0L
     private val notificationLock = Any()
+
+    @Volatile
+    private var notificationDismissed = false
+
+    @Volatile
+    private var serviceDestroyed = false
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
     private val speedSamples = ArrayDeque<SpeedSample>()
@@ -179,6 +185,7 @@ class DownloadService : Service() {
     }
 
     override fun onDestroy() {
+        serviceDestroyed = true
         isRunning = false
         val interruptedId = currentRecordId ?: waitingRecordId
         waitingForNetwork = false
@@ -191,18 +198,30 @@ class DownloadService : Service() {
         releaseLocks()
         if (::store.isInitialized) {
             interruptedId?.let { id ->
-                val record = store.find(id)
-                if (record != null && record.status.isActive &&
-                    record.status != DownloadStatus.PAUSED
-                ) {
-                    store.updateStatus(
-                        id = id,
-                        status = DownloadStatus.PAUSED,
-                        pauseReason = PauseReason.INTERRUPTED,
-                        persistNow = true
-                    )
+                if (cancelRequested) {
+                    // The cancel won the race with service teardown. Delete the
+                    // record and notification instead of leaving a paused one.
+                    deleteRecordNow(id)
+                } else {
+                    val record = store.find(id)
+                    if (record != null && record.status.isActive &&
+                        record.status != DownloadStatus.PAUSED
+                    ) {
+                        val paused = store.updateStatus(
+                            id = id,
+                            status = DownloadStatus.PAUSED,
+                            pauseReason = PauseReason.INTERRUPTED,
+                            persistNow = true
+                        )
+                        if (paused != null && !notificationDismissed) {
+                            postNotification(paused, notifications.paused(paused))
+                        }
+                    }
                 }
             }
+        }
+        if (notificationDismissed && ::notifications.isInitialized) {
+            notifications.cancel()
         }
         super.onDestroy()
     }
@@ -231,6 +250,7 @@ class DownloadService : Service() {
 
     private fun launchDownload(id: String) {
         clearWaitingState()
+        notificationDismissed = false
         val record = store.find(id)
         if (record == null || record.status == DownloadStatus.COMPLETED) {
             // The service was started with startForegroundService, so it must
@@ -244,7 +264,7 @@ class DownloadService : Service() {
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
                 )
             }
-            notifications.cancel()
+            dismissNotification()
             finishActive()
             return
         }
@@ -272,12 +292,16 @@ class DownloadService : Service() {
                 notifications.preparing(record),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
             )
+            DownloadNotifications.markDisplayed(applicationContext, id)
         } catch (e: Exception) {
-            store.updateStatus(
+            val failed = store.updateStatus(
                 id = id,
                 status = DownloadStatus.FAILED,
                 error = DownloadError(DownloadErrorCode.SERVICE_UNAVAILABLE)
             )
+            // Replace any stale paused/progress notification with the failure
+            // so the notification never disagrees with the record.
+            if (failed != null) postNotification(failed, notifications.failed(failed))
             finishActive()
             return
         }
@@ -348,8 +372,7 @@ class DownloadService : Service() {
             activeControl?.cancel()
             return
         }
-        val ownsNotification = isCurrent || waitingRecordId == id ||
-            (activeJob?.isActive != true && !waitingForNetwork)
+        val ownsNotification = isCurrent || (activeJob?.isActive != true && !waitingForNetwork)
         deleteRecordNow(
             id = id,
             cancelNotification = ownsNotification
@@ -443,6 +466,10 @@ class DownloadService : Service() {
             record = store.find(id) ?: return
             when (result) {
                 is EngineResult.Completed -> {
+                    if (cancelRequested) {
+                        deleteRecordNow(id)
+                        return
+                    }
                     store.update(
                         id = id,
                         persistNow = true
@@ -461,6 +488,10 @@ class DownloadService : Service() {
                 }
 
                 is EngineResult.Paused -> {
+                    if (cancelRequested) {
+                        deleteRecordNow(id)
+                        return
+                    }
                     val reason = when {
                         systemTimedOut -> PauseReason.SYSTEM_TIMEOUT
                         pauseRequested -> PauseReason.USER
@@ -477,6 +508,10 @@ class DownloadService : Service() {
                             currentAllowMetered
                         )) {
                             null -> {
+                                if (cancelRequested) {
+                                    deleteRecordNow(id)
+                                    return
+                                }
                                 pendingStartId = id
                                 return
                             }
@@ -517,7 +552,11 @@ class DownloadService : Service() {
                 }
 
                 is EngineResult.Failed -> {
-                    fail(store.find(id) ?: record, result.error, result.bytesDownloaded)
+                    if (cancelRequested) {
+                        deleteRecordNow(id)
+                    } else {
+                        fail(store.find(id) ?: record, result.error, result.bytesDownloaded)
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -529,11 +568,19 @@ class DownloadService : Service() {
                 fail(store.find(id) ?: return, DownloadError(DownloadErrorCode.UNKNOWN))
             }
         } finally {
+            // A cancel can arrive after the last explicit check (for example
+            // while the completed notification is being posted). Guarantee the
+            // record and its notification are gone before the next record starts.
+            if (cancelRequested) {
+                if (waitingRecordId == id) clearWaitingState()
+                deleteRecordNow(id)
+            }
             finishActive()
         }
     }
 
     private fun finishActive() {
+        if (serviceDestroyed) return
         releaseLocks()
         activeControl = null
         currentRecordId = null
@@ -554,6 +601,7 @@ class DownloadService : Service() {
     }
 
     private fun startPendingOrStop() {
+        if (serviceDestroyed) return
         if (activeJob?.isActive == true) return
         if (waitingForNetwork) return
         val next = pendingStartId
@@ -563,7 +611,20 @@ class DownloadService : Service() {
             return
         }
         unregisterNetworkCallback()
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+        val remove = notificationDismissed
+        ServiceCompat.stopForeground(
+            this,
+            if (remove) {
+                ServiceCompat.STOP_FOREGROUND_REMOVE
+            } else {
+                ServiceCompat.STOP_FOREGROUND_DETACH
+            }
+        )
+        if (remove) {
+            // Re-cancel after leaving the foreground: some versions ignore a
+            // cancel issued while the service still owns the notification.
+            notifications.cancel()
+        }
         stopSelf()
     }
 
@@ -690,6 +751,10 @@ class DownloadService : Service() {
 
         when (result) {
             is VerificationResult.Success -> {
+                if (cancelRequested) {
+                    deleteRecordNow(record.id)
+                    return
+                }
                 val completed = store.update(record.id, persistNow = true) { current ->
                     current.copy(
                         status = DownloadStatus.COMPLETED,
@@ -709,12 +774,20 @@ class DownloadService : Service() {
             }
 
             is VerificationResult.Mismatch -> {
+                if (cancelRequested) {
+                    deleteRecordNow(record.id)
+                    return
+                }
                 DownloadDestination.delete(applicationContext, record.destinationUri.toUri())
                 fail(record, DownloadError(DownloadErrorCode.CHECKSUM_MISMATCH), 0)
             }
 
             is VerificationResult.Failure -> {
-                fail(record, result.error, record.bytesDownloaded)
+                if (cancelRequested) {
+                    deleteRecordNow(record.id)
+                } else {
+                    fail(record, result.error, record.bytesDownloaded)
+                }
             }
 
             is VerificationResult.Cancelled -> {
@@ -746,6 +819,13 @@ class DownloadService : Service() {
             return
         }
         val current = store.find(id) ?: return
+        // Never downgrade a terminal record (for example, a cancellation that
+        // races the completed/failed notification) back to paused.
+        if (current.status == DownloadStatus.COMPLETED ||
+            current.status == DownloadStatus.FAILED
+        ) {
+            return
+        }
         val reason = current.pauseReason
             ?: networkPauseReason
             ?: if (systemTimedOut) PauseReason.SYSTEM_TIMEOUT else PauseReason.INTERRUPTED
@@ -771,7 +851,25 @@ class DownloadService : Service() {
         // is already in flight cannot re-post the notification afterwards.
         synchronized(notificationLock) {
             store.remove(id)
-            if (cancelNotification) notifications.cancel()
+            if (cancelNotification) {
+                // Only dismiss when this record owns the visible notification;
+                // another record may still be active or paused.
+                if (DownloadNotifications.dismissFor(applicationContext, id)) {
+                    notificationDismissed = true
+                }
+            }
+        }
+    }
+
+    /**
+     * Mark the notification as removed before stopping the service. The stop
+     * path then uses STOP_FOREGROUND_REMOVE instead of DETACH, which otherwise
+     * leaves the foreground notification visible on some Android versions.
+     */
+    private fun dismissNotification() {
+        synchronized(notificationLock) {
+            notificationDismissed = true
+            notifications.cancel()
         }
     }
 
@@ -782,7 +880,7 @@ class DownloadService : Service() {
     private fun postNotification(record: DownloadRecord, notification: Notification) {
         synchronized(notificationLock) {
             if (store.find(record.id) == null) return
-            notifications.notify(notification)
+            notifications.notify(record.id, notification)
         }
     }
 
@@ -816,6 +914,14 @@ class DownloadService : Service() {
         if (!force && now - lastNotificationAt < NOTIFICATION_INTERVAL_MS) return
         val record = store.find(id) ?: return
         lastNotificationAt = now
+        // A late progress callback must never replace a terminal notification
+        // with an ongoing one.
+        if (record.status == DownloadStatus.COMPLETED ||
+            record.status == DownloadStatus.FAILED ||
+            record.status == DownloadStatus.CANCELLED
+        ) {
+            return
+        }
         val status = DownloadStrings.statusText(applicationContext, record)
         val notification = when (record.status) {
             DownloadStatus.PAUSED -> notifications.paused(record)
@@ -887,19 +993,32 @@ class DownloadService : Service() {
         waitingRecordId = null
         unregisterNetworkCallback()
         activeControl?.pause()
-        interruptedId?.let { id ->
-            val record = store.updateStatus(
-                id = id,
-                status = DownloadStatus.PAUSED,
-                pauseReason = PauseReason.SYSTEM_TIMEOUT,
-                persistNow = true
-            )
-            if (record != null) {
-                postNotification(record, notifications.paused(record))
+
+        if (cancelRequested) {
+            // A timeout that races a cancel must not resurrect the paused
+            // notification or keep the record the user already cancelled.
+            interruptedId?.let { deleteRecordNow(it) }
+        } else {
+            interruptedId?.let { id ->
+                val record = store.updateStatus(
+                    id = id,
+                    status = DownloadStatus.PAUSED,
+                    pauseReason = PauseReason.SYSTEM_TIMEOUT,
+                    persistNow = true
+                )
+                if (record != null) {
+                    postNotification(record, notifications.paused(record))
+                }
             }
         }
+
         releaseLocks()
-        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+        if (notificationDismissed) {
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+            notifications.cancel()
+        } else {
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+        }
         stopSelf()
     }
 
