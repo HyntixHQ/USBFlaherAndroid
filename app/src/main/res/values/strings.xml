@@ -130,7 +130,6 @@
     <string name="download_persistence_unsupported">Persistence not supported</string>
     <string name="download_persistence_config_required">Additional configuration required</string>
     <string name="download_official_site">Official site</string>
-    <string name="download_official_source">Official source</string>
     <string name="download_release_notes">Release notes</string>
     <string name="download_license">License</string>
     <plurals name="download_variant_count">

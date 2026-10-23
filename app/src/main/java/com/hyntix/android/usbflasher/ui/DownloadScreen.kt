@@ -668,58 +668,44 @@ private fun DistributionCard(
 @Composable
 private fun DistributionHeader(distribution: LinuxDistribution) {
     val uriHandler = LocalUriHandler.current
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        ),
-        shape = MaterialTheme.shapes.large
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = distribution.description,
-                style = MaterialTheme.typography.bodyMedium
-            )
-            Text(
-                text = stringResource(
-                    R.string.download_architectures,
-                    distribution.architectures.joinToString(", ")
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = distribution.description,
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = stringResource(
+                R.string.download_architectures,
+                distribution.architectures.joinToString(", ")
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            TextButton(
+                onClick = { uriHandler.openUri(distribution.homepageUrl) },
+                contentPadding = PaddingValues(horizontal = 4.dp)
+            ) {
+                Text(stringResource(R.string.download_official_site))
+            }
+            if (!distribution.releaseNotesUrl.isNullOrBlank()) {
                 TextButton(
-                    onClick = { uriHandler.openUri(distribution.homepageUrl) },
+                    onClick = { uriHandler.openUri(distribution.releaseNotesUrl) },
                     contentPadding = PaddingValues(horizontal = 4.dp)
                 ) {
-                    Icon(
-                        imageVector = PhosphorIcons.Regular.Globe,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.size(4.dp))
-                    Text(stringResource(R.string.download_official_site))
+                    Text(stringResource(R.string.download_release_notes))
                 }
-                if (!distribution.releaseNotesUrl.isNullOrBlank()) {
-                    TextButton(
-                        onClick = { uriHandler.openUri(distribution.releaseNotesUrl) },
-                        contentPadding = PaddingValues(horizontal = 4.dp)
-                    ) {
-                        Text(stringResource(R.string.download_release_notes))
-                    }
-                }
-                TextButton(
-                    onClick = { uriHandler.openUri(distribution.licenseUrl) },
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    Text(stringResource(R.string.download_license))
-                }
+            }
+            TextButton(
+                onClick = { uriHandler.openUri(distribution.licenseUrl) },
+                contentPadding = PaddingValues(horizontal = 4.dp)
+            ) {
+                Text(stringResource(R.string.download_license))
             }
         }
     }
@@ -733,7 +719,6 @@ private fun LinuxIsoCard(
     onDownload: () -> Unit
 ) {
     val context = LocalContext.current
-    val uriHandler = LocalUriHandler.current
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -801,35 +786,6 @@ private fun LinuxIsoCard(
             )
 
             PersistenceSummary(persistence = entry.persistence)
-
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TextButton(
-                    onClick = { uriHandler.openUri(entry.homepageUrl) },
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    Icon(
-                        imageVector = PhosphorIcons.Regular.Globe,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.size(4.dp))
-                    Text(stringResource(R.string.download_official_source))
-                }
-                if (!entry.releaseNotesUrl.isNullOrBlank()) {
-                    TextButton(
-                        onClick = { uriHandler.openUri(entry.releaseNotesUrl) },
-                        contentPadding = PaddingValues(horizontal = 4.dp)
-                    ) {
-                        Text(stringResource(R.string.download_release_notes))
-                    }
-                }
-                TextButton(
-                    onClick = { uriHandler.openUri(entry.licenseUrl) },
-                    contentPadding = PaddingValues(horizontal = 4.dp)
-                ) {
-                    Text(stringResource(R.string.download_license))
-                }
-            }
 
             Button(
                 onClick = onDownload,

@@ -44,6 +44,11 @@ variant
   }
 ```
 
+Distribution links are shown once at the top of the distribution detail screen.
+`homepageUrl` points at the project's home page, while `releaseNotesUrl` and
+`licenseUrl` point at official release-note and licensing pages. Variants do not
+carry their own copies of these links.
+
 ### Persistence values
 
 - `app` — Hyntix can create and activate persistence automatically. The flash

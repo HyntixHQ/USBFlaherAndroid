@@ -34,9 +34,9 @@
       "name": "Debian",
       "categoryId": "debian-based",
       "description": "The universal operating system. Stable Live images with a choice of desktop, plus netinst and DVD installers.",
-      "homepageUrl": "https://www.debian.org/CD/live/",
-      "licenseUrl": "https://www.debian.org/legal",
-      "releaseNotesUrl": "https://www.debian.org/releases/",
+      "homepageUrl": "https://www.debian.org/",
+      "licenseUrl": "https://www.debian.org/legal/licenses/",
+      "releaseNotesUrl": "https://www.debian.org/releases/trixie/releasenotes",
       "architectures": [
         "x86_64"
       ],
@@ -190,7 +190,7 @@
       "categoryId": "debian-based",
       "description": "A lightweight Debian-based desktop with Xfce, KDE Plasma, and Fluxbox editions.",
       "homepageUrl": "https://mxlinux.org/",
-      "licenseUrl": "https://mxlinux.org/",
+      "licenseUrl": "https://mxlinux.org/category/wiki/licenses",
       "releaseNotesUrl": "https://mxlinux.org/blog/",
       "architectures": [
         "x86_64"
@@ -272,8 +272,8 @@
       "name": "Kali Linux",
       "categoryId": "debian-based",
       "description": "Security-focused Debian derivative with installer images for penetration testing and forensics. Live media is distributed by Kali as torrents and is not offered for direct download here.",
-      "homepageUrl": "https://www.kali.org/get-kali/",
-      "licenseUrl": "https://www.kali.org/legal/",
+      "homepageUrl": "https://www.kali.org/",
+      "licenseUrl": "https://www.kali.org/docs/policy/eula/",
       "releaseNotesUrl": "https://www.kali.org/releases/",
       "architectures": [
         "x86_64"
@@ -332,8 +332,8 @@
       "categoryId": "debian-based",
       "description": "A lightweight Debian-based system designed for older hardware, with full and core live images.",
       "homepageUrl": "https://antixlinux.com/",
-      "licenseUrl": "https://antixlinux.com/",
-      "releaseNotesUrl": "https://antixlinux.com/",
+      "licenseUrl": "https://antixlinux.com/about/",
+      "releaseNotesUrl": "https://antixlinux.com/blog/",
       "architectures": [
         "x86_64"
       ],
@@ -393,8 +393,8 @@
       "categoryId": "debian-based",
       "description": "A polished Debian-based desktop distribution built around the Deepin desktop environment.",
       "homepageUrl": "https://www.deepin.org/en/",
-      "licenseUrl": "https://www.deepin.org/en/",
-      "releaseNotesUrl": "https://www.deepin.org/en/deepin-25-1-release/",
+      "licenseUrl": "https://www.deepin.org/en/license/",
+      "releaseNotesUrl": "https://www.deepin.org/en/deepin-25-2-release/",
       "architectures": [
         "x86_64"
       ],
@@ -431,9 +431,9 @@
       "name": "Parrot OS",
       "categoryId": "debian-based",
       "description": "Security- and privacy-focused Debian derivative with dedicated security and everyday desktop editions.",
-      "homepageUrl": "https://parrotsec.org/download/",
-      "licenseUrl": "https://parrotsec.org/",
-      "releaseNotesUrl": "https://parrotsec.org/blog/",
+      "homepageUrl": "https://parrotsec.org/",
+      "licenseUrl": "https://parrotsec.org/docs/introduction/gnu-linux-basics/",
+      "releaseNotesUrl": "https://parrotsec.org/blog/2026-10-03-parrot-7.4-release-notes/",
       "architectures": [
         "x86_64"
       ],
@@ -493,9 +493,9 @@
       "name": "Ubuntu",
       "categoryId": "ubuntu-based",
       "description": "Ubuntu Desktop LTS and current releases, together with the official Kubuntu, Xubuntu, and Lubuntu flavors.",
-      "homepageUrl": "https://ubuntu.com/download/desktop",
+      "homepageUrl": "https://ubuntu.com/",
       "licenseUrl": "https://ubuntu.com/legal",
-      "releaseNotesUrl": "https://discourse.ubuntu.com/",
+      "releaseNotesUrl": "https://documentation.ubuntu.com/release-notes/",
       "architectures": [
         "x86_64"
       ],
@@ -631,9 +631,9 @@
       "name": "Linux Mint",
       "categoryId": "ubuntu-based",
       "description": "A long-term-support desktop with Cinnamon, MATE, and Xfce editions and a familiar, conservative default setup.",
-      "homepageUrl": "https://linuxmint.com/download.php",
-      "licenseUrl": "https://linuxmint.com/legal.php",
-      "releaseNotesUrl": "https://www.linuxmint.com/release.php",
+      "homepageUrl": "https://linuxmint.com/",
+      "licenseUrl": "https://linuxmint.com/faq.php",
+      "releaseNotesUrl": "https://linuxmint.com/rel_zena.php",
       "architectures": [
         "x86_64"
       ],
@@ -720,8 +720,9 @@
       "name": "Pop!_OS",
       "categoryId": "ubuntu-based",
       "description": "System76's Ubuntu-based desktop with the COSMIC environment and NVIDIA-ready images.",
-      "homepageUrl": "https://system76.com/download-pop",
-      "licenseUrl": "https://system76.com/legal",
+      "homepageUrl": "https://system76.com/pop",
+      "licenseUrl": "https://github.com/pop-os/pop/blob/master/LICENSING.md",
+      "releaseNotesUrl": "https://github.com/pop-os/pop/releases",
       "architectures": [
         "x86_64",
         "aarch64"
@@ -803,9 +804,9 @@
       "name": "Zorin OS",
       "categoryId": "ubuntu-based",
       "description": "An Ubuntu-based, Windows-friendly desktop with Core, Education, and Lite editions.",
-      "homepageUrl": "https://zorin.com/os/download/",
-      "licenseUrl": "https://zorin.com/legal/",
-      "releaseNotesUrl": "https://zorin.com/blog/",
+      "homepageUrl": "https://zorin.com/",
+      "licenseUrl": "https://zorin.com/legal/terms/",
+      "releaseNotesUrl": "https://blog.zorin.com/",
       "architectures": [
         "x86_64"
       ],
@@ -887,8 +888,8 @@
       "categoryId": "ubuntu-based",
       "description": "A beginner-friendly Ubuntu LTS desktop using Xfce, designed to make the transition from Windows easy.",
       "homepageUrl": "https://www.linuxliteos.com/",
-      "licenseUrl": "https://www.linuxliteos.com/",
-      "releaseNotesUrl": "https://www.linuxliteos.com/forums/",
+      "licenseUrl": "https://www.linuxliteos.com/terms.html",
+      "releaseNotesUrl": "https://www.linuxliteos.com/forums/showthread.php?tid=9866",
       "architectures": [
         "x86_64"
       ],
@@ -926,9 +927,9 @@
       "name": "Arch Linux",
       "categoryId": "arch-based",
       "description": "A minimal, rolling-release distribution that installs exactly what you choose with archinstall or manually.",
-      "homepageUrl": "https://archlinux.org/download/",
-      "licenseUrl": "https://archlinux.org/",
-      "releaseNotesUrl": "https://archlinux.org/news/",
+      "homepageUrl": "https://archlinux.org/",
+      "licenseUrl": "https://wiki.archlinux.org/title/Arch_Linux#Licensing",
+      "releaseNotesUrl": "https://archlinux.org/releng/releases/",
       "architectures": [
         "x86_64"
       ],
@@ -964,8 +965,8 @@
       "name": "Manjaro",
       "categoryId": "arch-based",
       "description": "A user-friendly Arch-based desktop with GNOME, KDE Plasma, and Xfce editions.",
-      "homepageUrl": "https://manjaro.org/download/",
-      "licenseUrl": "https://manjaro.org/",
+      "homepageUrl": "https://manjaro.org/",
+      "licenseUrl": "https://manjaro.org/terms-of-use",
       "releaseNotesUrl": "https://forum.manjaro.org/c/announcements/",
       "architectures": [
         "x86_64"
@@ -1047,9 +1048,9 @@
       "name": "Garuda Linux",
       "categoryId": "arch-based",
       "description": "An Arch-based desktop focused on performance and gaming, with themed KDE Plasma and GNOME editions.",
-      "homepageUrl": "https://garudalinux.org/downloads",
-      "licenseUrl": "https://garudalinux.org/",
-      "releaseNotesUrl": "https://garudalinux.org/",
+      "homepageUrl": "https://garudalinux.org/",
+      "licenseUrl": "https://garudalinux.org/legal",
+      "releaseNotesUrl": "https://garudalinux.org/blog",
       "architectures": [
         "x86_64"
       ],
@@ -1130,9 +1131,9 @@
       "name": "CachyOS",
       "categoryId": "arch-based",
       "description": "A performance-tuned Arch-based desktop with optimized packages, gaming images, and handheld support.",
-      "homepageUrl": "https://cachyos.org/download/",
-      "licenseUrl": "https://cachyos.org/",
-      "releaseNotesUrl": "https://cachyos.org/",
+      "homepageUrl": "https://cachyos.org/",
+      "licenseUrl": "https://cachyos.org/legal",
+      "releaseNotesUrl": "https://cachyos.org/blog",
       "architectures": [
         "x86_64"
       ],
@@ -1192,9 +1193,9 @@
       "name": "Fedora",
       "categoryId": "fedora-based",
       "description": "A rapidly evolving Fedora desktop family with Workstation, KDE Plasma, and Silverblue atomic editions.",
-      "homepageUrl": "https://fedoraproject.org/workstation/",
-      "licenseUrl": "https://fedoraproject.org/legal",
-      "releaseNotesUrl": "https://docs.fedoraproject.org/en-US/releases/",
+      "homepageUrl": "https://fedoraproject.org/",
+      "licenseUrl": "https://docs.fedoraproject.org/en-US/legal/",
+      "releaseNotesUrl": "https://docs.fedoraproject.org/en-US/fedora/f44/release-notes/",
       "architectures": [
         "x86_64"
       ],
@@ -1275,9 +1276,9 @@
       "name": "Nobara",
       "categoryId": "fedora-based",
       "description": "A gaming-focused Fedora derivative with multimedia codecs, driver fixes, and desktop editions.",
-      "homepageUrl": "https://www.nobaraproject.org/",
-      "licenseUrl": "https://www.nobaraproject.org/",
-      "releaseNotesUrl": "https://www.nobaraproject.org/download.html",
+      "homepageUrl": "https://nobaraproject.org/",
+      "licenseUrl": "https://nobaraproject.org/",
+      "releaseNotesUrl": "https://wiki.nobaraproject.org/#modifications",
       "architectures": [
         "x86_64"
       ],
@@ -1358,9 +1359,9 @@
       "name": "Qubes OS",
       "categoryId": "fedora-based",
       "description": "A security-focused desktop that isolates work in compartments, built on Fedora and Xen. Installer only.",
-      "homepageUrl": "https://www.qubes-os.org/downloads/",
+      "homepageUrl": "https://www.qubes-os.org/",
       "licenseUrl": "https://www.qubes-os.org/doc/license/",
-      "releaseNotesUrl": "https://www.qubes-os.org/doc/releases/",
+      "releaseNotesUrl": "https://www.qubes-os.org/news/categories/#releases",
       "architectures": [
         "x86_64"
       ],
@@ -1396,9 +1397,9 @@
       "name": "openSUSE",
       "categoryId": "other",
       "description": "The rolling openSUSE Tumbleweed desktop with KDE Plasma, GNOME, and full DVD images.",
-      "homepageUrl": "https://get.opensuse.org/tumbleweed/",
-      "licenseUrl": "https://www.opensuse.org/",
-      "releaseNotesUrl": "https://news.opensuse.org/",
+      "homepageUrl": "https://www.opensuse.org/",
+      "licenseUrl": "https://en.opensuse.org/openSUSE:Accepted_licences",
+      "releaseNotesUrl": "https://news.opensuse.org/category/tumbleweed/",
       "architectures": [
         "x86_64"
       ],
@@ -1478,8 +1479,8 @@
       "name": "NixOS",
       "categoryId": "other",
       "description": "A declarative Linux distribution with reproducible system configuration and graphical or minimal live installers.",
-      "homepageUrl": "https://nixos.org/download/",
-      "licenseUrl": "https://nixos.org/",
+      "homepageUrl": "https://nixos.org/",
+      "licenseUrl": "https://github.com/NixOS/nixpkgs/blob/master/COPYING",
       "releaseNotesUrl": "https://nixos.org/blog/announcements/",
       "architectures": [
         "x86_64"
