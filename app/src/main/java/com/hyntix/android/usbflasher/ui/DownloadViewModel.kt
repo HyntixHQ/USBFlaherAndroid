@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.hyntix.android.usbflasher.download.CatalogLoadResult
 import com.hyntix.android.usbflasher.download.DownloadDestination
 import com.hyntix.android.usbflasher.download.DownloadError
+import com.hyntix.android.usbflasher.download.DownloadNotifications
 import com.hyntix.android.usbflasher.download.DownloadErrorCode
 import com.hyntix.android.usbflasher.download.DownloadRecord
 import com.hyntix.android.usbflasher.download.DownloadRepository
@@ -242,6 +243,11 @@ class DownloadViewModel(
                 displayName = record.fileName,
                 sizeBytes = record.totalBytes
             )
+            // The ISO itself is kept at the user-selected destination; only the
+            // download bookkeeping record is cleared so a successful download
+            // does not repeatedly surface as a completed card after handoff.
+            store.remove(id)
+            runCatching { DownloadNotifications.dismissFor(appContext, id) }
             _focusRecordId.value = null
         }
     }

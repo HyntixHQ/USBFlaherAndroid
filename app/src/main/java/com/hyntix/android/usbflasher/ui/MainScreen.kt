@@ -206,7 +206,6 @@ fun MainScreen(
                 }
 
                 val downloadCard = downloadRecords.firstOrNull { it.status.isActive }
-                    ?: downloadRecords.firstOrNull { it.isReady }
                     ?: downloadRecords.firstOrNull { it.status == DownloadStatus.FAILED }
                 if (downloadCard != null) {
                     DownloadStatusCard(
