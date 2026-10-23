@@ -111,4 +111,12 @@ androidusbflasher/rust-lib/crates/
 └── hyntix-persistence/ — ISO probe, ext2 formatter, boot activation, plan/apply/verify
 
 docs/features/persistence.md — supported profiles, limitations, boot instructions
+docs/features/iso-catalog.md — catalog schema v2, host allowlists, checksum formats, update checklist
 ```
+
+## ISO catalog
+
+- `app/src/main/assets/iso-catalog.json` is schema v2: `categories` → `distributions` → `variants`.
+- Download hosts, checksum URLs, static SHA-256 values, and persistence metadata live in the catalog; do not add distribution-specific host lists or edition mappings in Kotlin.
+- Persistence `support` is `app` (Hyntix-managed), `distro` (configured inside the live session), or `none`.
+- Catalog integrity is covered by `IsoCatalogParserTest.bundledCatalogIsValidAndMaintainable`.

@@ -1,86 +1,1538 @@
 {
-  "schemaVersion": 1,
-  "generatedAt": "2026-10-22",
-  "linux": [
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-23",
+  "categories": [
     {
-      "id": "ubuntu-26.04.1-desktop-amd64",
-      "distro": "Ubuntu",
-      "release": "26.04.1 LTS",
-      "editionKey": "desktop",
-      "arch": "x86_64",
-      "fileName": "ubuntu-26.04.1-desktop-amd64.iso",
-      "url": "https://releases.ubuntu.com/26.04.1/ubuntu-26.04.1-desktop-amd64.iso",
-      "checksumUrl": "https://releases.ubuntu.com/26.04.1/SHA256SUMS",
-      "checksumFormat": "GNU",
-      "approxSizeBytes": 6482409472,
-      "licenseUrl": "https://ubuntu.com/legal",
-      "homepageUrl": "https://ubuntu.com/download/desktop",
-      "persistenceProfiles": ["casper"],
-      "minUsbBytes": 8589934592
+      "id": "debian-based",
+      "name": "Debian-based",
+      "description": "Debian and distributions built directly on its stable base."
     },
     {
-      "id": "ubuntu-26.10-desktop-amd64",
-      "distro": "Ubuntu",
-      "release": "26.10",
-      "editionKey": "desktop",
-      "arch": "x86_64",
-      "fileName": "ubuntu-26.10-desktop-amd64.iso",
-      "url": "https://releases.ubuntu.com/26.10/ubuntu-26.10-desktop-amd64.iso",
-      "checksumUrl": "https://releases.ubuntu.com/26.10/SHA256SUMS",
-      "checksumFormat": "GNU",
-      "approxSizeBytes": 6615449600,
-      "licenseUrl": "https://ubuntu.com/legal",
-      "homepageUrl": "https://ubuntu.com/download/desktop",
-      "persistenceProfiles": ["casper"],
-      "minUsbBytes": 8589934592
+      "id": "ubuntu-based",
+      "name": "Ubuntu-based",
+      "description": "Ubuntu and desktop distributions built on its LTS releases."
     },
     {
-      "id": "debian-13.7.0-live-gnome-amd64",
-      "distro": "Debian",
-      "release": "13.7.0 Live GNOME",
-      "editionKey": "live_gnome",
-      "arch": "x86_64",
-      "fileName": "debian-live-13.7.0-amd64-gnome.iso",
-      "url": "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/debian-live-13.7.0-amd64-gnome.iso",
-      "checksumUrl": "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/SHA256SUMS",
-      "checksumFormat": "GNU",
-      "approxSizeBytes": 3804708864,
-      "licenseUrl": "https://www.debian.org/legal",
+      "id": "arch-based",
+      "name": "Arch-based",
+      "description": "Rolling-release distributions built around Arch Linux."
+    },
+    {
+      "id": "fedora-based",
+      "name": "Fedora-based",
+      "description": "Fedora and distributions derived from it."
+    },
+    {
+      "id": "other",
+      "name": "Other distributions",
+      "description": "Independent or non-Debian/Fedora families."
+    }
+  ],
+  "distributions": [
+    {
+      "id": "debian",
+      "name": "Debian",
+      "categoryId": "debian-based",
+      "description": "The universal operating system. Stable Live images with a choice of desktop, plus netinst and DVD installers.",
       "homepageUrl": "https://www.debian.org/CD/live/",
-      "persistenceProfiles": ["debian-live"],
-      "minUsbBytes": 4294967296
+      "licenseUrl": "https://www.debian.org/legal",
+      "releaseNotesUrl": "https://www.debian.org/releases/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "cdimage.debian.org"
+      ],
+      "variants": [
+        {
+          "id": "debian-13.7.0-live-gnome-amd64",
+          "variantName": "Live GNOME",
+          "description": "Full Debian Live desktop with GNOME, the default Debian desktop environment.",
+          "desktopEnvironment": "GNOME",
+          "imageType": "Live",
+          "release": "13.7.0",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "debian-live-13.7.0-amd64-gnome.iso",
+          "url": "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/debian-live-13.7.0-amd64-gnome.iso",
+          "checksumUrl": "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3804708864,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "app",
+            "profiles": [
+              "debian-live"
+            ],
+            "requiresConfiguration": false,
+            "notes": "Hyntix appends an ext2 persistence partition and enables Debian Live persistence automatically."
+          }
+        },
+        {
+          "id": "debian-13.7.0-live-kde-amd64",
+          "variantName": "Live KDE Plasma",
+          "description": "Debian Live with the full KDE Plasma desktop.",
+          "desktopEnvironment": "KDE Plasma",
+          "imageType": "Live",
+          "release": "13.7.0",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "debian-live-13.7.0-amd64-kde.iso",
+          "url": "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/debian-live-13.7.0-amd64-kde.iso",
+          "checksumUrl": "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 4100000000,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "app",
+            "profiles": [
+              "debian-live"
+            ],
+            "requiresConfiguration": false,
+            "notes": "Hyntix appends an ext2 persistence partition and enables Debian Live persistence automatically."
+          }
+        },
+        {
+          "id": "debian-13.7.0-live-xfce-amd64",
+          "variantName": "Live Xfce",
+          "description": "Debian Live with the lightweight Xfce desktop.",
+          "desktopEnvironment": "Xfce",
+          "imageType": "Live",
+          "release": "13.7.0",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "debian-live-13.7.0-amd64-xfce.iso",
+          "url": "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/debian-live-13.7.0-amd64-xfce.iso",
+          "checksumUrl": "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3700000000,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "app",
+            "profiles": [
+              "debian-live"
+            ],
+            "requiresConfiguration": false,
+            "notes": "Hyntix appends an ext2 persistence partition and enables Debian Live persistence automatically."
+          }
+        },
+        {
+          "id": "debian-13.7.0-live-cinnamon-amd64",
+          "variantName": "Live Cinnamon",
+          "description": "Debian Live with the Cinnamon desktop.",
+          "desktopEnvironment": "Cinnamon",
+          "imageType": "Live",
+          "release": "13.7.0",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "debian-live-13.7.0-amd64-cinnamon.iso",
+          "url": "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/debian-live-13.7.0-amd64-cinnamon.iso",
+          "checksumUrl": "https://cdimage.debian.org/debian-cd/current-live/amd64/iso-hybrid/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3800000000,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "app",
+            "profiles": [
+              "debian-live"
+            ],
+            "requiresConfiguration": false,
+            "notes": "Hyntix appends an ext2 persistence partition and enables Debian Live persistence automatically."
+          }
+        },
+        {
+          "id": "debian-13.7.0-netinst-amd64",
+          "variantName": "Netinst",
+          "description": "Small network installer. Downloads packages during installation and does not boot a live desktop.",
+          "imageType": "Netinst",
+          "release": "13.7.0",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "debian-13.7.0-amd64-netinst.iso",
+          "url": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/debian-13.7.0-amd64-netinst.iso",
+          "checksumUrl": "https://cdimage.debian.org/debian-cd/current/amd64/iso-cd/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 700000000,
+          "minUsbBytes": 1073741824,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Installer image; live persistence does not apply."
+          }
+        },
+        {
+          "id": "debian-13.7.0-dvd-1-amd64",
+          "variantName": "DVD installer 1",
+          "description": "Full DVD installer with a large offline package set.",
+          "imageType": "DVD",
+          "release": "13.7.0",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "debian-13.7.0-amd64-DVD-1.iso",
+          "url": "https://cdimage.debian.org/debian-cd/current/amd64/iso-dvd/debian-13.7.0-amd64-DVD-1.iso",
+          "checksumUrl": "https://cdimage.debian.org/debian-cd/current/amd64/iso-dvd/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 4200000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Installer image; live persistence does not apply."
+          }
+        }
+      ]
     },
     {
-      "id": "linuxmint-22.3-cinnamon-64bit",
-      "distro": "Linux Mint",
-      "release": "22.3 Cinnamon",
-      "editionKey": "cinnamon",
-      "arch": "x86_64",
-      "fileName": "linuxmint-22.3-cinnamon-64bit.iso",
-      "url": "https://mirrors.kernel.org/linuxmint/stable/22.3/linuxmint-22.3-cinnamon-64bit.iso",
-      "checksumUrl": "https://mirrors.kernel.org/linuxmint/stable/22.3/sha256sum.txt",
-      "checksumFormat": "GNU",
-      "approxSizeBytes": 3091660800,
-      "licenseUrl": "https://linuxmint.com/legal.php",
+      "id": "mx-linux",
+      "name": "MX Linux",
+      "categoryId": "debian-based",
+      "description": "A lightweight Debian-based desktop with Xfce, KDE Plasma, and Fluxbox editions.",
+      "homepageUrl": "https://mxlinux.org/",
+      "licenseUrl": "https://mxlinux.org/",
+      "releaseNotesUrl": "https://mxlinux.org/blog/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "cdimage.debian.org"
+      ],
+      "variants": [
+        {
+          "id": "mx-25.3-xfce-x64",
+          "variantName": "Xfce",
+          "description": "MX Linux with the traditional, lightweight Xfce desktop.",
+          "desktopEnvironment": "Xfce",
+          "imageType": "Live",
+          "release": "25.3",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "MX-25.3_Xfce_x64.iso",
+          "url": "https://cdimage.debian.org/mirror/mxlinux.org/isos/MX/Final/Xfce/MX-25.3_Xfce_x64.iso",
+          "checksumUrl": "https://cdimage.debian.org/mirror/mxlinux.org/isos/MX/Final/Xfce/MX-25.3_Xfce_x64.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3000000000,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "distro",
+            "profiles": [],
+            "requiresConfiguration": true,
+            "notes": "MX Linux includes its own Live USB persistence tool. Create persistence from the live session; Hyntix does not configure it."
+          }
+        },
+        {
+          "id": "mx-25.3-kde-x64",
+          "variantName": "KDE Plasma",
+          "description": "MX Linux with the full KDE Plasma desktop.",
+          "desktopEnvironment": "KDE Plasma",
+          "imageType": "Live",
+          "release": "25.3",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "MX-25.3_KDE_x64.iso",
+          "url": "https://cdimage.debian.org/mirror/mxlinux.org/isos/MX/Final/KDE/MX-25.3_KDE_x64.iso",
+          "checksumUrl": "https://cdimage.debian.org/mirror/mxlinux.org/isos/MX/Final/KDE/MX-25.3_KDE_x64.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3200000000,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "distro",
+            "profiles": [],
+            "requiresConfiguration": true,
+            "notes": "MX Linux includes its own Live USB persistence tool. Create persistence from the live session; Hyntix does not configure it."
+          }
+        },
+        {
+          "id": "mx-25.3-fluxbox-x64",
+          "variantName": "Fluxbox",
+          "description": "A very light MX Linux edition using the Fluxbox window manager.",
+          "desktopEnvironment": "Fluxbox",
+          "imageType": "Live",
+          "release": "25.3",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "MX-25.3_fluxbox_x64.iso",
+          "url": "https://cdimage.debian.org/mirror/mxlinux.org/isos/MX/Final/Fluxbox/MX-25.3_fluxbox_x64.iso",
+          "checksumUrl": "https://cdimage.debian.org/mirror/mxlinux.org/isos/MX/Final/Fluxbox/MX-25.3_fluxbox_x64.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 2400000000,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "distro",
+            "profiles": [],
+            "requiresConfiguration": true,
+            "notes": "MX Linux includes its own Live USB persistence tool. Create persistence from the live session; Hyntix does not configure it."
+          }
+        }
+      ]
+    },
+    {
+      "id": "kali-linux",
+      "name": "Kali Linux",
+      "categoryId": "debian-based",
+      "description": "Security-focused Debian derivative with installer images for penetration testing and forensics. Live media is distributed by Kali as torrents and is not offered for direct download here.",
+      "homepageUrl": "https://www.kali.org/get-kali/",
+      "licenseUrl": "https://www.kali.org/legal/",
+      "releaseNotesUrl": "https://www.kali.org/releases/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "cdimage.kali.org"
+      ],
+      "variants": [
+        {
+          "id": "kali-2026.2-installer-amd64",
+          "variantName": "Installer",
+          "description": "Kali Linux installer image for a permanent disk installation.",
+          "imageType": "Installer",
+          "release": "2026.2",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "kali-linux-2026.2-installer-amd64.iso",
+          "url": "https://cdimage.kali.org/kali-2026.2/kali-linux-2026.2-installer-amd64.iso",
+          "checksumUrl": "https://cdimage.kali.org/kali-2026.2/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 4802531328,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Installer image; live persistence does not apply."
+          }
+        },
+        {
+          "id": "kali-2026.2-netinst-amd64",
+          "variantName": "Netinst",
+          "description": "Small Kali network installer that downloads packages during installation.",
+          "imageType": "Netinst",
+          "release": "2026.2",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "kali-linux-2026.2-installer-netinst-amd64.iso",
+          "url": "https://cdimage.kali.org/kali-2026.2/kali-linux-2026.2-installer-netinst-amd64.iso",
+          "checksumUrl": "https://cdimage.kali.org/kali-2026.2/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 779091968,
+          "minUsbBytes": 1073741824,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Installer image; live persistence does not apply."
+          }
+        }
+      ]
+    },
+    {
+      "id": "antix",
+      "name": "antiX",
+      "categoryId": "debian-based",
+      "description": "A lightweight Debian-based system designed for older hardware, with full and core live images.",
+      "homepageUrl": "https://antixlinux.com/",
+      "licenseUrl": "https://antixlinux.com/",
+      "releaseNotesUrl": "https://antixlinux.com/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "cdimage.debian.org"
+      ],
+      "variants": [
+        {
+          "id": "antix-26.1-full-x64",
+          "variantName": "Full",
+          "description": "antiX with IceWM, a complete application set, and the live persistence tools.",
+          "desktopEnvironment": "IceWM",
+          "imageType": "Live",
+          "release": "26.1",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "antiX-26.1_x64-full.iso",
+          "url": "https://cdimage.debian.org/mirror/mxlinux.org/isos/ANTIX/Final/antiX-26.1/antiX-26.1_x64-full.iso",
+          "checksumUrl": "https://cdimage.debian.org/mirror/mxlinux.org/isos/ANTIX/Final/antiX-26.1/antiX-26.1_x64-full.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 2400000000,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "distro",
+            "profiles": [],
+            "requiresConfiguration": true,
+            "notes": "antiX includes its own live persistence tools. Create persistence from the live session; Hyntix does not configure it."
+          }
+        },
+        {
+          "id": "antix-26.1-core-x64",
+          "variantName": "Core",
+          "description": "A minimal antiX live image without the full desktop application set.",
+          "desktopEnvironment": "IceWM (core)",
+          "imageType": "Live",
+          "release": "26.1",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "antiX-26.1_x64-core.iso",
+          "url": "https://cdimage.debian.org/mirror/mxlinux.org/isos/ANTIX/Final/antiX-26.1/antiX-26.1_x64-core.iso",
+          "checksumUrl": "https://cdimage.debian.org/mirror/mxlinux.org/isos/ANTIX/Final/antiX-26.1/antiX-26.1_x64-core.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 700000000,
+          "minUsbBytes": 2147483648,
+          "persistence": {
+            "support": "distro",
+            "profiles": [],
+            "requiresConfiguration": true,
+            "notes": "antiX includes its own live persistence tools. Create persistence from the live session; Hyntix does not configure it."
+          }
+        }
+      ]
+    },
+    {
+      "id": "deepin",
+      "name": "deepin",
+      "categoryId": "debian-based",
+      "description": "A polished Debian-based desktop distribution built around the Deepin desktop environment.",
+      "homepageUrl": "https://www.deepin.org/en/",
+      "licenseUrl": "https://www.deepin.org/en/",
+      "releaseNotesUrl": "https://www.deepin.org/en/deepin-25-1-release/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "cdimage.deepin.com"
+      ],
+      "variants": [
+        {
+          "id": "deepin-25.2.0-desktop-amd64",
+          "variantName": "Desktop",
+          "description": "Deepin desktop live installer with the Deepin Desktop Environment and Deepin applications.",
+          "desktopEnvironment": "Deepin Desktop Environment",
+          "imageType": "Live / Installer",
+          "release": "25.2.0",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "deepin-desktop-community-25.2.0-amd64.iso",
+          "url": "https://cdimage.deepin.com/releases/25.2.0/amd64/deepin-desktop-community-25.2.0-amd64.iso",
+          "checksumFormat": "SHA256",
+          "sha256": "f875c9a605bfe6a8425d1d353a3c1ec755bf37f5b0a3231ca19e2145da0ff450",
+          "approxSizeBytes": 6976131072,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "The live session is intended for installation; no official live-persistence workflow is documented."
+          }
+        }
+      ]
+    },
+    {
+      "id": "parrot-os",
+      "name": "Parrot OS",
+      "categoryId": "debian-based",
+      "description": "Security- and privacy-focused Debian derivative with dedicated security and everyday desktop editions.",
+      "homepageUrl": "https://parrotsec.org/download/",
+      "licenseUrl": "https://parrotsec.org/",
+      "releaseNotesUrl": "https://parrotsec.org/blog/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "deb.parrot.sh",
+        "download.parrot.sh"
+      ],
+      "variants": [
+        {
+          "id": "parrot-7.4-security-amd64",
+          "variantName": "Security",
+          "description": "The full Parrot security toolkit with the MATE desktop, aimed at penetration testing and forensics.",
+          "desktopEnvironment": "MATE",
+          "imageType": "Live",
+          "release": "7.4",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "Parrot-security-7.4_amd64.iso",
+          "url": "https://deb.parrot.sh/parrot/iso/7.4/Parrot-security-7.4_amd64.iso",
+          "checksumUrl": "https://deb.parrot.sh/parrot/iso/7.4/signed-hashes.txt",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 8682078208,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "distro",
+            "profiles": [],
+            "requiresConfiguration": true,
+            "notes": "Parrot provides its own live persistence setup. Create the persistent volume from the live session; Hyntix does not configure it."
+          }
+        },
+        {
+          "id": "parrot-7.4-home-amd64",
+          "variantName": "Home",
+          "description": "Parrot with everyday desktop tools and the MATE desktop, without the full security tool set.",
+          "desktopEnvironment": "MATE",
+          "imageType": "Live",
+          "release": "7.4",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "Parrot-home-7.4_amd64.iso",
+          "url": "https://deb.parrot.sh/parrot/iso/7.4/Parrot-home-7.4_amd64.iso",
+          "checksumUrl": "https://deb.parrot.sh/parrot/iso/7.4/signed-hashes.txt",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 4165287936,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "distro",
+            "profiles": [],
+            "requiresConfiguration": true,
+            "notes": "Parrot provides its own live persistence setup. Create the persistent volume from the live session; Hyntix does not configure it."
+          }
+        }
+      ]
+    },
+    {
+      "id": "ubuntu",
+      "name": "Ubuntu",
+      "categoryId": "ubuntu-based",
+      "description": "Ubuntu Desktop LTS and current releases, together with the official Kubuntu, Xubuntu, and Lubuntu flavors.",
+      "homepageUrl": "https://ubuntu.com/download/desktop",
+      "licenseUrl": "https://ubuntu.com/legal",
+      "releaseNotesUrl": "https://discourse.ubuntu.com/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "releases.ubuntu.com",
+        "cdimage.ubuntu.com"
+      ],
+      "variants": [
+        {
+          "id": "ubuntu-26.10-desktop-amd64",
+          "variantName": "Desktop",
+          "description": "Ubuntu Desktop with GNOME, the current interim release.",
+          "desktopEnvironment": "GNOME",
+          "imageType": "Live",
+          "release": "26.10",
+          "releaseChannel": "Current",
+          "arch": "x86_64",
+          "fileName": "ubuntu-26.10-desktop-amd64.iso",
+          "url": "https://releases.ubuntu.com/26.10/ubuntu-26.10-desktop-amd64.iso",
+          "checksumUrl": "https://releases.ubuntu.com/26.10/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 6615449600,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "app",
+            "profiles": [
+              "casper"
+            ],
+            "requiresConfiguration": false,
+            "notes": "Hyntix appends an ext2 persistence partition and enables the persistent boot option automatically."
+          }
+        },
+        {
+          "id": "ubuntu-26.04.1-desktop-amd64",
+          "variantName": "Desktop LTS",
+          "description": "Ubuntu Desktop LTS with GNOME and long-term support.",
+          "desktopEnvironment": "GNOME",
+          "imageType": "Live",
+          "release": "26.04.1 LTS",
+          "releaseChannel": "LTS",
+          "arch": "x86_64",
+          "fileName": "ubuntu-26.04.1-desktop-amd64.iso",
+          "url": "https://releases.ubuntu.com/26.04.1/ubuntu-26.04.1-desktop-amd64.iso",
+          "checksumUrl": "https://releases.ubuntu.com/26.04.1/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 6482409472,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "app",
+            "profiles": [
+              "casper"
+            ],
+            "requiresConfiguration": false,
+            "notes": "Hyntix appends an ext2 persistence partition and enables the persistent boot option automatically."
+          }
+        },
+        {
+          "id": "kubuntu-26.10-desktop-amd64",
+          "variantName": "Kubuntu",
+          "description": "Ubuntu with the KDE Plasma desktop, maintained as an official Ubuntu flavor.",
+          "desktopEnvironment": "KDE Plasma",
+          "imageType": "Live",
+          "release": "26.10",
+          "releaseChannel": "Current",
+          "arch": "x86_64",
+          "fileName": "kubuntu-26.10-desktop-amd64.iso",
+          "url": "https://cdimage.ubuntu.com/kubuntu/releases/26.10/release/kubuntu-26.10-desktop-amd64.iso",
+          "checksumUrl": "https://cdimage.ubuntu.com/kubuntu/releases/26.10/release/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 6000000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "app",
+            "profiles": [
+              "casper"
+            ],
+            "requiresConfiguration": false,
+            "notes": "Hyntix appends an ext2 persistence partition and enables the persistent boot option automatically."
+          }
+        },
+        {
+          "id": "xubuntu-26.10-desktop-amd64",
+          "variantName": "Xubuntu",
+          "description": "Ubuntu with the lightweight Xfce desktop, maintained as an official Ubuntu flavor.",
+          "desktopEnvironment": "Xfce",
+          "imageType": "Live",
+          "release": "26.10",
+          "releaseChannel": "Current",
+          "arch": "x86_64",
+          "fileName": "xubuntu-26.10-desktop-amd64.iso",
+          "url": "https://cdimage.ubuntu.com/xubuntu/releases/26.10/release/xubuntu-26.10-desktop-amd64.iso",
+          "checksumUrl": "https://cdimage.ubuntu.com/xubuntu/releases/26.10/release/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3900000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "app",
+            "profiles": [
+              "casper"
+            ],
+            "requiresConfiguration": false,
+            "notes": "Hyntix appends an ext2 persistence partition and enables the persistent boot option automatically."
+          }
+        },
+        {
+          "id": "lubuntu-26.10-desktop-amd64",
+          "variantName": "Lubuntu",
+          "description": "Ubuntu with the lightweight LXQt desktop, maintained as an official Ubuntu flavor.",
+          "desktopEnvironment": "LXQt",
+          "imageType": "Live",
+          "release": "26.10",
+          "releaseChannel": "Current",
+          "arch": "x86_64",
+          "fileName": "lubuntu-26.10-desktop-amd64.iso",
+          "url": "https://cdimage.ubuntu.com/lubuntu/releases/26.10/release/lubuntu-26.10-desktop-amd64.iso",
+          "checksumUrl": "https://cdimage.ubuntu.com/lubuntu/releases/26.10/release/SHA256SUMS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3300000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "app",
+            "profiles": [
+              "casper"
+            ],
+            "requiresConfiguration": false,
+            "notes": "Hyntix appends an ext2 persistence partition and enables the persistent boot option automatically."
+          }
+        }
+      ]
+    },
+    {
+      "id": "linux-mint",
+      "name": "Linux Mint",
+      "categoryId": "ubuntu-based",
+      "description": "A long-term-support desktop with Cinnamon, MATE, and Xfce editions and a familiar, conservative default setup.",
       "homepageUrl": "https://linuxmint.com/download.php",
-      "persistenceProfiles": ["casper"],
-      "minUsbBytes": 4294967296
+      "licenseUrl": "https://linuxmint.com/legal.php",
+      "releaseNotesUrl": "https://www.linuxmint.com/release.php",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "mirrors.kernel.org"
+      ],
+      "variants": [
+        {
+          "id": "linuxmint-22.3-cinnamon-64bit",
+          "variantName": "Cinnamon",
+          "description": "Linux Mint with Cinnamon, the project's flagship desktop.",
+          "desktopEnvironment": "Cinnamon",
+          "imageType": "Live",
+          "release": "22.3",
+          "releaseChannel": "LTS",
+          "arch": "x86_64",
+          "fileName": "linuxmint-22.3-cinnamon-64bit.iso",
+          "url": "https://mirrors.kernel.org/linuxmint/stable/22.3/linuxmint-22.3-cinnamon-64bit.iso",
+          "checksumUrl": "https://mirrors.kernel.org/linuxmint/stable/22.3/sha256sum.txt",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3091660800,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "app",
+            "profiles": [
+              "casper"
+            ],
+            "requiresConfiguration": false,
+            "notes": "Hyntix appends an ext2 persistence partition and enables the persistent boot option automatically."
+          }
+        },
+        {
+          "id": "linuxmint-22.3-mate-64bit",
+          "variantName": "MATE",
+          "description": "Linux Mint with the MATE desktop.",
+          "desktopEnvironment": "MATE",
+          "imageType": "Live",
+          "release": "22.3",
+          "releaseChannel": "LTS",
+          "arch": "x86_64",
+          "fileName": "linuxmint-22.3-mate-64bit.iso",
+          "url": "https://mirrors.kernel.org/linuxmint/stable/22.3/linuxmint-22.3-mate-64bit.iso",
+          "checksumUrl": "https://mirrors.kernel.org/linuxmint/stable/22.3/sha256sum.txt",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3050000000,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "app",
+            "profiles": [
+              "casper"
+            ],
+            "requiresConfiguration": false,
+            "notes": "Hyntix appends an ext2 persistence partition and enables the persistent boot option automatically."
+          }
+        },
+        {
+          "id": "linuxmint-22.3-xfce-64bit",
+          "variantName": "Xfce",
+          "description": "Linux Mint with the lightweight Xfce desktop.",
+          "desktopEnvironment": "Xfce",
+          "imageType": "Live",
+          "release": "22.3",
+          "releaseChannel": "LTS",
+          "arch": "x86_64",
+          "fileName": "linuxmint-22.3-xfce-64bit.iso",
+          "url": "https://mirrors.kernel.org/linuxmint/stable/22.3/linuxmint-22.3-xfce-64bit.iso",
+          "checksumUrl": "https://mirrors.kernel.org/linuxmint/stable/22.3/sha256sum.txt",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 2950000000,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "app",
+            "profiles": [
+              "casper"
+            ],
+            "requiresConfiguration": false,
+            "notes": "Hyntix appends an ext2 persistence partition and enables the persistent boot option automatically."
+          }
+        }
+      ]
     },
     {
-      "id": "fedora-43-workstation-x86_64",
-      "distro": "Fedora",
-      "release": "43 Workstation",
-      "editionKey": "workstation",
-      "arch": "x86_64",
-      "fileName": "Fedora-Workstation-Live-43-1.6.x86_64.iso",
-      "url": "https://download.fedoraproject.org/pub/fedora/linux/releases/43/Workstation/x86_64/iso/Fedora-Workstation-Live-43-1.6.x86_64.iso",
-      "checksumUrl": "https://download.fedoraproject.org/pub/fedora/linux/releases/43/Workstation/x86_64/iso/Fedora-Workstation-43-1.6-x86_64-CHECKSUM",
-      "checksumFormat": "FEDORA",
-      "approxSizeBytes": 2742190080,
-      "licenseUrl": "https://fedoraproject.org/legal",
+      "id": "pop-os",
+      "name": "Pop!_OS",
+      "categoryId": "ubuntu-based",
+      "description": "System76's Ubuntu-based desktop with the COSMIC environment and NVIDIA-ready images.",
+      "homepageUrl": "https://system76.com/download-pop",
+      "licenseUrl": "https://system76.com/legal",
+      "architectures": [
+        "x86_64",
+        "aarch64"
+      ],
+      "hosts": [
+        "iso.pop-os.org"
+      ],
+      "variants": [
+        {
+          "id": "pop-os-24.04-cosmic-amd64",
+          "variantName": "COSMIC (Intel/AMD)",
+          "description": "Pop!_OS 24.04 LTS with COSMIC for standard AMD and Intel systems.",
+          "desktopEnvironment": "COSMIC",
+          "imageType": "Live",
+          "release": "24.04 LTS",
+          "releaseChannel": "LTS",
+          "arch": "x86_64",
+          "fileName": "pop-os_24.04_amd64_generic_28.iso",
+          "url": "https://iso.pop-os.org/24.04/amd64/generic/28/pop-os_24.04_amd64_generic_28.iso",
+          "checksumFormat": "SHA256",
+          "sha256": "8d78e500fc95da765a91cddcf2ab7ba71ce4e7997e4f008456d4d872ee8f8221",
+          "approxSizeBytes": 3526164480,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Pop!_OS does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "pop-os-24.04-cosmic-nvidia-amd64",
+          "variantName": "COSMIC NVIDIA",
+          "description": "Pop!_OS 24.04 LTS with COSMIC and NVIDIA drivers preconfigured.",
+          "desktopEnvironment": "COSMIC",
+          "imageType": "Live",
+          "release": "24.04 LTS",
+          "releaseChannel": "LTS",
+          "arch": "x86_64",
+          "fileName": "pop-os_24.04_amd64_nvidia_28.iso",
+          "url": "https://iso.pop-os.org/24.04/amd64/nvidia/28/pop-os_24.04_amd64_nvidia_28.iso",
+          "checksumFormat": "SHA256",
+          "sha256": "bd867a6b93810769b2189471cfc2d7b6b9c642213c7bf827de511be5f42ce666",
+          "approxSizeBytes": 3934945280,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Pop!_OS does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "pop-os-24.04-cosmic-arm64",
+          "variantName": "COSMIC (ARM64)",
+          "description": "Pop!_OS 24.04 LTS for ARM64 systems with COSMIC.",
+          "desktopEnvironment": "COSMIC",
+          "imageType": "Live",
+          "release": "24.04 LTS",
+          "releaseChannel": "LTS",
+          "arch": "aarch64",
+          "fileName": "pop-os_24.04_arm64_generic_3.iso",
+          "url": "https://iso.pop-os.org/24.04/arm64/generic/3/pop-os_24.04_arm64_generic_3.iso",
+          "checksumFormat": "SHA256",
+          "sha256": "7b4cce0e92dc5c903464e7e7c33760c4417f1400165e9ecfcd064fbceb68ef22",
+          "approxSizeBytes": 2888884224,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Pop!_OS does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        }
+      ]
+    },
+    {
+      "id": "zorin-os",
+      "name": "Zorin OS",
+      "categoryId": "ubuntu-based",
+      "description": "An Ubuntu-based, Windows-friendly desktop with Core, Education, and Lite editions.",
+      "homepageUrl": "https://zorin.com/os/download/",
+      "licenseUrl": "https://zorin.com/legal/",
+      "releaseNotesUrl": "https://zorin.com/blog/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "distro.ibiblio.org"
+      ],
+      "variants": [
+        {
+          "id": "zorin-os-18.1-core-64bit",
+          "variantName": "Core",
+          "description": "The standard Zorin OS desktop with GNOME and the Zorin appearance tools.",
+          "desktopEnvironment": "GNOME",
+          "imageType": "Live",
+          "release": "18.1",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "Zorin-OS-18.1-Core-64-bit.iso",
+          "url": "https://distro.ibiblio.org/zorinos/18/Zorin-OS-18.1-Core-64-bit.iso",
+          "checksumUrl": "https://distro.ibiblio.org/zorinos/18/SHA256SUMS.txt",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3900000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Zorin OS does not document a live-persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "zorin-os-18.1-education-64bit",
+          "variantName": "Education",
+          "description": "Zorin OS Core with additional education-focused applications.",
+          "desktopEnvironment": "GNOME",
+          "imageType": "Live",
+          "release": "18.1",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "Zorin-OS-18.1-Education-64-bit.iso",
+          "url": "https://distro.ibiblio.org/zorinos/18/Zorin-OS-18.1-Education-64-bit.iso",
+          "checksumUrl": "https://distro.ibiblio.org/zorinos/18/SHA256SUMS.txt",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 4000000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Zorin OS does not document a live-persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "zorin-os-18.1-lite-64bit",
+          "variantName": "Lite",
+          "description": "Zorin OS with the lightweight Xfce desktop for older hardware.",
+          "desktopEnvironment": "Xfce",
+          "imageType": "Live",
+          "release": "18.1",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "Zorin-OS-18.1-Lite-64-bit.iso",
+          "url": "https://distro.ibiblio.org/zorinos/18/Zorin-OS-18.1-Lite-64-bit.iso",
+          "checksumUrl": "https://distro.ibiblio.org/zorinos/18/SHA256SUMS.txt",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3200000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Zorin OS does not document a live-persistence workflow; install to disk for persistent storage."
+          }
+        }
+      ]
+    },
+    {
+      "id": "linux-lite",
+      "name": "Linux Lite",
+      "categoryId": "ubuntu-based",
+      "description": "A beginner-friendly Ubuntu LTS desktop using Xfce, designed to make the transition from Windows easy.",
+      "homepageUrl": "https://www.linuxliteos.com/",
+      "licenseUrl": "https://www.linuxliteos.com/",
+      "releaseNotesUrl": "https://www.linuxliteos.com/forums/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "downloads.sourceforge.net",
+        "sourceforge.net"
+      ],
+      "variants": [
+        {
+          "id": "linux-lite-8.0-64bit",
+          "variantName": "8.0",
+          "description": "Linux Lite 8.0 with Xfce, a curated application set, and Ubuntu LTS packages.",
+          "desktopEnvironment": "Xfce",
+          "imageType": "Live",
+          "release": "8.0",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "linux-lite-8.0-64bit.iso",
+          "url": "https://downloads.sourceforge.net/project/linux-lite/8.0/linux-lite-8.0-64bit.iso",
+          "checksumFormat": "SHA256",
+          "sha256": "7cfc63baf597156a0a5ecac87e860aff3967279694b19fa67fb410a34802857e",
+          "approxSizeBytes": 2533359616,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Linux Lite does not document a live-persistence workflow; install to disk for persistent storage."
+          }
+        }
+      ]
+    },
+    {
+      "id": "arch-linux",
+      "name": "Arch Linux",
+      "categoryId": "arch-based",
+      "description": "A minimal, rolling-release distribution that installs exactly what you choose with archinstall or manually.",
+      "homepageUrl": "https://archlinux.org/download/",
+      "licenseUrl": "https://archlinux.org/",
+      "releaseNotesUrl": "https://archlinux.org/news/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "mirrors.edge.kernel.org"
+      ],
+      "variants": [
+        {
+          "id": "archlinux-2026.10.01-x86_64",
+          "variantName": "Installer",
+          "description": "The official Arch Linux installation image with archinstall and a minimal live environment.",
+          "imageType": "Installer",
+          "release": "2026.10.01",
+          "releaseChannel": "Rolling",
+          "arch": "x86_64",
+          "fileName": "archlinux-2026.10.01-x86_64.iso",
+          "url": "https://mirrors.edge.kernel.org/archlinux/iso/2026.10.01/archlinux-2026.10.01-x86_64.iso",
+          "checksumUrl": "https://mirrors.edge.kernel.org/archlinux/iso/2026.10.01/sha256sums.txt",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 1300000000,
+          "minUsbBytes": 2147483648,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Archiso supports manual cow persistence through boot parameters, but Hyntix does not configure it."
+          }
+        }
+      ]
+    },
+    {
+      "id": "manjaro",
+      "name": "Manjaro",
+      "categoryId": "arch-based",
+      "description": "A user-friendly Arch-based desktop with GNOME, KDE Plasma, and Xfce editions.",
+      "homepageUrl": "https://manjaro.org/download/",
+      "licenseUrl": "https://manjaro.org/",
+      "releaseNotesUrl": "https://forum.manjaro.org/c/announcements/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "download.manjaro.org"
+      ],
+      "variants": [
+        {
+          "id": "manjaro-26.1.2-gnome",
+          "variantName": "GNOME",
+          "description": "Manjaro with a polished GNOME desktop and the distribution's hardware tooling.",
+          "desktopEnvironment": "GNOME",
+          "imageType": "Live",
+          "release": "26.1.2",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "manjaro-gnome-26.1.2-260910-linux71.iso",
+          "url": "https://download.manjaro.org/gnome/26.1.2/manjaro-gnome-26.1.2-260910-linux71.iso",
+          "checksumUrl": "https://download.manjaro.org/gnome/26.1.2/manjaro-gnome-26.1.2-260910-linux71.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 5327650816,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Manjaro does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "manjaro-26.1.2-kde",
+          "variantName": "KDE Plasma",
+          "description": "Manjaro with the full KDE Plasma desktop.",
+          "desktopEnvironment": "KDE Plasma",
+          "imageType": "Live",
+          "release": "26.1.2",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "manjaro-kde-26.1.2-260910-linux71.iso",
+          "url": "https://download.manjaro.org/kde/26.1.2/manjaro-kde-26.1.2-260910-linux71.iso",
+          "checksumUrl": "https://download.manjaro.org/kde/26.1.2/manjaro-kde-26.1.2-260910-linux71.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 5550184448,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Manjaro does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "manjaro-26.1.2-xfce",
+          "variantName": "Xfce",
+          "description": "Manjaro with the lightweight Xfce desktop.",
+          "desktopEnvironment": "Xfce",
+          "imageType": "Live",
+          "release": "26.1.2",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "manjaro-xfce-26.1.2-260910-linux71.iso",
+          "url": "https://download.manjaro.org/xfce/26.1.2/manjaro-xfce-26.1.2-260910-linux71.iso",
+          "checksumUrl": "https://download.manjaro.org/xfce/26.1.2/manjaro-xfce-26.1.2-260910-linux71.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 5171830784,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Manjaro does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        }
+      ]
+    },
+    {
+      "id": "garuda-linux",
+      "name": "Garuda Linux",
+      "categoryId": "arch-based",
+      "description": "An Arch-based desktop focused on performance and gaming, with themed KDE Plasma and GNOME editions.",
+      "homepageUrl": "https://garudalinux.org/downloads",
+      "licenseUrl": "https://garudalinux.org/",
+      "releaseNotesUrl": "https://garudalinux.org/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "iso.builds.garudalinux.org"
+      ],
+      "variants": [
+        {
+          "id": "garuda-dr460nized-latest",
+          "variantName": "Dr460nized",
+          "description": "Garuda's flagship KDE Plasma edition with the Dr460nized theme and performance tweaks.",
+          "desktopEnvironment": "KDE Plasma",
+          "imageType": "Live",
+          "release": "2026.08.19",
+          "releaseChannel": "Rolling",
+          "arch": "x86_64",
+          "fileName": "garuda-dr460nized-linux-garuda-260819.iso",
+          "url": "https://iso.builds.garudalinux.org/iso/latest/garuda/dr460nized/latest.iso",
+          "checksumUrl": "https://iso.builds.garudalinux.org/iso/latest/garuda/dr460nized/latest.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3565000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Garuda does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "garuda-dr460nized-gaming-latest",
+          "variantName": "Dr460nized Gaming",
+          "description": "Garuda's gaming edition with additional drivers, launchers, and performance tooling.",
+          "desktopEnvironment": "KDE Plasma",
+          "imageType": "Live",
+          "release": "2026.08.19",
+          "releaseChannel": "Rolling",
+          "arch": "x86_64",
+          "fileName": "garuda-dr460nized-gaming-linux-garuda-260819.iso",
+          "url": "https://iso.builds.garudalinux.org/iso/latest/garuda/dr460nized-gaming/latest.iso",
+          "checksumUrl": "https://iso.builds.garudalinux.org/iso/latest/garuda/dr460nized-gaming/latest.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 4982000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Garuda does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "garuda-gnome-latest",
+          "variantName": "GNOME",
+          "description": "Garuda Linux with a customized GNOME desktop.",
+          "desktopEnvironment": "GNOME",
+          "imageType": "Live",
+          "release": "2026.08.19",
+          "releaseChannel": "Rolling",
+          "arch": "x86_64",
+          "fileName": "garuda-gnome-linux-garuda-260819.iso",
+          "url": "https://iso.builds.garudalinux.org/iso/latest/garuda/gnome/latest.iso",
+          "checksumUrl": "https://iso.builds.garudalinux.org/iso/latest/garuda/gnome/latest.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3565000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Garuda does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        }
+      ]
+    },
+    {
+      "id": "cachyos",
+      "name": "CachyOS",
+      "categoryId": "arch-based",
+      "description": "A performance-tuned Arch-based desktop with optimized packages, gaming images, and handheld support.",
+      "homepageUrl": "https://cachyos.org/download/",
+      "licenseUrl": "https://cachyos.org/",
+      "releaseNotesUrl": "https://cachyos.org/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "cdn77.cachyos.org",
+        "mirror.cachyos.org"
+      ],
+      "variants": [
+        {
+          "id": "cachyos-desktop-260809",
+          "variantName": "Desktop",
+          "description": "CachyOS desktop image with KDE Plasma, performance-optimized packages, and hardware detection.",
+          "desktopEnvironment": "KDE Plasma",
+          "imageType": "Live",
+          "release": "260809",
+          "releaseChannel": "Rolling",
+          "arch": "x86_64",
+          "fileName": "cachyos-desktop-linux-260809.iso",
+          "url": "https://cdn77.cachyos.org/ISO/desktop/260809/cachyos-desktop-linux-260809.iso",
+          "checksumUrl": "https://mirror.cachyos.org/ISO/desktop/260809/cachyos-desktop-linux-260809.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 4500000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "CachyOS does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "cachyos-handheld-260628",
+          "variantName": "Handheld",
+          "description": "CachyOS image tuned for Steam Deck-style handheld PCs.",
+          "desktopEnvironment": "KDE Plasma",
+          "imageType": "Handheld",
+          "release": "260628",
+          "releaseChannel": "Rolling",
+          "arch": "x86_64",
+          "fileName": "cachyos-handheld-linux-260628.iso",
+          "url": "https://cdn77.cachyos.org/ISO/handheld/260628/cachyos-handheld-linux-260628.iso",
+          "checksumUrl": "https://mirror.cachyos.org/ISO/handheld/260628/cachyos-handheld-linux-260628.iso.sha256",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 4000000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "CachyOS does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        }
+      ]
+    },
+    {
+      "id": "fedora",
+      "name": "Fedora",
+      "categoryId": "fedora-based",
+      "description": "A rapidly evolving Fedora desktop family with Workstation, KDE Plasma, and Silverblue atomic editions.",
       "homepageUrl": "https://fedoraproject.org/workstation/",
-      "persistenceProfiles": [],
-      "minUsbBytes": 4294967296
+      "licenseUrl": "https://fedoraproject.org/legal",
+      "releaseNotesUrl": "https://docs.fedoraproject.org/en-US/releases/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "download.fedoraproject.org"
+      ],
+      "variants": [
+        {
+          "id": "fedora-44-workstation-x86_64",
+          "variantName": "Workstation",
+          "description": "Fedora Workstation with GNOME and the latest Fedora desktop stack.",
+          "desktopEnvironment": "GNOME",
+          "imageType": "Live",
+          "release": "44",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "Fedora-Workstation-Live-44-1.7.x86_64.iso",
+          "url": "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Workstation/x86_64/iso/Fedora-Workstation-Live-44-1.7.x86_64.iso",
+          "checksumFormat": "SHA256",
+          "sha256": "1620295f6a00c27c3208f0c00b8ece4eab1ec69b9002152d97488bf26a426ddf",
+          "approxSizeBytes": 2851612672,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Fedora Live does not provide a supported persistence workflow; use a full installation for persistent storage."
+          }
+        },
+        {
+          "id": "fedora-44-kde-x86_64",
+          "variantName": "KDE Plasma",
+          "description": "Fedora KDE Plasma Desktop, an official Fedora edition with the Plasma desktop.",
+          "desktopEnvironment": "KDE Plasma",
+          "imageType": "Live",
+          "release": "44",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "Fedora-KDE-Desktop-Live-44-1.7.x86_64.iso",
+          "url": "https://download.fedoraproject.org/pub/fedora/linux/releases/44/KDE/x86_64/iso/Fedora-KDE-Desktop-Live-44-1.7.x86_64.iso",
+          "checksumFormat": "SHA256",
+          "sha256": "c8295961d4c41adbf785a31a17c21a971d3b7415fda72dcad0c11c49577bf03a",
+          "approxSizeBytes": 3368683520,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Fedora Live does not provide a supported persistence workflow; use a full installation for persistent storage."
+          }
+        },
+        {
+          "id": "fedora-44-silverblue-x86_64",
+          "variantName": "Silverblue",
+          "description": "Fedora Silverblue, an atomic desktop built from immutable ostree images.",
+          "desktopEnvironment": "GNOME",
+          "imageType": "Atomic live",
+          "release": "44",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "Fedora-Silverblue-ostree-x86_64-44-1.7.iso",
+          "url": "https://download.fedoraproject.org/pub/fedora/linux/releases/44/Silverblue/x86_64/iso/Fedora-Silverblue-ostree-x86_64-44-1.7.iso",
+          "checksumFormat": "SHA256",
+          "sha256": "9ccec9b075a0a4358a7209b2667156aaeeec3a6a3c8d71cada45b57fca9b4682",
+          "approxSizeBytes": 3331284992,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Silverblue is an installer image; live persistence does not apply."
+          }
+        }
+      ]
+    },
+    {
+      "id": "nobara",
+      "name": "Nobara",
+      "categoryId": "fedora-based",
+      "description": "A gaming-focused Fedora derivative with multimedia codecs, driver fixes, and desktop editions.",
+      "homepageUrl": "https://www.nobaraproject.org/",
+      "licenseUrl": "https://www.nobaraproject.org/",
+      "releaseNotesUrl": "https://www.nobaraproject.org/download.html",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "nobara-images.nobaraproject.org"
+      ],
+      "variants": [
+        {
+          "id": "nobara-44-official",
+          "variantName": "Official",
+          "description": "Nobara's main edition with a customized GNOME desktop and gaming/media fixes.",
+          "desktopEnvironment": "GNOME (customized)",
+          "imageType": "Live",
+          "release": "44",
+          "releaseChannel": "Rolling",
+          "arch": "x86_64",
+          "fileName": "Nobara-44-Official-2026-10-13.iso",
+          "url": "https://nobara-images.nobaraproject.org/Nobara-44-Official-2026-10-13.iso",
+          "checksumUrl": "https://nobara-images.nobaraproject.org/Nobara-44-Official-2026-10-13.iso.sha256sum",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 4200000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Nobara does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "nobara-44-gnome",
+          "variantName": "GNOME",
+          "description": "Nobara with the standard GNOME desktop and the project's media and gaming fixes.",
+          "desktopEnvironment": "GNOME",
+          "imageType": "Live",
+          "release": "44",
+          "releaseChannel": "Rolling",
+          "arch": "x86_64",
+          "fileName": "Nobara-44-GNOME-2026-10-13.iso",
+          "url": "https://nobara-images.nobaraproject.org/Nobara-44-GNOME-2026-10-13.iso",
+          "checksumUrl": "https://nobara-images.nobaraproject.org/Nobara-44-GNOME-2026-10-13.iso.sha256sum",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 3800000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Nobara does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "nobara-44-kde",
+          "variantName": "KDE Plasma",
+          "description": "Nobara with KDE Plasma and the project's gaming-focused defaults.",
+          "desktopEnvironment": "KDE Plasma",
+          "imageType": "Live",
+          "release": "44",
+          "releaseChannel": "Rolling",
+          "arch": "x86_64",
+          "fileName": "Nobara-44-KDE-2026-10-13.iso",
+          "url": "https://nobara-images.nobaraproject.org/Nobara-44-KDE-2026-10-13.iso",
+          "checksumUrl": "https://nobara-images.nobaraproject.org/Nobara-44-KDE-2026-10-13.iso.sha256sum",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 4000000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Nobara does not provide a supported live-persistence workflow; install to disk for persistent storage."
+          }
+        }
+      ]
+    },
+    {
+      "id": "qubes-os",
+      "name": "Qubes OS",
+      "categoryId": "fedora-based",
+      "description": "A security-focused desktop that isolates work in compartments, built on Fedora and Xen. Installer only.",
+      "homepageUrl": "https://www.qubes-os.org/downloads/",
+      "licenseUrl": "https://www.qubes-os.org/doc/license/",
+      "releaseNotesUrl": "https://www.qubes-os.org/doc/releases/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "mirrors.edge.kernel.org"
+      ],
+      "variants": [
+        {
+          "id": "qubes-4.3.2-x86_64",
+          "variantName": "Installer",
+          "description": "Qubes OS 4.3.2 installer image for compartmentalized desktop use.",
+          "imageType": "Installer",
+          "release": "4.3.2",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "Qubes-R4.3.2-x86_64.iso",
+          "url": "https://mirrors.edge.kernel.org/qubes/iso/Qubes-R4.3.2-x86_64.iso",
+          "checksumUrl": "https://mirrors.edge.kernel.org/qubes/iso/Qubes-R4.3.2-x86_64.iso.DIGESTS",
+          "checksumFormat": "GNU",
+          "approxSizeBytes": 6000000000,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "Qubes is an installer image; live persistence does not apply."
+          }
+        }
+      ]
+    },
+    {
+      "id": "opensuse",
+      "name": "openSUSE",
+      "categoryId": "other",
+      "description": "The rolling openSUSE Tumbleweed desktop with KDE Plasma, GNOME, and full DVD images.",
+      "homepageUrl": "https://get.opensuse.org/tumbleweed/",
+      "licenseUrl": "https://www.opensuse.org/",
+      "releaseNotesUrl": "https://news.opensuse.org/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "download.opensuse.org"
+      ],
+      "variants": [
+        {
+          "id": "opensuse-tumbleweed-kde-live-x86_64",
+          "variantName": "KDE Plasma Live",
+          "description": "A Tumbleweed live desktop with KDE Plasma.",
+          "desktopEnvironment": "KDE Plasma",
+          "imageType": "Live",
+          "release": "Tumbleweed",
+          "releaseChannel": "Rolling",
+          "arch": "x86_64",
+          "fileName": "openSUSE-Tumbleweed-KDE-Live-x86_64-Current.iso",
+          "url": "https://download.opensuse.org/tumbleweed/iso/openSUSE-Tumbleweed-KDE-Live-x86_64-Current.iso",
+          "checksumUrl": "https://download.opensuse.org/tumbleweed/iso/openSUSE-Tumbleweed-KDE-Live-x86_64-Current.iso.sha256",
+          "checksumFormat": "SINGLE",
+          "approxSizeBytes": 1280221184,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "openSUSE live images do not provide a supported persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "opensuse-tumbleweed-gnome-live-x86_64",
+          "variantName": "GNOME Live",
+          "description": "A Tumbleweed live desktop with GNOME.",
+          "desktopEnvironment": "GNOME",
+          "imageType": "Live",
+          "release": "Tumbleweed",
+          "releaseChannel": "Rolling",
+          "arch": "x86_64",
+          "fileName": "openSUSE-Tumbleweed-GNOME-Live-x86_64-Current.iso",
+          "url": "https://download.opensuse.org/tumbleweed/iso/openSUSE-Tumbleweed-GNOME-Live-x86_64-Current.iso",
+          "checksumUrl": "https://download.opensuse.org/tumbleweed/iso/openSUSE-Tumbleweed-GNOME-Live-x86_64-Current.iso.sha256",
+          "checksumFormat": "SINGLE",
+          "approxSizeBytes": 1284786176,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "openSUSE live images do not provide a supported persistence workflow; install to disk for persistent storage."
+          }
+        },
+        {
+          "id": "opensuse-tumbleweed-dvd-x86_64",
+          "variantName": "DVD",
+          "description": "The full Tumbleweed DVD installer with a large offline package set.",
+          "imageType": "DVD",
+          "release": "Tumbleweed",
+          "releaseChannel": "Rolling",
+          "arch": "x86_64",
+          "fileName": "openSUSE-Tumbleweed-DVD-x86_64-Current.iso",
+          "url": "https://download.opensuse.org/tumbleweed/iso/openSUSE-Tumbleweed-DVD-x86_64-Current.iso",
+          "checksumUrl": "https://download.opensuse.org/tumbleweed/iso/openSUSE-Tumbleweed-DVD-x86_64-Current.iso.sha256",
+          "checksumFormat": "SINGLE",
+          "approxSizeBytes": 4671406080,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "DVD installer; live persistence does not apply."
+          }
+        }
+      ]
+    },
+    {
+      "id": "nixos",
+      "name": "NixOS",
+      "categoryId": "other",
+      "description": "A declarative Linux distribution with reproducible system configuration and graphical or minimal live installers.",
+      "homepageUrl": "https://nixos.org/download/",
+      "licenseUrl": "https://nixos.org/",
+      "releaseNotesUrl": "https://nixos.org/blog/announcements/",
+      "architectures": [
+        "x86_64"
+      ],
+      "hosts": [
+        "channels.nixos.org",
+        "releases.nixos.org"
+      ],
+      "variants": [
+        {
+          "id": "nixos-26.05-graphical-x86_64",
+          "variantName": "Graphical",
+          "description": "NixOS graphical live installer with GNOME and KDE Plasma available in the installer.",
+          "desktopEnvironment": "GNOME or KDE Plasma",
+          "imageType": "Live installer",
+          "release": "26.05",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "latest-nixos-graphical-x86_64-linux.iso",
+          "url": "https://channels.nixos.org/nixos-26.05/latest-nixos-graphical-x86_64-linux.iso",
+          "checksumUrl": "https://channels.nixos.org/nixos-26.05/latest-nixos-graphical-x86_64-linux.iso.sha256",
+          "checksumFormat": "SINGLE",
+          "approxSizeBytes": 3888513024,
+          "minUsbBytes": 8589934592,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "NixOS live images are installers; persistence comes from the installed system configuration."
+          }
+        },
+        {
+          "id": "nixos-26.05-minimal-x86_64",
+          "variantName": "Minimal",
+          "description": "NixOS minimal live installer without a desktop environment.",
+          "imageType": "Live installer",
+          "release": "26.05",
+          "releaseChannel": "Stable",
+          "arch": "x86_64",
+          "fileName": "latest-nixos-minimal-x86_64-linux.iso",
+          "url": "https://channels.nixos.org/nixos-26.05/latest-nixos-minimal-x86_64-linux.iso",
+          "checksumUrl": "https://channels.nixos.org/nixos-26.05/latest-nixos-minimal-x86_64-linux.iso.sha256",
+          "checksumFormat": "SINGLE",
+          "approxSizeBytes": 1744830464,
+          "minUsbBytes": 4294967296,
+          "persistence": {
+            "support": "none",
+            "profiles": [],
+            "requiresConfiguration": false,
+            "notes": "NixOS live images are installers; persistence comes from the installed system configuration."
+          }
+        }
+      ]
     }
   ]
 }

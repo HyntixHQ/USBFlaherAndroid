@@ -108,7 +108,7 @@
 
     <!-- ISO downloads: catalog -->
     <string name="download_title">Download ISO</string>
-    <string name="download_linux_tab">Linux</string>
+    <string name="download_catalog_title">Distributions</string>
     <string name="download_catalog_loading">Loading Linux catalog…</string>
     <string name="download_catalog_error">Could not load the ISO catalog. You can still choose a file from this device.</string>
     <string name="download_catalog_empty">No Linux images are available in this build.</string>
@@ -116,15 +116,27 @@
     <string name="download_linux_note">Linux images are downloaded directly from official distribution servers. Hyntix does not host, mirror, or modify them.</string>
     <string name="download_verified_note">Every image is checked against the official SHA-256 before it can be used.</string>
     <string name="download_size">About %1$s</string>
-    <string name="download_edition_desktop">Desktop</string>
-    <string name="download_edition_live_gnome">Live GNOME</string>
-    <string name="download_edition_cinnamon">Cinnamon</string>
-    <string name="download_edition_workstation">Workstation</string>
-    <string name="download_live_usb">Live USB</string>
+    <string name="download_view_variants">View variants</string>
+    <string name="download_variants_title">Available variants</string>
+    <string name="download_architectures">Architectures: %1$s</string>
+    <string name="download_meta_desktop">Desktop environment</string>
+    <string name="download_meta_architecture">Architecture</string>
+    <string name="download_meta_image">Image type</string>
+    <string name="download_meta_version">Version</string>
+    <string name="download_meta_size">Download size</string>
+    <string name="download_meta_not_applicable">Not applicable</string>
     <string name="download_persistence_supported">Persistence supported</string>
+    <string name="download_persistence_distro">Persistence via distribution</string>
     <string name="download_persistence_unsupported">Persistence not supported</string>
+    <string name="download_persistence_config_required">Additional configuration required</string>
     <string name="download_official_site">Official site</string>
+    <string name="download_official_source">Official source</string>
+    <string name="download_release_notes">Release notes</string>
     <string name="download_license">License</string>
+    <plurals name="download_variant_count">
+        <item quantity="one">%1$d variant</item>
+        <item quantity="other">%1$d variants</item>
+    </plurals>
     <string name="download_preparing">Preparing download…</string>
     <string name="download_select_destination_note">You will choose where to save the ISO. Downloading is limited to Wi-Fi by default.</string>
     <string name="download_active_section">Your downloads</string>

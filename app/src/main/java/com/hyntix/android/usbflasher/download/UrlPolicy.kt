@@ -10,23 +10,13 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
  */
 object UrlPolicy {
 
-    val LINUX_ISO_HOSTS: Set<String> = setOf(
-        "releases.ubuntu.com",
-        "cdimage.ubuntu.com",
-        "cdimage.debian.org",
-        "mirrors.kernel.org",
-        "download.fedoraproject.org",
-        "download.rockylinux.org",
-        "mirrors.almalinux.org"
-    )
-
     private val INVALID_FILE_CHARS = Regex("[\\\\/:*?\"<>|\\u0000-\\u001F\\u007F]")
     private val WINDOWS_RESERVED = Regex(
         "^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\\..*)?$",
         RegexOption.IGNORE_CASE
     )
 
-    fun parseIsoUrl(raw: String, allowedHosts: Set<String> = LINUX_ISO_HOSTS): HttpUrl? {
+    fun parseIsoUrl(raw: String, allowedHosts: Set<String>): HttpUrl? {
         val url = raw.trim().toHttpUrlOrNull() ?: return null
         if (!url.isHttps) return null
         if (url.username.isNotEmpty() || url.password.isNotEmpty()) return null
@@ -36,7 +26,7 @@ object UrlPolicy {
         return url
     }
 
-    fun parseChecksumUrl(raw: String, allowedHosts: Set<String> = LINUX_ISO_HOSTS): HttpUrl? {
+    fun parseChecksumUrl(raw: String, allowedHosts: Set<String>): HttpUrl? {
         val url = raw.trim().toHttpUrlOrNull() ?: return null
         if (!url.isHttps) return null
         if (url.username.isNotEmpty() || url.password.isNotEmpty()) return null

@@ -32,8 +32,15 @@ class DownloadRepository(
                 DownloadError(DownloadErrorCode.ANOTHER_DOWNLOAD_ACTIVE)
             )
         }
-        if (UrlPolicy.parseIsoUrl(entry.url) == null ||
-            UrlPolicy.parseChecksumUrl(entry.checksumUrl) == null ||
+        val hosts = entry.isoHosts.toSet()
+        val staticChecksum = entry.sha256
+            ?.trim()
+            ?.lowercase()
+            ?.takeIf { it.matches(Regex("[0-9a-f]{64}")) }
+        val hasStaticChecksum = staticChecksum != null
+        if (hosts.isEmpty() ||
+            UrlPolicy.parseIsoUrl(entry.url, hosts) == null ||
+            (!hasStaticChecksum && UrlPolicy.parseChecksumUrl(entry.checksumUrl, hosts) == null) ||
             UrlPolicy.sanitizeFileName(entry.fileName) != entry.fileName
         ) {
             return@withContext DownloadStartResult.Failed(
@@ -56,7 +63,7 @@ class DownloadRepository(
             )
         }
 
-        val checksum = when (val result = fetchChecksum(entry)) {
+        val checksum = staticChecksum ?: when (val result = fetchChecksum(entry)) {
             is ChecksumResult.Success -> result.sha256
             is ChecksumResult.Failure -> return@withContext DownloadStartResult.Failed(result.error)
         }
@@ -238,6 +245,9 @@ class DownloadRepository(
     }
 
     private fun fetchChecksum(entry: LinuxIsoEntry): ChecksumResult {
+        if (entry.checksumUrl.isBlank()) {
+            return ChecksumResult.Failure(DownloadError(DownloadErrorCode.CHECKSUM_UNAVAILABLE))
+        }
         return try {
             val request = Request.Builder().url(entry.checksumUrl).get().build()
             checksumClient.newCall(request).execute().use { response ->
@@ -271,10 +281,14 @@ class DownloadRepository(
                     String(buffer, 0, total)
                 }
                 val table = ChecksumParser.parse(text)
-                val hash = table.hashFor(entry.fileName)
-                    ?: return ChecksumResult.Failure(
-                        DownloadError(DownloadErrorCode.CHECKSUM_UNAVAILABLE)
-                    )
+                val checksumFileName = entry.checksumFileName.ifBlank { entry.fileName }
+                val hash = if (entry.checksumFormat == "SINGLE") {
+                    table.onlyHash()
+                } else {
+                    table.hashFor(checksumFileName)
+                } ?: return ChecksumResult.Failure(
+                    DownloadError(DownloadErrorCode.CHECKSUM_UNAVAILABLE)
+                )
                 ChecksumResult.Success(hash)
             }
         } catch (e: Exception) {

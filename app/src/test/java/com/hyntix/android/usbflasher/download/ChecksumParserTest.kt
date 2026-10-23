@@ -41,4 +41,58 @@ class ChecksumParserTest {
         )
         assertNull(table.hashFor("same.iso"))
     }
+
+    @Test
+    fun parsesSingleHashFiles() {
+        val table = ChecksumParser.parse("$hash\n")
+        assertEquals(hash, table.hashFor("anything.iso"))
+    }
+
+    @Test
+    fun parsesMixedMd5Sha256AndSha512Files() {
+        val sha512 = "a".repeat(128)
+        val table = ChecksumParser.parse(
+            """
+            d41d8cd98f00b204e9800998ecf8427e  image.iso
+            $sha512  image.iso
+            $hash  image.iso
+            """.trimIndent()
+        )
+        assertEquals(hash, table.hashFor("image.iso"))
+    }
+
+    @Test
+    fun parsesQubesDigestsFormat() {
+        val table = ChecksumParser.parse(
+            """
+            $hash *Qubes-R4.3.2-x86_64.iso
+            ${"b".repeat(128)} *Qubes-R4.3.2-x86_64.iso
+            """.trimIndent()
+        )
+        assertEquals(hash, table.hashFor("Qubes-R4.3.2-x86_64.iso"))
+    }
+
+    @Test
+    fun normalizesChecksumFilePaths() {
+        val table = ChecksumParser.parse("$hash  ./Nobara-44.iso\n")
+        assertEquals(hash, table.hashFor("Nobara-44.iso"))
+    }
+
+    @Test
+    fun returnsOnlyHashForRollingFilenames() {
+        val table = ChecksumParser.parse("$hash  nixos-graphical-26.05.12400.iso\n")
+        assertEquals(hash, table.onlyHash())
+        assertEquals(hash, table.onlyHash())
+    }
+
+    @Test
+    fun onlyHashRejectsAmbiguousTables() {
+        val table = ChecksumParser.parse(
+            """
+            $hash  first.iso
+            ${hash.reversed()}  second.iso
+            """.trimIndent()
+        )
+        assertNull(table.onlyHash())
+    }
 }

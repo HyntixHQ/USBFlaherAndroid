@@ -14,6 +14,8 @@ import com.hyntix.android.usbflasher.download.DownloadRepository
 import com.hyntix.android.usbflasher.download.DownloadStartResult
 import com.hyntix.android.usbflasher.download.DownloadStatus
 import com.hyntix.android.usbflasher.download.DownloadStore
+import com.hyntix.android.usbflasher.download.LinuxCategory
+import com.hyntix.android.usbflasher.download.LinuxDistribution
 import com.hyntix.android.usbflasher.download.LinuxIsoEntry
 import com.hyntix.android.usbflasher.download.ReadyIso
 import kotlinx.coroutines.Dispatchers
@@ -23,10 +25,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class DownloadCatalogUiState(
-    val entries: List<LinuxIsoEntry> = emptyList(),
+    val categories: List<LinuxCategory> = emptyList(),
+    val distributions: List<LinuxDistribution> = emptyList(),
     val loading: Boolean = true,
     val failed: Boolean = false
-)
+) {
+    val entries: List<LinuxIsoEntry>
+        get() = distributions.flatMap { it.variants }
+}
 
 data class MeteredDownloadPrompt(
     val displayName: String,
@@ -79,14 +85,16 @@ class DownloadViewModel(
             when (val result = repository.loadCatalog()) {
                 is CatalogLoadResult.Success -> {
                     _catalogState.value = DownloadCatalogUiState(
-                        entries = result.catalog.linux,
+                        categories = result.catalog.categories,
+                        distributions = result.catalog.distributions,
                         loading = false,
                         failed = false
                     )
                 }
                 is CatalogLoadResult.Failure -> {
                     _catalogState.value = DownloadCatalogUiState(
-                        entries = emptyList(),
+                        categories = emptyList(),
+                        distributions = emptyList(),
                         loading = false,
                         failed = true
                     )

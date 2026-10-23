@@ -64,19 +64,7 @@ import com.hyntix.android.usbflasher.download.DownloadFormatters
 import com.hyntix.android.usbflasher.download.DownloadRecord
 import com.hyntix.android.usbflasher.download.DownloadStatus
 import com.hyntix.android.usbflasher.download.DownloadStrings
-import com.hyntix.android.usbflasher.download.LinuxIsoEntry
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
-
-@Composable
-fun linuxEditionLabel(entry: LinuxIsoEntry): String {
-    return when (entry.editionKey) {
-        "desktop" -> stringResource(R.string.download_edition_desktop)
-        "live_gnome" -> stringResource(R.string.download_edition_live_gnome)
-        "cinnamon" -> stringResource(R.string.download_edition_cinnamon)
-        "workstation" -> stringResource(R.string.download_edition_workstation)
-        else -> entry.editionKey
-    }
-}
 
 @Composable
 fun downloadStatusText(record: DownloadRecord): String {

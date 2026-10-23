@@ -62,34 +62,91 @@ data class DownloadError(
     val httpStatus: Int? = null
 )
 
+enum class PersistenceSupport {
+    /** Hyntix can create and activate a persistence partition automatically. */
+    APP,
+
+    /** The distribution provides its own persistence workflow inside the live session. */
+    DISTRO,
+
+    /** No supported live-persistence workflow. */
+    NONE
+}
+
+data class PersistenceInfo(
+    val support: PersistenceSupport = PersistenceSupport.NONE,
+    val profiles: List<String> = emptyList(),
+    val requiresConfiguration: Boolean = false,
+    val notes: String? = null
+)
+
+/**
+ * One downloadable ISO. A distribution may expose several variants (desktop
+ * environment, installer type, architecture, or edition).
+ */
 data class LinuxIsoEntry(
     val id: String = "",
+    val distroId: String = "",
     val distro: String = "",
+    val categoryId: String = "",
+    val variantName: String = "",
+    val description: String = "",
+    val desktopEnvironment: String? = null,
+    val imageType: String = "",
     val release: String = "",
-    val editionKey: String = "",
+    val releaseChannel: String = "",
     val arch: String = "",
     val fileName: String = "",
     val url: String = "",
     val checksumUrl: String = "",
+    val checksumFileName: String = "",
     val checksumFormat: String = "",
+    val sha256: String? = null,
     val approxSizeBytes: Long = 0,
     val licenseUrl: String = "",
     val homepageUrl: String = "",
-    val persistenceProfiles: List<String> = emptyList(),
-    val minUsbBytes: Long? = null
+    val releaseNotesUrl: String? = null,
+    val persistence: PersistenceInfo = PersistenceInfo(),
+    val minUsbBytes: Long? = null,
+    val isoHosts: List<String> = emptyList()
 ) {
     val displayName: String
-        get() = "$distro $release"
+        get() = listOf(distro, variantName, release)
+            .filter { it.isNotBlank() }
+            .distinct()
+            .joinToString(" ")
 
     val persistenceSupported: Boolean
-        get() = persistenceProfiles.isNotEmpty()
+        get() = persistence.support != PersistenceSupport.NONE
 }
+
+data class LinuxCategory(
+    val id: String = "",
+    val name: String = "",
+    val description: String = ""
+)
+
+data class LinuxDistribution(
+    val id: String = "",
+    val name: String = "",
+    val categoryId: String = "",
+    val description: String = "",
+    val homepageUrl: String = "",
+    val licenseUrl: String = "",
+    val releaseNotesUrl: String? = null,
+    val architectures: List<String> = emptyList(),
+    val variants: List<LinuxIsoEntry> = emptyList()
+)
 
 data class IsoCatalog(
     val schemaVersion: Int = 0,
     val generatedAt: String? = null,
-    val linux: List<LinuxIsoEntry> = emptyList()
-)
+    val categories: List<LinuxCategory> = emptyList(),
+    val distributions: List<LinuxDistribution> = emptyList()
+) {
+    val entries: List<LinuxIsoEntry>
+        get() = distributions.flatMap { it.variants }
+}
 
 sealed interface CatalogLoadResult {
     data class Success(val catalog: IsoCatalog) : CatalogLoadResult
