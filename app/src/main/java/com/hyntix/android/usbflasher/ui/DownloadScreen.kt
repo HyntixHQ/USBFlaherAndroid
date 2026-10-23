@@ -498,7 +498,9 @@ private fun DistributionCard(
 private fun DistributionHeader(distribution: LinuxDistribution) {
     val uriHandler = LocalUriHandler.current
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
