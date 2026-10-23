@@ -213,11 +213,17 @@ pub fn read(dev: &mut dyn BlockDevice) -> Result<GptLayout> {
     validate_header_location(&primary, 1, sector_count)?;
 
     let primary_entry_sectors = entry_sectors(primary.num_entries, primary.entry_size);
-    if primary.entry_lba + primary_entry_sectors > sector_count {
+    let Some(primary_entries_end) = primary.entry_lba.checked_add(primary_entry_sectors) else {
+        return Err(PartitionError::InvalidTable(
+            "primary GPT entry array is out of range".into(),
+        ));
+    };
+    if primary_entries_end > sector_count {
         return Err(PartitionError::InvalidTable(
             "primary GPT entry array is out of range".into(),
         ));
     }
+    validate_primary_entry_placement(&primary, primary_entries_end)?;
     let mut primary_entries = vec![0u8; (primary_entry_sectors * 512) as usize];
     dev.read_sectors(primary.entry_lba, &mut primary_entries)?;
     let primary_crc =
@@ -249,11 +255,17 @@ pub fn read(dev: &mut dyn BlockDevice) -> Result<GptLayout> {
     }
 
     let backup_entry_sectors = entry_sectors(backup.num_entries, backup.entry_size);
-    if backup.entry_lba + backup_entry_sectors > sector_count {
+    let Some(backup_entries_end) = backup.entry_lba.checked_add(backup_entry_sectors) else {
+        return Err(PartitionError::InvalidTable(
+            "backup GPT entry array is out of range".into(),
+        ));
+    };
+    if backup_entries_end > sector_count {
         return Err(PartitionError::InvalidTable(
             "backup GPT entry array is out of range".into(),
         ));
     }
+    validate_backup_entry_placement(&backup, backup_entries_end)?;
     let mut backup_entries = vec![0u8; (backup_entry_sectors * 512) as usize];
     dev.read_sectors(backup.entry_lba, &mut backup_entries)?;
     let backup_crc =
@@ -303,6 +315,30 @@ fn validate_header_location(
     if header.first_usable_lba < 2 || header.first_usable_lba > header.last_usable_lba {
         return Err(PartitionError::InvalidTable(
             "invalid GPT usable LBA range".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// The append planner formats free space after the ISO. The primary entry
+/// array must therefore stay below the usable area, otherwise formatting
+/// could overwrite the partition table before the commit relocates anything.
+fn validate_primary_entry_placement(header: &GptHeader, entries_end: u64) -> Result<()> {
+    if header.entry_lba < 2 || entries_end > header.first_usable_lba {
+        return Err(PartitionError::InvalidTable(
+            "primary GPT entry array overlaps the usable area".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// Formatting starts after the old backup header unless it already sits at the
+/// end of the device. Reject tables whose backup entries follow their header,
+/// because those entries could fall inside the pre-commit format range.
+fn validate_backup_entry_placement(header: &GptHeader, entries_end: u64) -> Result<()> {
+    if entries_end > header.current_lba {
+        return Err(PartitionError::InvalidTable(
+            "backup GPT entry array is not before the backup header".into(),
         ));
     }
     Ok(())
@@ -411,5 +447,33 @@ mod tests {
     fn empty_entries_use_full_crc_array() {
         let bytes = vec![0u8; 128 * 128];
         assert_eq!(crc32(&bytes[..128 * 128]), crc32(&bytes));
+    }
+
+    #[test]
+    fn rejects_primary_entries_inside_usable_area() {
+        let mut header = valid_header();
+        header.entry_lba = 2048;
+        let end = header.entry_lba + entry_sectors(header.num_entries, header.entry_size);
+        assert!(validate_primary_entry_placement(&header, end).is_err());
+
+        let mut header = valid_header();
+        header.entry_lba = 1;
+        let end = header.entry_lba + entry_sectors(header.num_entries, header.entry_size);
+        assert!(validate_primary_entry_placement(&header, end).is_err());
+
+        let header = valid_header();
+        let end = header.entry_lba + entry_sectors(header.num_entries, header.entry_size);
+        assert!(validate_primary_entry_placement(&header, end).is_ok());
+    }
+
+    #[test]
+    fn rejects_backup_entries_after_backup_header() {
+        let header = valid_header();
+        let sectors = entry_sectors(header.num_entries, header.entry_size);
+
+        assert!(
+            validate_backup_entry_placement(&header, header.current_lba + 1 + sectors).is_err()
+        );
+        assert!(validate_backup_entry_placement(&header, header.current_lba).is_ok());
     }
 }

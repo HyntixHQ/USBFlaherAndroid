@@ -83,14 +83,22 @@ fn analyze_grub(
             continue;
         }
 
-        if entry_live
-            && let Some(command) = trimmed.split_whitespace().next()
+        if let Some(command) = trimmed.split_whitespace().next()
             && matches!(
                 command,
                 "linux" | "linuxefi" | "linux16" | "linux32" | "kernel"
             )
         {
-            inspect_command_line(source, line, line_start, base_offset, profile, true, result);
+            // Mint and Pop!_OS use distro names such as "Start Linux Mint"
+            // instead of "Try..." or "Live...". Their casper command line
+            // still carries `boot=casper`, which is the reliable signal.
+            if !entry_live && is_live_command(line, profile) {
+                entry_live = true;
+                result.live_entries += 1;
+            }
+            if entry_live {
+                inspect_command_line(source, line, line_start, base_offset, profile, true, result);
+            }
         }
 
         brace_depth += trimmed.matches('{').count() as i32;
@@ -133,27 +141,30 @@ fn analyze_isolinux(
                     .trim_start()
                     .trim_start_matches("label")
                     .trim();
-                if is_live_title(title) {
+                if is_live_title(title) && !entry_live {
                     entry_live = true;
+                    result.live_entries += 1;
                 }
             }
             "kernel" => {
                 kernel_matches = kernel_path_matches(trimmed, profile);
             }
-            "append"
-                if in_entry
-                    && entry_live
-                    && (kernel_matches || kernel_path_matches(trimmed, profile)) =>
-            {
-                inspect_command_line(
-                    source,
-                    line,
-                    line_start,
-                    base_offset,
-                    profile,
-                    false,
-                    result,
-                );
+            "append" if in_entry && (kernel_matches || kernel_path_matches(trimmed, profile)) => {
+                if !entry_live && is_live_command(trimmed, profile) {
+                    entry_live = true;
+                    result.live_entries += 1;
+                }
+                if entry_live {
+                    inspect_command_line(
+                        source,
+                        line,
+                        line_start,
+                        base_offset,
+                        profile,
+                        false,
+                        result,
+                    );
+                }
             }
             _ => {}
         }
@@ -183,7 +194,7 @@ fn inspect_command_line(
     }
 
     // Debian Live ships its own persistence entry; do not invent one.
-    if !grub || profile != PersistenceProfile::Casper {
+    if profile != PersistenceProfile::Casper {
         return;
     }
 
@@ -232,6 +243,15 @@ fn contains_token(line: &str, token: &str) -> bool {
 fn is_live_title(title: &str) -> bool {
     let lower = title.to_ascii_lowercase();
     lower.contains("try") || lower.contains("live") || lower.contains("persistent")
+}
+
+/// Casper and Debian Live entries can be identified by their boot parameter
+/// even when the menu title is only a distribution name.
+fn is_live_command(line: &str, profile: PersistenceProfile) -> bool {
+    match profile {
+        PersistenceProfile::Casper => contains_token(line, "boot=casper"),
+        PersistenceProfile::DebianLive => contains_token(line, "boot=live"),
+    }
 }
 
 fn grub_title(line: &str) -> String {
@@ -406,6 +426,83 @@ menuentry "Boot from next volume" {
             PersistenceProfile::Casper,
         );
         assert_eq!(analysis.live_entries, 0);
+        assert!(analysis.patches.is_empty());
+    }
+
+    #[test]
+    fn patches_mint_grub_entry_without_live_title() {
+        let text = r#"
+menuentry "Start Linux Mint 22 Cinnamon 64-bit" {
+    linux /casper/vmlinuz file=/cdrom/preseed/linuxmint.seed boot=casper quiet splash --
+}
+menuentry "Boot from next volume" {
+    linux /casper/vmlinuz quiet splash ---
+}
+"#;
+        let analysis = analyze(
+            "/boot/grub/grub.cfg",
+            text.as_bytes(),
+            0,
+            PersistenceProfile::Casper,
+        );
+        assert_eq!(analysis.live_entries, 1);
+        assert!(!analysis.has_persistence);
+        assert_eq!(analysis.patches.len(), 1);
+        assert_eq!(analysis.patches[0].original, b"quiet splash");
+        assert_eq!(analysis.patches[0].replacement, b"persistent  ");
+    }
+
+    #[test]
+    fn patches_safe_graphics_casper_entry() {
+        let text = r#"
+menuentry "Ubuntu (safe graphics)" {
+    linux /casper/vmlinuz boot=casper quiet splash ---
+}
+"#;
+        let analysis = analyze(
+            "/boot/grub/grub.cfg",
+            text.as_bytes(),
+            0,
+            PersistenceProfile::Casper,
+        );
+        assert_eq!(analysis.live_entries, 1);
+        assert_eq!(analysis.patches.len(), 1);
+    }
+
+    #[test]
+    fn patches_mint_isolinux_entry_without_live_title() {
+        let text = r#"
+label start
+  menu label Start Linux Mint
+  kernel /casper/vmlinuz
+  append file=/cdrom/preseed/linuxmint.seed boot=casper quiet splash --
+"#;
+        let analysis = analyze(
+            "/isolinux/isolinux.cfg",
+            text.as_bytes(),
+            0,
+            PersistenceProfile::Casper,
+        );
+        assert_eq!(analysis.live_entries, 1);
+        assert_eq!(analysis.patches.len(), 1);
+    }
+
+    #[test]
+    fn detects_debian_live_entry_by_boot_parameter() {
+        let text = r#"
+label debian
+  menu label Debian GNU/Linux
+  kernel /live/vmlinuz
+  append initrd=/live/initrd.img boot=live components persistence
+"#;
+        let analysis = analyze(
+            "/isolinux/isolinux.cfg",
+            text.as_bytes(),
+            0,
+            PersistenceProfile::DebianLive,
+        );
+        assert_eq!(analysis.live_entries, 1);
+        assert!(analysis.has_persistence);
         assert!(analysis.patches.is_empty());
     }
 

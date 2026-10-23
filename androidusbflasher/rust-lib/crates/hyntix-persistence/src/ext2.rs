@@ -161,7 +161,11 @@ fn compute_layout(sector_count: u64, options: &FormatOptions<'_>) -> Result<FsLa
                 0
             };
             let metadata = super_blocks + 2 + inode_blocks;
-            let data = if group == 0 { 3 } else { 0 };
+            let data = if group == 0 {
+                if options.persistence_conf { 3 } else { 2 }
+            } else {
+                0
+            };
             if metadata + data > group_blocks {
                 fits = false;
                 break;
@@ -194,7 +198,11 @@ fn compute_layout(sector_count: u64, options: &FormatOptions<'_>) -> Result<FsLa
         let inode_bitmap = block_bitmap + 1;
         let inode_table = inode_bitmap + 1;
         let data_start = inode_table + inode_blocks;
-        let data_used = if group == 0 { 3 } else { 0 };
+        let data_used = if group == 0 {
+            if options.persistence_conf { 3 } else { 2 }
+        } else {
+            0
+        };
         let used = prefix + 2 + inode_blocks + data_used;
         let free = blocks.saturating_sub(used);
         free_blocks += free;
@@ -499,10 +507,11 @@ pub fn format(
     let bitmap_bytes = layout.groups as u64 * 2 * BLOCK_SIZE as u64;
     let inode_bytes = layout.inode_table_blocks * BLOCK_SIZE as u64;
     let gdt_copies = layout.groups_layout.iter().filter(|g| g.has_super).count() as u64;
+    let data_blocks = if layout.has_conf { 3 } else { 2 };
     let total_work = bitmap_bytes
         + inode_bytes
         + layout.gdt_blocks * BLOCK_SIZE as u64 * gdt_copies
-        + BLOCK_SIZE as u64 * 3
+        + BLOCK_SIZE as u64 * data_blocks
         + 1024 * gdt_copies.max(1);
     let mut done = 0u64;
 
@@ -928,24 +937,31 @@ mod tests {
             eprintln!("skipping: e2fsck not installed");
             return;
         };
-        let sectors = (256 * 1024 * 1024u64) / 512;
-        let mut dev = MemBlockDevice::new(sectors, 512).unwrap();
-        format(&mut dev, 0, sectors, &options(true), &mut |_, _| {}).unwrap();
-
         let dir = std::env::temp_dir().join(format!("hyntix-ext2-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("fs.img");
-        std::fs::write(&path, dev.as_slice()).unwrap();
-        let output = Command::new(e2fsck)
-            .args(["-fn", path.to_str().unwrap()])
-            .output()
-            .unwrap();
-        let text = format!(
-            "{}{}",
-            String::from_utf8_lossy(&output.stdout),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        assert!(output.status.success(), "e2fsck failed:\n{text}");
+
+        for (name, sectors, conf) in [
+            ("casper-256m", (256 * 1024 * 1024u64) / 512, false),
+            ("debian-256m", (256 * 1024 * 1024u64) / 512, true),
+            ("casper-2g", (2u64 * 1024 * 1024 * 1024) / 512, false),
+        ] {
+            let mut dev = MemBlockDevice::new(sectors, 512).unwrap();
+            format(&mut dev, 0, sectors, &options(conf), &mut |_, _| {}).unwrap();
+
+            let path = dir.join(format!("{name}.img"));
+            std::fs::write(&path, dev.as_slice()).unwrap();
+            let output = Command::new(&e2fsck)
+                .args(["-fn", path.to_str().unwrap()])
+                .output()
+                .unwrap();
+            let text = format!(
+                "{}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(output.status.success(), "e2fsck failed for {name}:\n{text}");
+        }
+
         let _ = std::fs::remove_dir_all(&dir);
     }
 
