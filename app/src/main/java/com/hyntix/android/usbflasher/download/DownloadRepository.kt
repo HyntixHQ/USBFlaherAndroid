@@ -194,9 +194,14 @@ class DownloadRepository(
     }
 
     private fun deleteNow(id: String) {
-        val record = store.find(id) ?: return
-        runCatching { DownloadDestination.delete(context, record.destinationUri.toUri()) }
-        store.remove(id)
+        val record = store.find(id)
+        if (record != null) {
+            runCatching { DownloadDestination.delete(context, record.destinationUri.toUri()) }
+            store.remove(id)
+        }
+        // The service is stopped on this path, so no active download owns the
+        // single notification. Dismiss it even if the record was already gone.
+        DownloadNotifications.dismiss(context)
     }
 
     private fun startService(id: String): DownloadError? {

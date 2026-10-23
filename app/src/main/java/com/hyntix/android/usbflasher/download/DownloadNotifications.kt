@@ -19,6 +19,15 @@ class DownloadNotifications(private val context: Context) {
     companion object {
         const val CHANNEL_ID = "iso_downloads"
         const val NOTIFICATION_ID = 4102
+
+        /**
+         * Dismiss the download notification from outside the service. Used when
+         * the app cancels or deletes a record while the service is stopped
+         * (paused/completed/failed), so the notification cannot outlive it.
+         */
+        fun dismiss(context: Context) {
+            NotificationManagerCompat.from(context).cancel(NOTIFICATION_ID)
+        }
     }
 
     private val manager = NotificationManagerCompat.from(context)

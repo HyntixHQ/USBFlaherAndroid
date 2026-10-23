@@ -1,5 +1,6 @@
 package com.hyntix.android.usbflasher.download
 
+import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
@@ -128,6 +129,7 @@ class DownloadService : Service() {
     private var lastNotificationAt = 0L
     private var lastWakeRenewAt = 0L
     private var lastNetworkCheckAt = 0L
+    private val notificationLock = Any()
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
     private val speedSamples = ArrayDeque<SpeedSample>()
@@ -289,7 +291,7 @@ class DownloadService : Service() {
                 pauseReason = PauseReason.NETWORK,
                 persistNow = true
             )
-            if (paused != null) notifications.notify(notifications.paused(paused))
+            if (paused != null) postNotification(paused, notifications.paused(paused))
             finishActive()
             return
         }
@@ -316,7 +318,7 @@ class DownloadService : Service() {
                     pauseReason = PauseReason.USER,
                     persistNow = true
                 )
-                if (updated != null) notifications.notify(notifications.paused(updated))
+                if (updated != null) postNotification(updated, notifications.paused(updated))
             }
             if (activeJob?.isActive != true) finishActive()
             return
@@ -331,7 +333,7 @@ class DownloadService : Service() {
             persistNow = true
         )
         if (record != null) {
-            notifications.notify(notifications.paused(record))
+            postNotification(record, notifications.paused(record))
         }
         if (activeJob?.isActive != true) finishActive()
     }
@@ -375,7 +377,7 @@ class DownloadService : Service() {
                     bytesDownloaded = record.bytesDownloaded,
                     persistNow = true
                 )
-                if (updated != null) notifications.notify(notifications.paused(updated))
+                if (updated != null) postNotification(updated, notifications.paused(updated))
                 return
             }
             store.updateStatus(
@@ -491,7 +493,7 @@ class DownloadService : Service() {
                                     persistNow = true
                                 )
                                 if (waiting != null) {
-                                    notifications.notify(notifications.waiting(waiting))
+                                    postNotification(waiting, notifications.waiting(waiting))
                                 }
                                 return
                             }
@@ -506,7 +508,7 @@ class DownloadService : Service() {
                         persistNow = true
                     )
                     if (updated != null) {
-                        notifications.notify(notifications.paused(updated))
+                        postNotification(updated, notifications.paused(updated))
                     }
                 }
 
@@ -519,7 +521,13 @@ class DownloadService : Service() {
                 }
             }
         } catch (e: Exception) {
-            fail(store.find(id) ?: return, DownloadError(DownloadErrorCode.UNKNOWN))
+            if (cancelRequested) {
+                // A cancel must end in deletion regardless of which layer
+                // raised the exception; never report it as a failed download.
+                deleteRecordNow(id)
+            } else {
+                fail(store.find(id) ?: return, DownloadError(DownloadErrorCode.UNKNOWN))
+            }
         } finally {
             finishActive()
         }
@@ -623,7 +631,7 @@ class DownloadService : Service() {
                     error = null,
                     persistNow = true
                 )
-                if (paused != null) notifications.notify(notifications.paused(paused))
+                if (paused != null) postNotification(paused, notifications.paused(paused))
                 finishActive()
             }
         }
@@ -696,7 +704,7 @@ class DownloadService : Service() {
                     )
                 }
                 if (completed != null) {
-                    notifications.notify(notifications.completed(completed))
+                    postNotification(completed, notifications.completed(completed))
                 }
             }
 
@@ -723,7 +731,7 @@ class DownloadService : Service() {
             bytesDownloaded = bytes,
             persistNow = true
         ) ?: return
-        notifications.notify(notifications.failed(failed))
+        postNotification(failed, notifications.failed(failed))
     }
 
     /**
@@ -749,7 +757,7 @@ class DownloadService : Service() {
             bytesDownloaded = maxOf(current.bytesDownloaded, bytes),
             persistNow = true
         )
-        if (updated != null) notifications.notify(notifications.paused(updated))
+        if (updated != null) postNotification(updated, notifications.paused(updated))
     }
 
     private fun deleteRecordNow(id: String, cancelNotification: Boolean = true) {
@@ -758,8 +766,23 @@ class DownloadService : Service() {
             runCatching {
                 DownloadDestination.delete(applicationContext, record.destinationUri.toUri())
             }
+        }
+        // Serialize removal with postNotification so a progress callback that
+        // is already in flight cannot re-post the notification afterwards.
+        synchronized(notificationLock) {
             store.remove(id)
             if (cancelNotification) notifications.cancel()
+        }
+    }
+
+    /**
+     * Post only while the record still exists. deleteRecordNow takes the same
+     * lock, so a cancelled record can never resurrect its notification.
+     */
+    private fun postNotification(record: DownloadRecord, notification: Notification) {
+        synchronized(notificationLock) {
+            if (store.find(record.id) == null) return
+            notifications.notify(notification)
         }
     }
 
@@ -799,7 +822,7 @@ class DownloadService : Service() {
             DownloadStatus.WAITING_FOR_NETWORK -> notifications.waiting(record)
             else -> notifications.progress(record, status)
         }
-        notifications.notify(notification)
+        postNotification(record, notification)
     }
 
     private fun speedFor(bytes: Long, total: Long): Pair<Long, Long> {
@@ -872,7 +895,7 @@ class DownloadService : Service() {
                 persistNow = true
             )
             if (record != null) {
-                notifications.notify(notifications.paused(record))
+                postNotification(record, notifications.paused(record))
             }
         }
         releaseLocks()
