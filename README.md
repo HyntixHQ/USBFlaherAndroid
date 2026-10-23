@@ -54,7 +54,7 @@ A high-performance, rootless, open-source USB flashing utility for Android. Enab
 ## Limitations
 
 - ARM64 Android devices only (API 33+).
-- Windows in-app ISO downloads are disabled pending legal review; Windows ISOs can still be flashed from local storage.
+- Windows ISOs can be flashed from local storage. In-app Windows ISO downloads are not supported.
 - Linux persistence is unencrypted and limited to casper (Ubuntu/Mint/Pop!_OS) and Debian Live images. Fedora, Arch, openSUSE, Kali, Tails, Parrot, Ventoy, and 4Kn drives are not supported.
 
 ## License

@@ -120,5 +120,5 @@ removes the distribution card.
 The catalog covers 20 distributions across Debian-based, Ubuntu-based,
 Arch-based, Fedora-based, and independent families. It prioritizes widely used
 desktop distributions, with specialized entries for security, older hardware,
-gaming, and compartmentalized desktops. Windows downloads remain disabled by
-`WINDOWS_ISO_DOWNLOAD_ENABLED` pending legal review.
+gaming, and compartmentalized desktops. Windows prebuilt images cannot be
+downloaded by the app; only Linux distributions are in the download catalog.

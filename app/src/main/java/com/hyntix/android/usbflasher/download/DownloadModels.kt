@@ -1,11 +1,5 @@
 package com.hyntix.android.usbflasher.download
 
-/**
- * The v1 download catalog is Linux-only. Windows 11+ remains behind a
- * release/legal gate and is intentionally not represented in this build.
- */
-const val WINDOWS_ISO_DOWNLOAD_ENABLED = false
-
 enum class DownloadKind {
     LINUX
 }
