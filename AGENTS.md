@@ -8,7 +8,8 @@
 
 ## Architecture
 
-Three layers, no DI, no Jetpack Navigation:
+Three layers, no DI. App-level screens remain conditional overlays; Navigation 3 is used
+only for the catalog → distribution detail back stack inside `DownloadScreen`:
 
 1. **`:app` module** — Jetpack Compose UI (MVI-lite). Single `MainActivity`, single screen with conditional overlays. One `FlashViewModel` with `StateFlow<FlashState>`.
 2. **`:androidusbflasher` module** — UniFFI + JNA bridge. `AndroidUsbFlasher.kt` is the hand-written wrapper; `UsbFlasherNative.kt` is **auto-generated** by UniFFI.
@@ -54,6 +55,9 @@ Three layers, no DI, no Jetpack Navigation:
 - Rust logs tagged `"UsbFlasherRust"`; `AppLogger` captures them from logcat via a daemon thread.
 - Native flash calls block the calling thread — `AndroidUsbFlasher` wraps them in `Thread(runnable).start()`.
 - No DI framework: `ViewModelProvider.Factory` manual construction in `MainActivity`.
+- Catalog → distribution detail uses Navigation 3 (`NavBackStack` + `NavDisplay`) with serializable,
+  typed keys. Keep the default `SaveableStateHolder` entry decorator: it preserves catalog scroll
+  while a detail is on the stack and drops a detail's saved state when that entry is popped.
 - Splash screen via `androidx.core:core-splashscreen` (Android 12+ API). Two logo variants:
   `ic_splash_logo_white` (dark mode) and `ic_splash_logo_dark` (light mode, #2B2C30).
 - All user-visible strings in `res/values/strings.xml` — use `stringResource()` in composables
@@ -73,7 +77,8 @@ Three layers, no DI, no Jetpack Navigation:
 
 ## Environment
 
-- Rust 1.85+ (edition 2024), Kotlin 2.4.21, AGP 9.4.1, Compose BOM 2026.09.00
+- Rust 1.85+ (edition 2024), Kotlin 2.4.21, AGP 9.4.1, Compose BOM 2026.09.00,
+  Navigation 3 1.2.0, kotlinx-serialization 1.9.0
 - `rustup target add aarch64-linux-android`
 - `ANDROID_NDK_HOME` pointing to NDK 30+
 

@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -32,7 +34,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSerializable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +47,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavKey
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.runtime.serialization.NavBackStackSerializer
+import androidx.navigation3.ui.NavDisplay
 import com.adamglin.PhosphorIcons
 import com.adamglin.phosphoricons.Regular
 import com.adamglin.phosphoricons.regular.ArrowLeft
@@ -58,6 +66,7 @@ import com.hyntix.android.usbflasher.download.LinuxDistribution
 import com.hyntix.android.usbflasher.download.LinuxIsoEntry
 import com.hyntix.android.usbflasher.download.PersistenceInfo
 import com.hyntix.android.usbflasher.download.PersistenceSupport
+import kotlinx.serialization.Serializable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,12 +83,13 @@ fun DownloadScreen(
     val uiError by viewModel.uiError.collectAsState()
     val meteredPrompt by viewModel.meteredPrompt.collectAsState()
 
-    var selectedRecordId by remember { mutableStateOf<String?>(null) }
-    var selectedDistributionId by remember { mutableStateOf<String?>(null) }
-    val selectedRecord = records.firstOrNull { it.id == selectedRecordId }
-    val selectedDistribution = catalog.distributions.firstOrNull {
-        it.id == selectedDistributionId
+    var selectedRecordId by rememberSaveable { mutableStateOf<String?>(null) }
+    val backStack = rememberDownloadBackStack()
+    val currentKey = backStack.lastOrNull()
+    val currentDistribution = (currentKey as? DistributionKey)?.let { key ->
+        catalog.distributions.firstOrNull { it.id == key.distributionId }
     }
+    val selectedRecord = records.firstOrNull { it.id == selectedRecordId }
     val activeRecords = records.filter {
         it.status.isActive || it.isReady || it.status == DownloadStatus.FAILED
     }
@@ -91,12 +101,13 @@ fun DownloadScreen(
         }
     }
 
-    LaunchedEffect(catalog.distributions, selectedDistributionId, catalog.loading) {
-        if (selectedDistributionId != null &&
-            !catalog.loading &&
-            catalog.distributions.none { it.id == selectedDistributionId }
-        ) {
-            selectedDistributionId = null
+    LaunchedEffect(catalog.loading, catalog.distributions) {
+        if (!catalog.loading) {
+            while (true) {
+                val top = backStack.lastOrNull() as? DistributionKey ?: break
+                if (catalog.distributions.any { it.id == top.distributionId }) break
+                backStack.removeLastOrNull()
+            }
         }
     }
 
@@ -108,15 +119,12 @@ fun DownloadScreen(
         }
     }
 
-    BackHandler {
-        when {
-            selectedRecordId != null -> {
-                selectedRecordId = null
-                viewModel.dismissFocus()
-            }
-            selectedDistributionId != null -> selectedDistributionId = null
-            else -> onBack()
-        }
+    BackHandler(enabled = selectedRecordId != null) {
+        selectedRecordId = null
+        viewModel.dismissFocus()
+    }
+    BackHandler(enabled = selectedRecordId == null && backStack.size == 1) {
+        onBack()
     }
 
     if (uiError != null) {
@@ -141,7 +149,7 @@ fun DownloadScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            selectedDistribution?.name
+                            currentDistribution?.name
                                 ?: stringResource(R.string.download_title),
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -151,8 +159,8 @@ fun DownloadScreen(
                     navigationIcon = {
                         IconButton(
                             onClick = {
-                                if (selectedDistributionId != null) {
-                                    selectedDistributionId = null
+                                if (backStack.size > 1) {
+                                    backStack.removeLastOrNull()
                                 } else {
                                     onBack()
                                 }
@@ -176,201 +184,65 @@ fun DownloadScreen(
             }
         }
     ) { padding ->
-        LazyColumn(
+        // NavDisplay's default SaveableStateHolder decorator keeps the catalog's
+        // LazyListState while the detail entry is on top and removes the detail's
+        // saved state when that entry is popped, so a new detail starts at the top.
+        NavDisplay(
+            backStack = backStack,
+            onBack = { backStack.removeLastOrNull() },
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (selectedDistribution == null) {
-                item {
-                    Text(
-                        text = stringResource(R.string.download_linux_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-                item {
-                    Text(
-                        text = stringResource(R.string.download_verified_note),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
-                }
-            }
-
-            if (!downloadsEnabled) {
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                        )
-                    ) {
-                        Text(
-                            text = stringResource(R.string.download_disabled_flashing),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                            modifier = Modifier.padding(12.dp)
-                        )
-                    }
-                }
-            }
-
-            if (activeRecords.isNotEmpty()) {
-                item {
-                    Text(
-                        text = stringResource(R.string.download_active_section),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                items(activeRecords, key = { it.id }) { record ->
-                    DownloadStatusCard(
-                        record = record,
-                        onClick = {
+                .padding(padding),
+            entryProvider = entryProvider {
+                entry<DownloadCatalogKey> {
+                    DownloadCatalogContent(
+                        catalog = catalog,
+                        activeRecords = activeRecords,
+                        downloadsEnabled = downloadsEnabled,
+                        hasActive = hasActive,
+                        onRetryCatalog = viewModel::loadCatalog,
+                        onRecordClick = { record ->
                             selectedRecordId = record.id
                             viewModel.focus(record.id)
                         },
-                        onUseIso = if (record.isReady) {
-                            {
-                                viewModel.useIso(record.id)
-                                onBack()
-                            }
-                        } else {
-                            null
+                        onUseRecord = { record ->
+                            viewModel.useIso(record.id)
+                            onBack()
                         },
-                        onDelete = if (record.isReady) {
-                            { viewModel.delete(record.id) }
-                        } else {
-                            null
+                        onDeleteRecord = { record -> viewModel.delete(record.id) },
+                        onOpenDistribution = { distribution ->
+                            if (backStack.lastOrNull() == DownloadCatalogKey) {
+                                backStack.add(DistributionKey(distribution.id))
+                            }
                         }
+                    )
+                }
+                entry<DistributionKey> { key ->
+                    DownloadDistributionContent(
+                        distribution = catalog.distributions.firstOrNull {
+                            it.id == key.distributionId
+                        },
+                        catalogLoading = catalog.loading,
+                        catalogFailed = catalog.failed,
+                        activeRecords = activeRecords,
+                        downloadsEnabled = downloadsEnabled,
+                        hasActive = hasActive,
+                        startingEntryId = startingEntryId,
+                        onRetryCatalog = viewModel::loadCatalog,
+                        onRecordClick = { record ->
+                            selectedRecordId = record.id
+                            viewModel.focus(record.id)
+                        },
+                        onUseRecord = { record ->
+                            viewModel.useIso(record.id)
+                            onBack()
+                        },
+                        onDeleteRecord = { record -> viewModel.delete(record.id) },
+                        onDownload = onRequestDestination
                     )
                 }
             }
-
-            if (selectedDistribution == null) {
-                item {
-                    Text(
-                        text = stringResource(R.string.download_catalog_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-
-                if (downloadsEnabled && hasActive) {
-                    item {
-                        Text(
-                            text = stringResource(R.string.download_active_note),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                when {
-                    catalog.loading -> {
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(24.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                                Spacer(Modifier.size(12.dp))
-                                Text(stringResource(R.string.download_catalog_loading))
-                            }
-                        }
-                    }
-
-                    catalog.failed -> {
-                        item {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.download_catalog_error),
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Button(onClick = viewModel::loadCatalog) {
-                                    Text(stringResource(R.string.download_retry))
-                                }
-                            }
-                        }
-                    }
-
-                    catalog.distributions.isEmpty() -> {
-                        item {
-                            Text(
-                                text = stringResource(R.string.download_catalog_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    else -> {
-                        catalog.categories.forEach { category ->
-                            val distributions = catalog.distributions.filter {
-                                it.categoryId == category.id
-                            }
-                            if (distributions.isNotEmpty()) {
-                                item(key = "category-${category.id}") {
-                                    CategoryHeader(category)
-                                }
-                                items(distributions, key = { "distribution-${it.id}" }) { distro ->
-                                    DistributionCard(
-                                        distribution = distro,
-                                        onOpen = { selectedDistributionId = distro.id }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                item {
-                    DistributionHeader(distribution = selectedDistribution)
-                }
-                if (downloadsEnabled && hasActive) {
-                    item {
-                        Text(
-                            text = stringResource(R.string.download_active_note),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                item {
-                    Text(
-                        text = stringResource(R.string.download_variants_title),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
-                items(selectedDistribution.variants, key = { it.id }) { entry ->
-                    LinuxIsoCard(
-                        entry = entry,
-                        enabled = downloadsEnabled && !hasActive &&
-                            startingEntryId == null,
-                        starting = startingEntryId == entry.id,
-                        onDownload = { onRequestDestination(entry) }
-                    )
-                }
-            }
-
-            item {
-                Spacer(Modifier.height(24.dp))
-            }
-        }
+        )
     }
 
     if (selectedRecord != null) {
@@ -399,6 +271,305 @@ fun DownloadScreen(
                 onBack()
             }
         )
+    }
+}
+
+@Serializable
+private sealed interface DownloadNavKey : NavKey
+
+@Serializable
+private data object DownloadCatalogKey : DownloadNavKey
+
+@Serializable
+private data class DistributionKey(val distributionId: String) : DownloadNavKey
+
+@Composable
+private fun rememberDownloadBackStack(): NavBackStack<DownloadNavKey> {
+    // Typed, serializable back stack following Navigation 3's save-state pattern.
+    return rememberSerializable(serializer = NavBackStackSerializer<DownloadNavKey>()) {
+        NavBackStack<DownloadNavKey>(DownloadCatalogKey)
+    }
+}
+
+@Composable
+private fun DownloadCatalogContent(
+    catalog: DownloadCatalogUiState,
+    activeRecords: List<DownloadRecord>,
+    downloadsEnabled: Boolean,
+    hasActive: Boolean,
+    onRetryCatalog: () -> Unit,
+    onRecordClick: (DownloadRecord) -> Unit,
+    onUseRecord: (DownloadRecord) -> Unit,
+    onDeleteRecord: (DownloadRecord) -> Unit,
+    onOpenDistribution: (LinuxDistribution) -> Unit
+) {
+    val listState = rememberLazyListState()
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Text(
+                text = stringResource(R.string.download_linux_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+        item {
+            Text(
+                text = stringResource(R.string.download_verified_note),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+        }
+
+        if (!downloadsEnabled) {
+            item { DownloadsDisabledCard() }
+        }
+
+        activeDownloadsSection(
+            activeRecords = activeRecords,
+            onRecordClick = onRecordClick,
+            onUseRecord = onUseRecord,
+            onDeleteRecord = onDeleteRecord
+        )
+
+        item {
+            Text(
+                text = stringResource(R.string.download_catalog_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+
+        if (downloadsEnabled && hasActive) {
+            item { ActiveDownloadNote() }
+        }
+
+        when {
+            catalog.loading -> {
+                item { CatalogLoadingRow() }
+            }
+
+            catalog.failed -> {
+                item { CatalogError(onRetry = onRetryCatalog) }
+            }
+
+            catalog.distributions.isEmpty() -> {
+                item {
+                    Text(
+                        text = stringResource(R.string.download_catalog_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            else -> {
+                catalog.categories.forEach { category ->
+                    val distributions = catalog.distributions.filter {
+                        it.categoryId == category.id
+                    }
+                    if (distributions.isNotEmpty()) {
+                        item(key = "category-${category.id}") {
+                            CategoryHeader(category)
+                        }
+                        items(distributions, key = { "distribution-${it.id}" }) { distro ->
+                            DistributionCard(
+                                distribution = distro,
+                                onOpen = { onOpenDistribution(distro) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun DownloadDistributionContent(
+    distribution: LinuxDistribution?,
+    catalogLoading: Boolean,
+    catalogFailed: Boolean,
+    activeRecords: List<DownloadRecord>,
+    downloadsEnabled: Boolean,
+    hasActive: Boolean,
+    startingEntryId: String?,
+    onRetryCatalog: () -> Unit,
+    onRecordClick: (DownloadRecord) -> Unit,
+    onUseRecord: (DownloadRecord) -> Unit,
+    onDeleteRecord: (DownloadRecord) -> Unit,
+    onDownload: (LinuxIsoEntry) -> Unit
+) {
+    val listState = rememberLazyListState()
+    LazyColumn(
+        state = listState,
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        if (!downloadsEnabled) {
+            item { DownloadsDisabledCard() }
+        }
+
+        activeDownloadsSection(
+            activeRecords = activeRecords,
+            onRecordClick = onRecordClick,
+            onUseRecord = onUseRecord,
+            onDeleteRecord = onDeleteRecord
+        )
+
+        when {
+            distribution != null -> {
+                item {
+                    DistributionHeader(distribution = distribution)
+                }
+                if (downloadsEnabled && hasActive) {
+                    item { ActiveDownloadNote() }
+                }
+                item {
+                    Text(
+                        text = stringResource(R.string.download_variants_title),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                items(distribution.variants, key = { it.id }) { entry ->
+                    LinuxIsoCard(
+                        entry = entry,
+                        enabled = downloadsEnabled && !hasActive &&
+                            startingEntryId == null,
+                        starting = startingEntryId == entry.id,
+                        onDownload = { onDownload(entry) }
+                    )
+                }
+            }
+
+            catalogLoading -> {
+                item { CatalogLoadingRow() }
+            }
+
+            catalogFailed -> {
+                item { CatalogError(onRetry = onRetryCatalog) }
+            }
+
+            else -> {
+                item {
+                    Text(
+                        text = stringResource(R.string.download_catalog_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        item {
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+private fun LazyListScope.activeDownloadsSection(
+    activeRecords: List<DownloadRecord>,
+    onRecordClick: (DownloadRecord) -> Unit,
+    onUseRecord: (DownloadRecord) -> Unit,
+    onDeleteRecord: (DownloadRecord) -> Unit
+) {
+    if (activeRecords.isEmpty()) return
+
+    item {
+        Text(
+            text = stringResource(R.string.download_active_section),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+    items(activeRecords, key = { it.id }) { record ->
+        DownloadStatusCard(
+            record = record,
+            onClick = { onRecordClick(record) },
+            onUseIso = if (record.isReady) {
+                { onUseRecord(record) }
+            } else {
+                null
+            },
+            onDelete = if (record.isReady) {
+                { onDeleteRecord(record) }
+            } else {
+                null
+            }
+        )
+    }
+}
+
+@Composable
+private fun DownloadsDisabledCard() {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        )
+    ) {
+        Text(
+            text = stringResource(R.string.download_disabled_flashing),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onTertiaryContainer,
+            modifier = Modifier.padding(12.dp)
+        )
+    }
+}
+
+@Composable
+private fun ActiveDownloadNote() {
+    Text(
+        text = stringResource(R.string.download_active_note),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+@Composable
+private fun CatalogLoadingRow() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+        Spacer(Modifier.size(12.dp))
+        Text(stringResource(R.string.download_catalog_loading))
+    }
+}
+
+@Composable
+private fun CatalogError(onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.download_catalog_error),
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Button(onClick = onRetry) {
+            Text(stringResource(R.string.download_retry))
+        }
     }
 }
 

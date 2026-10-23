@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -49,7 +50,7 @@ fun MainScreen(
     var showLogViewer by remember { mutableStateOf(false) }
     var showConfirmDialog by remember { mutableStateOf(false) }
     var showSourceSheet by remember { mutableStateOf(false) }
-    var showDownloadScreen by remember { mutableStateOf(false) }
+    var showDownloadScreen by rememberSaveable { mutableStateOf(false) }
     var downloadSheetId by remember { mutableStateOf<String?>(null) }
 
     val isFlashingNow = state is FlashState.Flashing ||
