@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   free-space clamping, rollback on failure, and a retry action for partial success.
 - **Persistence UI**: Toggle, activation badge, size chips, confirmation details, staged
   progress, and partial-success/retry sheet. New strings are in `strings.xml`.
+- **Linux in-app ISO downloads**: Browse official distro ISOs, download them via the SAF
+  Safety-First picker, pause/resume/cancel ongoing transfers, verify SHA-256 before use,
+  and hand verified ISOs into the existing flash flow. No storage permission is required.
+- **Linux ISO catalog**: 20 distributions in a schema-v2 catalog with host allowlists,
+  checksum formats, pinned hashes, and persistence-capability metadata. Catalog maintenance
+  is documented in `docs/features/iso-catalog.md` and `docs/third-party/linux-iso-sources.md`.
 - **New Rust crates**: `hyntix-storage` (block devices), `hyntix-partition` (append-only
   MBR/GPT editing with journaled rollback), and `hyntix-persistence` (ISO probe, ext2,
   boot activation, plan/apply/verify). See `docs/features/persistence.md`.
