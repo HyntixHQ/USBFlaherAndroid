@@ -328,7 +328,12 @@ class DownloadService : Service() {
     }
 
     private fun pauseDownload(id: String) {
-        val existing = store.find(id) ?: return
+        val existing = store.find(id) ?: run {
+            // A stale notification action must not leave a background service
+            // running after its record has already been deleted.
+            if (activeJob?.isActive != true && !waitingForNetwork) finishActive()
+            return
+        }
         if (existing.status == DownloadStatus.COMPLETED) return
         // A resume can be queued while the previous (paused) engine call unwinds.
         // A new pause must cancel that restart.
