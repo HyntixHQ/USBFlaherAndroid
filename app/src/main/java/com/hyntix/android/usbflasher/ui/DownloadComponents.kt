@@ -46,6 +46,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
@@ -187,18 +188,21 @@ fun DownloadStatusCard(
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
                         text = bytesText,
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
                     )
                     if (speedText != null) {
                         Text(
                             text = speedText,
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
@@ -278,9 +282,14 @@ fun DownloadProgressSheet(
         DownloadFormatters.bytes(context, record.bytesDownloaded),
         DownloadFormatters.bytes(context, record.totalBytes)
     )
-    val speedText = if (record.speedBytesPerSecond > 0) {
-        DownloadFormatters.speed(context, record.speedBytesPerSecond) + " · " +
-            stringResource(R.string.download_eta, DownloadFormatters.eta(context, record.etaSeconds))
+    val hasSpeed = record.speedBytesPerSecond > 0
+    val speedText = if (hasSpeed) {
+        DownloadFormatters.speed(context, record.speedBytesPerSecond)
+    } else {
+        null
+    }
+    val etaText = if (hasSpeed) {
+        stringResource(R.string.download_eta, DownloadFormatters.eta(context, record.etaSeconds))
     } else {
         null
     }
@@ -365,13 +374,31 @@ fun DownloadProgressSheet(
                                 }
                         )
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(bytesText, style = MaterialTheme.typography.labelLarge)
-                        if (speedText != null) {
-                            Text(speedText, style = MaterialTheme.typography.labelMedium)
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                bytesText,
+                                style = MaterialTheme.typography.labelMedium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (speedText != null) {
+                                Text(
+                                    speedText,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    textAlign = TextAlign.End,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                        if (etaText != null) {
+                            Text(
+                                etaText,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }

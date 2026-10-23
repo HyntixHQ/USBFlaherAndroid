@@ -400,26 +400,32 @@ fun FlashingSheet(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "${(clampedProgress * 100).toInt().coerceIn(0, 100)}%",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = progress.speedFormatted,
-                            style = MaterialTheme.typography.labelMedium
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "${(clampedProgress * 100).toInt().coerceIn(0, 100)}%",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = progress.speedFormatted,
+                                style = MaterialTheme.typography.labelMedium,
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                         Text(
                             text = if (progress.speedBytesPerSecond > 0) {
                                 stringResource(R.string.eta_prefix, progress.etaFormatted)
                             } else {
                                 stringResource(R.string.eta_pending)
                             },
-                            style = MaterialTheme.typography.labelMedium
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
