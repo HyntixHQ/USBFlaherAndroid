@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.hyntix.android.usbflasher.R
 import com.hyntix.android.usbflasher.data.FlashState
 import com.hyntix.android.usbflasher.data.UsbDeviceInfo
+import com.hyntix.android.usbflasher.download.DownloadFormatters
 import com.hyntix.android.usbflasher.download.DownloadStatus
 import com.hyntix.android.usbflasher.domain.UsbBackupService
 import com.hyntix.android.usbflasher.domain.UsbVerificationService
@@ -46,6 +47,9 @@ fun MainScreen(
     val selectedDevice by viewModel.selectedDeviceInfo.collectAsState()
     val verificationState by com.hyntix.android.usbflasher.domain.UsbOperationBus.verification.collectAsState()
     val backupState by com.hyntix.android.usbflasher.domain.UsbOperationBus.backup.collectAsState()
+    val isVerifyRunning = verificationState is com.hyntix.android.usbflasher.domain.UsbVerificationState.Running
+    val isBackupRunning = backupState is com.hyntix.android.usbflasher.domain.UsbBackupState.Running
+
     val downloadRecords by downloadViewModel.records.collectAsState()
     val downloadFocusId by downloadViewModel.focusRecordId.collectAsState()
     val downloadUiError by downloadViewModel.uiError.collectAsState()
@@ -184,6 +188,7 @@ fun MainScreen(
                 }
             }
         ) { padding ->
+            val context = androidx.compose.ui.platform.LocalContext.current
             Column(
                 modifier = Modifier
                     .padding(padding)
@@ -278,6 +283,7 @@ fun MainScreen(
                 // Image-free, device-level extras: verify and backup the USB.
                 val verifierDevice = selectedDevice
                 val context = androidx.compose.ui.platform.LocalContext.current
+                val opRunning = isVerifyRunning || isBackupRunning || isFlashingNow
                 if (verifierDevice != null && verifierDevice.hasPermission) {
                     val backupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
                         contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument()
@@ -300,6 +306,7 @@ fun MainScreen(
                     ) {
                         OutlinedButton(
                         onClick = {
+                            com.hyntix.android.usbflasher.domain.UsbOperationBus.setVerify(com.hyntix.android.usbflasher.domain.UsbVerificationState.Idle)
                             UsbVerificationService.start(
                                 context,
                                 verifierDevice.device.deviceName,
@@ -307,15 +314,16 @@ fun MainScreen(
                                 verifierDevice.capacityBytes
                             )
                         },
-                        enabled = !isFlashingNow
+                        enabled = !opRunning
                     ) {
                         Text("Verify USB")
                     }
                         OutlinedButton(
                         onClick = {
+                            com.hyntix.android.usbflasher.domain.UsbOperationBus.setBackup(com.hyntix.android.usbflasher.domain.UsbBackupState.Idle)
                             backupLauncher.launch("usb-backup.img")
                         },
-                        enabled = !isFlashingNow
+                        enabled = !opRunning
                     ) {
                         Text("Backup USB")
                     }
@@ -324,11 +332,18 @@ fun MainScreen(
                 // Show operation results (non-blocking status)
                 when (val vs = verificationState) {
                     is com.hyntix.android.usbflasher.domain.UsbVerificationState.Running -> {
-                        Text("Verifying: $${vs.bytesRead} / $${vs.totalBytes} bytes",
+                        Text("Verifying: ${DownloadFormatters.bytes(context, vs.bytesRead)} / ${DownloadFormatters.bytes(context, vs.totalBytes)}",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     is com.hyntix.android.usbflasher.domain.UsbVerificationState.Finished -> {
-                        Text("USB SHA-256: $${vs.actualSha256}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        val matched = vs.expectedSha256?.equals(vs.actualSha256, ignoreCase = true) ?: false
+                        val verdict = if (vs.expectedSha256 == null) "⚠️ No expected hash provided"
+                                     else if (matched) "✅ USB matches expected image"
+                                     else "❌ Mismatch detected"
+                        Text(verdict, style = MaterialTheme.typography.bodySmall,
+                            color = if (matched || vs.expectedSha256 == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error)
+                        Text("SHA-256: ${vs.actualSha256.take(12)}…", style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     is com.hyntix.android.usbflasher.domain.UsbVerificationState.Failed -> {
                         Text(vs.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
@@ -337,11 +352,11 @@ fun MainScreen(
                 }
                 when (val bs = backupState) {
                     is com.hyntix.android.usbflasher.domain.UsbBackupState.Running -> {
-                        Text("Backing up: $${bs.bytesRead} / $${bs.totalBytes} bytes",
+                        Text("Backing up: ${DownloadFormatters.bytes(context, bs.bytesRead)} / ${DownloadFormatters.bytes(context, bs.totalBytes)}",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     is com.hyntix.android.usbflasher.domain.UsbBackupState.Finished -> {
-                        Text("Backup complete: $${bs.writtenBytes} bytes written.",
+                        Text("Backup complete: ${DownloadFormatters.bytes(context, bs.writtenBytes)} written.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     }
                     is com.hyntix.android.usbflasher.domain.UsbBackupState.Failed -> {

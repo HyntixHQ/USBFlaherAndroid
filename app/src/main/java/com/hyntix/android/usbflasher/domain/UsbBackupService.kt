@@ -136,16 +136,18 @@ class UsbBackupService : Service() {
                         written += data.size
                         val percent = if (total > 0) ((written * 100) / total).toInt() else 0
                         UsbOperationBus.setBackup(UsbBackupState.Running(written, total))
-                        val nm = getSystemService(android.app.NotificationManager::class.java)
-                        val progressNotification = NotificationCompat.Builder(this@UsbBackupService, CHANNEL_ID)
-                            .setContentTitle("Backing up USB")
-                            .setContentText("Written $percent%")
-                            .setSmallIcon(android.R.drawable.ic_dialog_info)
-                            .setOngoing(true)
-                            .setProgress(100, percent, false)
-                            .addAction(0, "Cancel", cancelPending)
-                            .build()
-                        nm.notify(NOTIFY_ID, progressNotification)
+                        if (written % (256 * 1024 * 1024) < len || written == total) {
+                            val nm = getSystemService(android.app.NotificationManager::class.java)
+                            val progressNotification = NotificationCompat.Builder(this@UsbBackupService, CHANNEL_ID)
+                                .setContentTitle("Backing up USB")
+                                .setContentText("Written $percent%")
+                                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                                .setOngoing(true)
+                                .setProgress(100, percent, false)
+                                .addAction(0, "Cancel", cancelPending)
+                                .build()
+                            nm.notify(NOTIFY_ID, progressNotification)
+                        }
                     }
                 } finally {
                     output.close()

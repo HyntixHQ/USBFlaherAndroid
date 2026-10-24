@@ -134,16 +134,19 @@ class UsbVerificationService : Service() {
                     read += data.size
                     val percent = if (total > 0) ((read * 100) / total).toInt() else 0
                     UsbOperationBus.setVerify(UsbVerificationState.Running(read, total))
-                    val nm = getSystemService(android.app.NotificationManager::class.java)
-                    val progressNotification = NotificationCompat.Builder(this@UsbVerificationService, CHANNEL_ID)
-                        .setContentTitle("Verifying USB")
-                        .setContentText("Read $percent%")
-                        .setSmallIcon(android.R.drawable.ic_dialog_info)
-                        .setOngoing(true)
-                        .setProgress(100, percent, false)
-                        .addAction(0, getString(R.string.verify_cancel), cancelPending)
-                        .build()
-                    nm.notify(NOTIFY_ID, progressNotification)
+                    val shouldUpdateNotification = read % (256 * 1024 * 1024) < len || read == total
+                    if (shouldUpdateNotification) {
+                        val nm = getSystemService(android.app.NotificationManager::class.java)
+                        val progressNotification = NotificationCompat.Builder(this@UsbVerificationService, CHANNEL_ID)
+                            .setContentTitle("Verifying USB")
+                            .setContentText("Read $percent%")
+                            .setSmallIcon(android.R.drawable.ic_dialog_info)
+                            .setOngoing(true)
+                            .setProgress(100, percent, false)
+                            .addAction(0, getString(R.string.verify_cancel), cancelPending)
+                            .build()
+                        nm.notify(NOTIFY_ID, progressNotification)
+                    }
                 }
 
                 if (cancelRequested) {
