@@ -9,10 +9,10 @@ activityCompose = "1.13.0"
 splashscreen = "1.2.0"
 composeBom = "2026.09.00"
 navigation3 = "1.2.0"
-kotlinxSerialization = "1.9.0"
+kotlinxSerialization = "1.12.0"
 phosphor = "1.0.0"
-okhttp = "4.12.0"
-gson = "2.14.0"
+okhttp = "5.5.1"
+gson = "2.15.0"
 junit = "4.13.2"
 
 [libraries]

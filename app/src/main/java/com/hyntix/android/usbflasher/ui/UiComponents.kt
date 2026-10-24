@@ -414,19 +414,20 @@ fun FlashingSheet(
                             Text(
                                 text = progress.speedFormatted,
                                 style = MaterialTheme.typography.labelMedium,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = if (progress.speedBytesPerSecond > 0) {
+                                    stringResource(R.string.eta_prefix, progress.etaFormatted)
+                                } else {
+                                    stringResource(R.string.eta_pending)
+                                },
+                                style = MaterialTheme.typography.labelMedium,
                                 textAlign = TextAlign.End,
                                 modifier = Modifier.weight(1f)
                             )
                         }
-                        Text(
-                            text = if (progress.speedBytesPerSecond > 0) {
-                                stringResource(R.string.eta_prefix, progress.etaFormatted)
-                            } else {
-                                stringResource(R.string.eta_pending)
-                            },
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 }
 

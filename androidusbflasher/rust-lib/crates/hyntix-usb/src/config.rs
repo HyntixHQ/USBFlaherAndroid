@@ -23,14 +23,14 @@ pub const ASYNC_BUFFER_SIZE: usize = 32 * 1024 * 1024;
 /// Maximum transfer size for a single SCSI WRITE(10)/READ(10) command.
 /// 4MB is proven stable on this device. Larger sizes trigger CSW fallback
 /// retries that degrade throughput. Falls back dynamically on CSW failure.
-pub const SCSI_MAX_TRANSFER_SIZE: usize = 4 * 1024 * 1024;
+pub const SCSI_MAX_TRANSFER_SIZE: usize = 16 * 1024 * 1024;
 
 /// Minimum transfer size floor for SCSI adaptive fallback.
 pub const SCSI_MIN_TRANSFER_SIZE: usize = 512 * 1024;
 
 /// Initial chunk size per URB.
 /// AIMD halves on ENOMEM and additively recovers after 200 clean cycles.
-pub const INITIAL_URB_CHUNK_SIZE: usize = 256 * 1024;
+pub const INITIAL_URB_CHUNK_SIZE: usize = 4 * 1024 * 1024;
 
 /// Minimum URB chunk size (16KB).
 pub const MIN_URB_CHUNK_SIZE: usize = 16 * 1024;

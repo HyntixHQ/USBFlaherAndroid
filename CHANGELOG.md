@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.4] - Unreleased
+## [1.0.4] - 2026-10-24
 
 ### Added
 - **Splash Screen**: Native Android 12+ SplashScreen API with app logo. White logo on dark
@@ -28,10 +28,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New Rust crates**: `hyntix-storage` (block devices), `hyntix-partition` (append-only
   MBR/GPT editing with journaled rollback), and `hyntix-persistence` (ISO probe, ext2,
   boot activation, plan/apply/verify). See `docs/features/persistence.md`.
+- **USB Verification (read-only)**: Verify any USB drive against its source ISO SHA-256
+  without re-flashing. Reads entire drive, computes SHA-256, reports match/mismatch/unknown.
+- **Backup USB to Image**: Create full drive image backup to SAF destination with SHA-256
+  verification and progress notifications.
+- **Native read performance**: 4 MB initial chunk size, 16 MB max SCSI transfer for faster
+  verification and backup.
 
 ### Changed
-- App icons updated.
-- License changed from AGPL-3.0 to GPL-3.0 (more appropriate for a client-side Android app).
+- **App icons updated**.
+- **License changed from AGPL-3.0 to GPL-3.0** (more appropriate for a client-side Android app).
+- **Removed manual theme switcher**: App now follows system theme automatically (no gear icon, no settings dialog).
+- **Removed manual theme switcher UI**: Gear icon removed from app bar, SettingsDialog removed.
+- **ETAs moved to center row**: ETA now displays in the same row as progress % and speed in FlashingSheet.
 
 ### Removed
 - **Rust dead code**: ~440 lines removed including `UsbMassStorageWriter` (213 lines), `UsbBackend::Callbacks`,
@@ -47,14 +56,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (covered by `androidusbflasher/consumer-rules.pro`).
 - **Dead code from Kotlin**: Removed `requestPermission()`, `hasPermission()`, `clearCache()` from `FlashRepository`;
   replaced `println()` calls with `android.util.Log` in `AndroidUsbFlasher.kt`.
+- **Removed manual theme switcher**: Gear icon removed from app bar, SettingsDialog and ThemePreference classes removed.
+- **Theme now follows system**: App automatically follows system light/dark theme.
 
 ### Internal
 - `androidx.core:core-splashscreen:1.2.0` dependency added.
 - `android.hardware.usb.UsbEndpoint` and `UsbInterface` imports added to `FlashRepository`.
 - `usbFilter` declaration merged with `init` block in `FlashRepository`.
-- UniFFI bridge exports `probePersistence` and `applyPersistence`; `UsbFlasherNative.kt` regenerated.
+- UniFFI bridge exports `probePersistence`, `applyPersistence`, and `readDeviceBytes`; `UsbFlasherNative.kt` regenerated.
 - Persistence runs as a second native call on the same open USB descriptor, so `flash_raw` and
   the Windows flash path are unchanged when persistence is off.
+- Native chunk size increased: `INITIAL_URB_CHUNK_SIZE` 256 KB → 4 MB, `SCSI_MAX_TRANSFER_SIZE` 4 MB → 16 MB.
+- Theme now follows system automatically (no manual override), ThemePreference and SettingsDialog removed.
 
 ## [1.0.3] - 2026-07-13
 

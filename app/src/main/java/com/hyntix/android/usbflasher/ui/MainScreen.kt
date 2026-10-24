@@ -28,7 +28,6 @@ import com.adamglin.phosphoricons.Regular
 import com.adamglin.phosphoricons.regular.Disc
 import com.adamglin.phosphoricons.regular.Usb
 import com.adamglin.phosphoricons.regular.Terminal
-import com.adamglin.phosphoricons.regular.Gear
 import com.adamglin.phosphoricons.regular.DownloadSimple
 import com.adamglin.phosphoricons.regular.FileArrowDown
 
@@ -57,7 +56,6 @@ fun MainScreen(
 
     var showDevicePicker by remember { mutableStateOf(false) }
     var showLogViewer by remember { mutableStateOf(false) }
-    var showSettings by remember { mutableStateOf(false) }
     var showConfirmDialog by remember { mutableStateOf(false) }
     var showSourceSheet by remember { mutableStateOf(false) }
     var showDownloadScreen by rememberSaveable { mutableStateOf(false) }
@@ -90,12 +88,7 @@ fun MainScreen(
         LogViewerScreen(onBack = { showLogViewer = false })
         return
     }
-    if (showSettings) {
-        SettingsDialog(
-            onDismiss = { showSettings = false },
-            onThemeChanged = { }
-        )
-    }
+
 
     // Show the download catalog as a full-screen overlay
     if (showDownloadScreen) {
@@ -138,14 +131,7 @@ fun MainScreen(
                             ) 
                         },
                     actions = {
-                        IconButton(onClick = { showSettings = true }) {
-                            Icon(
-                                imageVector = PhosphorIcons.Regular.Gear,
-                                contentDescription = stringResource(R.string.settings_cd_open),
-                                tint = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
-                        IconButton(onClick = { showLogViewer = true }) {
+IconButton(onClick = { showLogViewer = true }) {
                             Icon(
                                 imageVector = PhosphorIcons.Regular.Terminal,
                                 contentDescription = stringResource(R.string.cd_view_logs),

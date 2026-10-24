@@ -8,7 +8,6 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
-import com.hyntix.android.usbflasher.util.ThemePreference
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -24,17 +23,16 @@ private val LightColorScheme = lightColorScheme(
 
 @Composable
 fun USBFlasherTheme(
-    darkThemeOverride: Boolean? = null,  // null = follow system / preference
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val darkTheme = darkThemeOverride ?: isSystemInDarkTheme()
+    val darkTheme = isSystemInDarkTheme()
     val colorScheme = when {
         dynamicColor -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (isSystemInDarkTheme()) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> DarkColorScheme
+        isSystemInDarkTheme() -> DarkColorScheme
         else -> LightColorScheme
     }
 
