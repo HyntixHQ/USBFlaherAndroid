@@ -114,7 +114,7 @@ impl AsyncUsbWriter {
                             let offset_in_first_block = (write_job.position % block_size) as usize;
 
                             let end_pos = write_job.position + write_job.buffer.len() as u64;
-                            let end_lba = (end_pos + block_size - 1) / block_size;
+                            let end_lba = end_pos.div_ceil(block_size);
                             let total_blocks = (end_lba - start_lba) as usize;
                             let total_bytes_aligned = total_blocks * block_size as usize;
 
@@ -131,13 +131,12 @@ impl AsyncUsbWriter {
                                     .copy_from_slice(&write_job.buffer);
 
                                 // 3. Write back
-                                let result = storage.write_blocks_with_progress(
+                                storage.write_blocks_with_progress(
                                     start_lba,
                                     &full_buffer,
                                     &physical_pos,
                                     write_job.position,
-                                );
-                                result
+                                )
                             }
                         }
                     };
@@ -172,10 +171,7 @@ impl AsyncUsbWriter {
     fn check_error(&self) -> std::io::Result<()> {
         let mut err_guard = self.last_error.lock().unwrap();
         if let Some(e) = err_guard.take() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ));
+            return Err(std::io::Error::other(e.to_string()));
         }
         Ok(())
     }
@@ -193,10 +189,11 @@ impl AsyncUsbWriter {
 
     pub fn wait_idle(&mut self) -> Result<()> {
         let _ = self.flush();
-        if let Some(ref handle) = self.worker_handle {
+        if let Some(handle) = self.worker_handle.take() {
             if handle.is_finished() {
-                let handle = self.worker_handle.take().unwrap();
                 let _ = handle.join();
+            } else {
+                self.worker_handle = Some(handle);
             }
         }
         let mut err_guard = self.last_error.lock().unwrap();
@@ -213,7 +210,7 @@ impl AsyncUsbWriter {
             .try_recv()
             .or_else(|_| self.buffer_rx.recv())
             .map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, "Buffer pool channel closed")
+                std::io::Error::other("Buffer pool channel closed")
             })
     }
 
@@ -223,10 +220,7 @@ impl AsyncUsbWriter {
         match self.buffer_rx.try_recv() {
             Ok(buf) => Ok(Some(buf)),
             Err(crossbeam_channel::TryRecvError::Empty) => Ok(None),
-            Err(crossbeam_channel::TryRecvError::Disconnected) => Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Buffer pool channel closed",
-            )),
+            Err(crossbeam_channel::TryRecvError::Disconnected) => Err(std::io::Error::other("Buffer pool channel closed")),
         }
     }
 
@@ -244,8 +238,8 @@ impl AsyncUsbWriter {
         // Fast path: large, aligned write with no pending data — send buffer directly
         if self.pending_buffer.is_empty()
             && len >= BUFFER_SIZE / 2
-            && self.current_pos % 512 == 0
-            && len % 512 == 0
+            && self.current_pos.is_multiple_of(512)
+            && len.is_multiple_of(512)
         {
             let pos = self.current_pos;
             let job = WriteJob {
@@ -256,7 +250,7 @@ impl AsyncUsbWriter {
                 .as_ref()
                 .unwrap()
                 .send(Job::Write(job))
-                .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Async worker died"))?;
+                .map_err(|_| std::io::Error::other("Async worker died"))?;
             self.current_pos += len as u64;
             self.pending_start_pos = self.current_pos;
             return Ok(len);
@@ -272,7 +266,7 @@ impl AsyncUsbWriter {
         }
 
         let mut next_buffer = self.buffer_rx.recv().map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::Other, "Buffer pool channel closed")
+            std::io::Error::other("Buffer pool channel closed")
         })?;
         next_buffer.clear();
 
@@ -290,7 +284,7 @@ impl AsyncUsbWriter {
             .as_ref()
             .unwrap()
             .send(Job::Write(job))
-            .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Async worker died"))?;
+            .map_err(|_| std::io::Error::other("Async worker died"))?;
 
         Ok(())
     }
@@ -305,7 +299,7 @@ impl AsyncUsbWriter {
         let (done_tx, done_rx) = crossbeam_channel::bounded(1);
         if let Some(ref tx) = self.job_tx {
             tx.send(Job::Sync(done_tx)).map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, "Async worker died during flush")
+                std::io::Error::other("Async worker died during flush")
             })?;
 
             // Wait with a small timeout to report continuous progress
@@ -321,10 +315,7 @@ impl AsyncUsbWriter {
                     }
                     Err(crossbeam_channel::RecvTimeoutError::Disconnected) => {
                         error!("Async worker died unexpectedly");
-                        return Err(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "Async worker died",
-                        ));
+                        return Err(std::io::Error::other("Async worker died"));
                     }
                 }
             }
@@ -341,8 +332,8 @@ impl Write for AsyncUsbWriter {
         // If data is large and aligned, and we have no pending data, take the fast path
         if self.pending_buffer.is_empty()
             && buf.len() >= BUFFER_SIZE
-            && self.current_pos % 512 == 0
-            && buf.len() % 512 == 0
+            && self.current_pos.is_multiple_of(512)
+            && buf.len().is_multiple_of(512)
         {
             // Acquire a buffer from the pool. Try non-blocking first to keep disk I/O at max speed.
             let mut job_buffer = self
@@ -350,7 +341,7 @@ impl Write for AsyncUsbWriter {
                 .try_recv()
                 .or_else(|_| self.buffer_rx.recv())
                 .map_err(|_| {
-                    std::io::Error::new(std::io::ErrorKind::Other, "Buffer pool channel closed")
+                    std::io::Error::other("Buffer pool channel closed")
                 })?;
 
             job_buffer.clear();
@@ -365,7 +356,7 @@ impl Write for AsyncUsbWriter {
                 .as_ref()
                 .unwrap()
                 .send(Job::Write(job))
-                .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Async worker died"))?;
+                .map_err(|_| std::io::Error::other("Async worker died"))?;
 
             self.current_pos += buf.len() as u64;
             self.pending_start_pos = self.current_pos;
@@ -408,7 +399,7 @@ impl Read for AsyncUsbWriter {
         let offset = (self.current_pos % block_size) as usize;
 
         // Fast path: Zero-allocation aligned read (used during verification)
-        if offset == 0 && bytes_to_read % block_size as usize == 0 {
+        if offset == 0 && bytes_to_read.is_multiple_of(block_size as usize) {
             return storage
                 .read_blocks(start_lba, buf)
                 .map(|_| {
@@ -416,12 +407,12 @@ impl Read for AsyncUsbWriter {
                     self.pending_start_pos = self.current_pos; // Reset pending start
                     bytes_to_read
                 })
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()));
+                .map_err(|e| std::io::Error::other(e.to_string()));
         }
 
         // Slow path: Unaligned read
         let total_bytes_needed = offset + bytes_to_read;
-        let total_blocks = (total_bytes_needed + block_size as usize - 1) / block_size as usize;
+        let total_blocks = total_bytes_needed.div_ceil(block_size as usize);
 
         let mut temp_buf = vec![0u8; total_blocks * block_size as usize];
         storage
@@ -432,7 +423,7 @@ impl Read for AsyncUsbWriter {
                 self.pending_start_pos = self.current_pos; // Reset pending start
                 bytes_to_read
             })
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            .map_err(|e| std::io::Error::other(e.to_string()))
     }
 }
 
@@ -484,6 +475,6 @@ impl crate::PhysicalProgress for AsyncUsbWriter {
         Some(std::sync::Arc::clone(&self.physical_pos))
     }
     fn drain_with_progress(&mut self, progress: &mut dyn FnMut(u64)) -> std::io::Result<()> {
-        self.flush_with_progress(|p| progress(p))
+        self.flush_with_progress(progress)
     }
 }

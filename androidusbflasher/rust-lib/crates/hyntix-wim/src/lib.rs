@@ -1,7 +1,7 @@
 use std::io::{self, Read, Seek, SeekFrom};
 use thiserror::Error;
 
-pub const WIM_HEADER_SIZE: usize = 208;
+pub const WIM_HEADER_SIZE: u64 = 208;
 pub const WIM_MAGIC: &[u8; 8] = b"MSWIM\0\0\0";
 
 #[derive(Error, Debug)]
@@ -191,7 +191,7 @@ impl SwmPart {
     }
 
     fn write_res_hdr(buf: &mut [u8], res: &WimResHdr) {
-        let size_low = (res.size & 0xFFFFFFFFFFFFFF) as u64;
+        let size_low = res.size & 0xFFFFFFFFFFFFFF;
         buf[0..7].copy_from_slice(&size_low.to_le_bytes()[0..7]);
         buf[7] = res.flags;
         buf[8..16].copy_from_slice(&res.offset.to_le_bytes());
@@ -224,7 +224,7 @@ impl SwmSplitter {
     pub fn split(&self, max_part_size: u64) -> Vec<SwmPart> {
         let mut parts_blobs = Vec::new();
         let mut current_part_blobs = Vec::new();
-        let mut current_part_size: u64 = WIM_HEADER_SIZE as u64;
+        let mut current_part_size: u64 = WIM_HEADER_SIZE;
 
         // Group 1: Metadata resources always go into Part 1
         for entry in &self.entries {
@@ -242,7 +242,7 @@ impl SwmSplitter {
                 if current_part_size + entry.res_hdr.size > max_part_size && !current_part_blobs.is_empty() {
                     parts_blobs.push(current_part_blobs);
                     current_part_blobs = Vec::new();
-                    current_part_size = WIM_HEADER_SIZE as u64;
+                    current_part_size = WIM_HEADER_SIZE;
                 }
                 current_part_size += entry.res_hdr.size;
                 current_part_blobs.push(entry.clone());
@@ -256,13 +256,13 @@ impl SwmSplitter {
         let mut master_lookup_table = Vec::new();
         for (i, blobs) in parts_blobs.iter().enumerate() {
             let part_num = (i + 1) as u16;
-            let mut offset = WIM_HEADER_SIZE as u64;
+            let mut offset = WIM_HEADER_SIZE;
             for blob in blobs {
                 let mut master_entry = blob.clone();
                 master_entry.part_number = part_num;
                 master_entry.res_hdr.offset = offset;
                 master_lookup_table.push(master_entry);
-                offset += blob.res_hdr.size;
+                offset = offset.saturating_add(blob.res_hdr.size);
             }
         }
 

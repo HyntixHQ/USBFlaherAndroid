@@ -19,12 +19,15 @@ import com.hyntix.android.usbflasher.R
 import com.hyntix.android.usbflasher.data.FlashState
 import com.hyntix.android.usbflasher.data.UsbDeviceInfo
 import com.hyntix.android.usbflasher.download.DownloadStatus
+import com.hyntix.android.usbflasher.domain.UsbBackupService
+import com.hyntix.android.usbflasher.domain.UsbVerificationService
 import com.hyntix.android.usbflasher.download.LinuxIsoEntry
 import com.adamglin.PhosphorIcons
 import com.adamglin.phosphoricons.Regular
 import com.adamglin.phosphoricons.regular.Disc
 import com.adamglin.phosphoricons.regular.Usb
 import com.adamglin.phosphoricons.regular.Terminal
+import com.adamglin.phosphoricons.regular.Gear
 import com.adamglin.phosphoricons.regular.DownloadSimple
 import com.adamglin.phosphoricons.regular.FileArrowDown
 
@@ -41,6 +44,8 @@ fun MainScreen(
     val availableDevices by viewModel.availableDevices.collectAsState()
     val selectedImage by viewModel.selectedImageInfo.collectAsState()
     val selectedDevice by viewModel.selectedDeviceInfo.collectAsState()
+    val verificationState by com.hyntix.android.usbflasher.domain.UsbOperationBus.verification.collectAsState()
+    val backupState by com.hyntix.android.usbflasher.domain.UsbOperationBus.backup.collectAsState()
     val downloadRecords by downloadViewModel.records.collectAsState()
     val downloadFocusId by downloadViewModel.focusRecordId.collectAsState()
     val downloadUiError by downloadViewModel.uiError.collectAsState()
@@ -48,6 +53,7 @@ fun MainScreen(
 
     var showDevicePicker by remember { mutableStateOf(false) }
     var showLogViewer by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
     var showConfirmDialog by remember { mutableStateOf(false) }
     var showSourceSheet by remember { mutableStateOf(false) }
     var showDownloadScreen by rememberSaveable { mutableStateOf(false) }
@@ -79,6 +85,12 @@ fun MainScreen(
     if (showLogViewer) {
         LogViewerScreen(onBack = { showLogViewer = false })
         return
+    }
+    if (showSettings) {
+        SettingsDialog(
+            onDismiss = { showSettings = false },
+            onThemeChanged = { }
+        )
     }
 
     // Show the download catalog as a full-screen overlay
@@ -122,6 +134,13 @@ fun MainScreen(
                             ) 
                         },
                     actions = {
+                        IconButton(onClick = { showSettings = true }) {
+                            Icon(
+                                imageVector = PhosphorIcons.Regular.Gear,
+                                contentDescription = stringResource(R.string.settings_cd_open),
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
                         IconButton(onClick = { showLogViewer = true }) {
                             Icon(
                                 imageVector = PhosphorIcons.Regular.Terminal,
@@ -254,6 +273,81 @@ fun MainScreen(
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 8.dp)
                     )
+                }
+
+                // Image-free, device-level extras: verify and backup the USB.
+                val verifierDevice = selectedDevice
+                val context = androidx.compose.ui.platform.LocalContext.current
+                if (verifierDevice != null && verifierDevice.hasPermission) {
+                    val backupLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                        contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument()
+                    ) { uri ->
+                        if (uri != null) {
+                            com.hyntix.android.usbflasher.download.DownloadDestination.takePersistablePermission(
+                                context,
+                                uri
+                            )
+                            UsbBackupService.start(
+                                context,
+                                verifierDevice.device.deviceName,
+                                uri.toString(),
+                                verifierDevice.capacityBytes
+                            )
+                        }
+                    }
+                    androidx.compose.foundation.layout.Row(
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedButton(
+                        onClick = {
+                            UsbVerificationService.start(
+                                context,
+                                verifierDevice.device.deviceName,
+                                null,
+                                verifierDevice.capacityBytes
+                            )
+                        },
+                        enabled = !isFlashingNow
+                    ) {
+                        Text("Verify USB")
+                    }
+                        OutlinedButton(
+                        onClick = {
+                            backupLauncher.launch("usb-backup.img")
+                        },
+                        enabled = !isFlashingNow
+                    ) {
+                        Text("Backup USB")
+                    }
+                    }
+                }
+                // Show operation results (non-blocking status)
+                when (val vs = verificationState) {
+                    is com.hyntix.android.usbflasher.domain.UsbVerificationState.Running -> {
+                        Text("Verifying: $${vs.bytesRead} / $${vs.totalBytes} bytes",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    is com.hyntix.android.usbflasher.domain.UsbVerificationState.Finished -> {
+                        Text("USB SHA-256: $${vs.actualSha256}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                    is com.hyntix.android.usbflasher.domain.UsbVerificationState.Failed -> {
+                        Text(vs.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
+                    else -> {}
+                }
+                when (val bs = backupState) {
+                    is com.hyntix.android.usbflasher.domain.UsbBackupState.Running -> {
+                        Text("Backing up: $${bs.bytesRead} / $${bs.totalBytes} bytes",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    is com.hyntix.android.usbflasher.domain.UsbBackupState.Finished -> {
+                        Text("Backup complete: $${bs.writtenBytes} bytes written.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                    is com.hyntix.android.usbflasher.domain.UsbBackupState.Failed -> {
+                        Text(bs.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                    }
+                    else -> {}
                 }
             }
         }

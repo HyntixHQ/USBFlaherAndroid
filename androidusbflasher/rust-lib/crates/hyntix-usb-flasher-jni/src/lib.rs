@@ -416,6 +416,41 @@ impl UsbFlasher {
         Ok(cap)
     }
 
+    pub fn read_device_bytes(
+        &self,
+        usb_fd: i32,
+        interface: u8,
+        in_ep: u8,
+        out_ep: u8,
+        start_byte: u64,
+        length: u64,
+    ) -> Result<Vec<u8>, FlasherError> {
+        info!(
+            "UsbFlasherJni: read_device_bytes(usb_fd={}, iface={}, in={}, out={}, start={}, length={})",
+            usb_fd, interface, in_ep, out_ep, start_byte, length
+        );
+        let backend = NativeUsbBackend::new(usb_fd, interface, in_ep, out_ep);
+        let mut storage =
+            UsbMassStorage::new_native(backend, 0, hyntix_usb::config::SCSI_MAX_TRANSFER_SIZE)
+                .map_err(FlasherError::from)?;
+
+        let block_size = storage.block_size() as u64;
+        if block_size == 0 || length == 0 {
+            return Ok(Vec::new());
+        }
+        let start_block = start_byte / block_size;
+        let byte_offset = (start_byte % block_size) as usize;
+        let total_bytes = byte_offset + length as usize;
+        let blocks = total_bytes.div_ceil(block_size as usize) as u64;
+        let mut buffer = vec![0u8; (blocks * block_size) as usize];
+        storage.read_blocks(start_block, &mut buffer).map_err(FlasherError::from)?;
+        if byte_offset + length as usize > buffer.len() {
+            return Ok(buffer[byte_offset..].to_vec());
+        }
+        Ok(buffer[byte_offset..byte_offset + length as usize].to_vec())
+    }
+
+    #[allow(clippy::too_many_arguments)]
     pub fn flash_device(
         &self,
         image_fd: i32,

@@ -741,6 +741,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_usbflasher_checksum_method_usbflasher_probe_persistence(
     ): Int
+    external fun uniffi_usbflasher_checksum_method_usbflasher_read_device_bytes(
+    ): Int
     external fun uniffi_usbflasher_checksum_constructor_usbflasher_new(
     ): Int
     external fun uniffi_usbflasher_checksum_method_flashcallback_on_progress(
@@ -792,6 +794,8 @@ internal object UniffiLib {
     external fun uniffi_usbflasher_fn_method_usbflasher_is_windows_iso(`ptr`: Long,`fd`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
     external fun uniffi_usbflasher_fn_method_usbflasher_probe_persistence(`ptr`: Long,`imageFd`: Int,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_usbflasher_fn_method_usbflasher_read_device_bytes(`ptr`: Long,`usbFd`: Int,`interface`: Byte,`inEp`: Byte,`outEp`: Byte,`startByte`: Long,`length`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_usbflasher_fn_init_callback_vtable_flashcallback(`vtable`: UniffiVTableCallbackInterfaceFlashCallback,
     ): Unit
@@ -938,6 +942,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_usbflasher_checksum_method_usbflasher_probe_persistence() and 0xFFFF) != 22329) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_usbflasher_checksum_method_usbflasher_read_device_bytes() and 0xFFFF) != 15878) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_usbflasher_checksum_constructor_usbflasher_new() and 0xFFFF) != 38916) {
@@ -1316,6 +1323,25 @@ public object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
     }
 }
 
+/**
+ * @suppress
+ */
+public object FfiConverterByteArray: FfiConverterRustBuffer<ByteArray> {
+    override fun read(buf: ByteBuffer): ByteArray {
+        val len = buf.getInt()
+        val byteArr = ByteArray(len)
+        buf.get(byteArr)
+        return byteArr
+    }
+    override fun allocationSize(value: ByteArray): ULong {
+        return 4UL + value.size.toULong()
+    }
+    override fun write(value: ByteArray, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        buf.put(value)
+    }
+}
+
 
 // This template implements a class for working with a Rust struct via a handle
 // to the live Rust struct on the other side of the FFI.
@@ -1438,6 +1464,8 @@ public interface UsbFlasherInterface {
      * image is a supported ISO but has no persistence profile.
      */
     fun `probePersistence`(`imageFd`: kotlin.Int): PersistenceSupport?
+
+    fun `readDeviceBytes`(`usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte, `startByte`: kotlin.ULong, `length`: kotlin.ULong): kotlin.ByteArray
 
     companion object
 }
@@ -1690,6 +1718,26 @@ open class UsbFlasher: Disposable, AutoCloseable, UsbFlasherInterface
         it,
 
         FfiConverterInt.lower(`imageFd`),_status)
+}
+    }
+    )
+    }
+
+
+
+    @Throws(FlasherException::class)override fun `readDeviceBytes`(`usbFd`: kotlin.Int, `interface`: kotlin.UByte, `inEp`: kotlin.UByte, `outEp`: kotlin.UByte, `startByte`: kotlin.ULong, `length`: kotlin.ULong): kotlin.ByteArray {
+            return FfiConverterByteArray.lift(
+    callWithHandle {
+    uniffiRustCallWithError(FlasherException) { _status ->
+    UniffiLib.uniffi_usbflasher_fn_method_usbflasher_read_device_bytes(
+        it,
+
+        FfiConverterInt.lower(`usbFd`),
+        FfiConverterUByte.lower(`interface`),
+        FfiConverterUByte.lower(`inEp`),
+        FfiConverterUByte.lower(`outEp`),
+        FfiConverterULong.lower(`startByte`),
+        FfiConverterULong.lower(`length`),_status)
 }
     }
     )

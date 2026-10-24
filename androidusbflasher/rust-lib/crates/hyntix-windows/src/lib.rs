@@ -181,7 +181,7 @@ impl ProgressPublisher {
                         state.snapshot(physical.load(Ordering::Relaxed))
                     };
 
-                    let changed = last_snapshot.map_or(true, |last| {
+                    let changed = last_snapshot.is_none_or(|last| {
                         last.current != snapshot.current || last.phase != snapshot.phase
                     });
                     if changed || last_emit.elapsed() >= PROGRESS_HEARTBEAT_INTERVAL {
@@ -218,6 +218,7 @@ impl ProgressPublisher {
             *stopped = true;
             cvar.notify_all();
         }
+        #[allow(clippy::collapsible_if)]
         if let Some(handle) = self.handle.take() {
             if handle.join().is_err() {
                 tracing::warn!("Windows progress publisher panicked");

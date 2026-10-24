@@ -260,7 +260,7 @@ impl UsbMassStorage {
 
     /// Read blocks from the device.
     pub fn read_blocks(&mut self, start_block: u64, buffer: &mut [u8]) -> Result<()> {
-        if buffer.len() % self.block_size as usize != 0 {
+        if !buffer.len().is_multiple_of(self.block_size as usize) {
             return Err(Error::UsbError(
                 "Buffer size must be multiple of block size".into(),
             ));
@@ -297,7 +297,7 @@ impl UsbMassStorage {
 
     /// Write blocks to the device.
     pub fn write_blocks(&mut self, start_block: u64, buffer: &[u8]) -> Result<()> {
-        if buffer.len() % self.block_size as usize != 0 {
+        if !buffer.len().is_multiple_of(self.block_size as usize) {
             return Err(Error::UsbError(
                 "Buffer size must be multiple of block size".into(),
             ));
@@ -340,7 +340,7 @@ impl UsbMassStorage {
         phys_progress: &AtomicU64,
         base_pos: u64,
     ) -> Result<()> {
-        if buffer.len() % self.block_size as usize != 0 {
+        if !buffer.len().is_multiple_of(self.block_size as usize) {
             return Err(Error::UsbError(
                 "Buffer size must be multiple of block size".into(),
             ));

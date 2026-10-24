@@ -243,4 +243,94 @@
     <string name="err_usb_transfer">USB transfer failed. Try reconnecting the drive.</string>
     <string name="err_drive_communication">Drive communication error. Try a different USB port.</string>
     <string name="err_timeout">Drive not responding. Please reconnect.</string>
+
+    <!-- Settings / theme toggle -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_cd_open">Open settings</string>
+    <string name="settings_cd_close">Close settings</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System default</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_description">Choose how the app appears. Light or dark, regardless of system setting.</string>
+
+    <!-- Error explanations -->
+    <string name="error_title_invalid_file">Invalid image</string>
+    <string name="error_msg_invalid_file">This file is not a valid Windows or Linux ISO. Check the file type and try again.</string>
+    <string name="error_action_choose_isa">Choose another file</string>
+    <string name="error_title_no_space">Not enough space</string>
+    <string name="error_msg_no_space">Not enough free space. Free up storage and try again.</string>
+    <string name="error_title_permission">Permission needed</string>
+    <string name="error_msg_permission">Permission to access this USB drive was denied. Reconnect the drive and try again.</string>
+    <string name="error_action_grant_permission">Reconnect and allow</string>
+    <string name="error_title_disconnected">Drive disconnected</string>
+    <string name="error_msg_disconnected">The USB drive was disconnected during the operation. Reconnect and try again.</string>
+    <string name="error_action_reconnect">Reconnect</string>
+    <string name="error_title_checksum">Checksum mismatch</string>
+    <string name="error_msg_checksum">The downloaded file is corrupted. Expected SHA-256: %1$s, got: %2$s. Try downloading again.</string>
+    <string name="error_action_redownload">Download again</string>
+    <string name="error_title_destination_lost">Destination lost</string>
+    <string name="error_msg_destination_lost">The save location is no longer available. Choose a different destination.</string>
+    <string name="error_action_reselect_destination">Choose destination</string>
+    <string name="error_title_destination_changed">File changed</string>
+    <string name="error_msg_destination_changed">The downloaded ISO changed after verification. Download it again before flashing.</string>
+    <string name="error_title_network">Network error</string>
+    <string name="error_msg_network">Network error. Check your connection and retry; the download resumes from the last saved point.</string>
+    <string name="error_action_retry">Retry</string>
+    <string name="error_title_no_network">No internet</string>
+    <string name="error_msg_no_network">No internet connection. Connect to Wi-Fi and retry.</string>
+    <string name="error_title_metered">Mobile data</string>
+    <string name="error_msg_metered">Large downloads are allowed on Wi-Fi only. Connect to Wi-Fi to continue.</string>
+    <string name="error_action_allow_metered">Use mobile data</string>
+    <string name="error_title_already_active">Another download active</string>
+    <string name="error_msg_already_active">Only one download can run at a time. Finish or cancel your current download first.</string>
+    <string name="error_action_wait">Wait</string>
+    <string name="error_title_verify_failed">Verification failed</string>
+    <string name="error_msg_verify_failed">USB verification failed. The drive may be corrupted or the wrong image. Try flashing or verifying again.</string>
+    <string name="error_title_verify_mismatch">Verification mismatch</string>
+    <string name="error_msg_verify_mismatch">The USB contents don\'t match the original ISO. The drive may be corrupted. Try flashing again.</string>
+    <string name="error_action_reflash">Re-flash</string>
+    <string name="error_title_unknown">Something went wrong</string>
+    <string name="error_msg_unknown">An unexpected error occurred. Try again or check the logs for details.</string>
+
+    <!-- ISO verification -->
+    <string name="verify_title">Verify USB Drive</string>
+    <string name="verify_cd_start">Start verification</string>
+    <string name="verify_desc">Check that the USB drive\'s contents match the original ISO file.</string>
+    <string name="verify_select_iso">Select ISO to compare against</string>
+    <string name="verify_start_button">Start verification</string>
+    <string name="verify_progress_title">Verifying %1$s</string>
+    <string name="verify_progress_desc">Reading and hashing USB drive contents.</string>
+    <string name="verify_result_verified">USB drive matches the ISO</string>
+    <string name="verify_result_verified_detail">BLAKE3 checksum matches: %1$s</string>
+    <string name="verify_result_mismatch">USB drive does not match</string>
+    <string name="verify_result_mismatch_detail">Expected: %1$s&#10;Actual: %2$s. The drive may be corrupted.</string>
+    <string name="verify_result_unknown">Cannot verify this drive</string>
+    <string name="verify_result_unknown_detail">No reference SHA-256 available for this image.</string>
+    <string name="verify_result_cancelled">Verification cancelled</string>
+    <string name="verify_cancel">Cancel verification</string>
+    <string name="verify_running">Verification running in the background</string>
+    <string name="verify_no_image">Select an ISO image first to verify against.</string>
+    <string name="verify_hashing">Hashing USB contents</string>
+
+    <!-- Backup USB to image -->
+    <string name="backup_title">Backup USB to Image</string>
+    <string name="backup_desc">Create a backup copy of the entire USB drive as an image file.</string>
+    <string name="backup_start">Start backup</string>
+    <string name="backup_progress_title">Backing up %1$s</string>
+    <string name="backup_progress_desc">Reading USB drive and writing image file.</string>
+    <string name="backup_progress_bytes">%1$s / %2$s</string>
+    <string name="backup_progress_file">destination: %1$s</string>
+    <string name="backup_complete">Backup complete: %1$s saved.</string>
+    <string name="backup_error">Backup failed: %1$s</string>
+    <string name="backup_no_space">Not enough free space for backup.</string>
+    <string name="backup_action_start">Start backup</string>
+    <string name="backup_action_verify">Verify backup</string>
+
+    <!-- Verify / backup notifications -->
+    <string name="notification_channel_verify">USB Verification</string>
+    <string name="notification_channel_backup">USB Backup</string>
+    <string name="notification_channel_verify_desc">USB drive verification progress</string>
+    <string name="notification_channel_backup_desc">USB drive backup progress</string>
+    <string name="verify_cancelled">Verification cancelled</string>
 </resources>

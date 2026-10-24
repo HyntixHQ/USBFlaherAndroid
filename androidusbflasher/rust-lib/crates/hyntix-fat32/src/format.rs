@@ -72,7 +72,7 @@ impl Fat32BootSector {
         let cluster_count = data_sectors / cluster_size;
 
         // Each FAT entry is 4 bytes, 128 entries per sector
-        let sectors_per_fat = (cluster_count + 127) / 128 + 1;
+        let sectors_per_fat = cluster_count.div_ceil(128) + 1;
 
         // Generate volume serial number from timestamp-like value
         let volume_serial = std::time::SystemTime::now()
@@ -283,7 +283,7 @@ impl Fat32BootSector {
                 writer.write_all(&chunk_buffer[..bytes_to_write])?;
                 remaining_sectors -= sectors_to_write;
                 
-                if (total_sectors - remaining_sectors) % 1000 == 0 {
+                if (total_sectors - remaining_sectors).is_multiple_of(1000) {
                     tracing::info!("FAT32: Zeroing FAT{}... {}/{} sectors", i + 1, total_sectors - remaining_sectors, total_sectors);
                 }
             }

@@ -167,17 +167,15 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
 
             // Size the copy buffer to the file instead of allocating a full
             // 2MB zeroed vector for every (often tiny) file in the ISO.
-            let buffer_size = (size as usize).min(FILE_COPY_BUFFER_SIZE).max(512);
+            let buffer_size = (size as usize).clamp(512, FILE_COPY_BUFFER_SIZE);
             let mut buffer = vec![0u8; buffer_size];
             let mut limited_reader = reader.take(size);
 
             loop {
                 // Check cancellation via the writer which has its own handle
-                if let Some(ref handle) = writer.cancel_handle {
-                    if handle.load(Ordering::SeqCst) {
+                if writer.cancel_handle.as_ref().map(|h| h.load(Ordering::SeqCst)).unwrap_or(false) {
                         return Err(Error::Cancelled);
                     }
-                }
 
                 let n = limited_reader.read(&mut buffer)?;
                 if n == 0 {
@@ -317,7 +315,7 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
             .nfc()
             .flat_map(|c| c.encode_utf16(&mut [0; 2]).to_vec())
             .collect();
-        let lfn_entry_count = (name_utf16.len() + 12) / 13; // 13 chars per LFN entry
+        let lfn_entry_count = name_utf16.len().div_ceil(13); // 13 chars per LFN entry
 
         let checksum = self.sfn_checksum(&sfn);
 
@@ -355,9 +353,9 @@ impl<'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32Writer<'a, 
                 .collect();
 
             // Characters 1-5 (bytes 1-10)
-            for j in 0..5 {
+            for (j, ch) in chars.iter().enumerate().take(5) {
                 let offset = 1 + j * 2;
-                entry[offset..offset + 2].copy_from_slice(&chars[j].to_le_bytes());
+                entry[offset..offset + 2].copy_from_slice(&ch.to_le_bytes());
             }
 
             // Characters 6-11 (bytes 14-25)
@@ -682,7 +680,7 @@ impl<'b, 'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Write
         }
 
         // Standard buffered path
-        let mut current_data = &buf[..];
+        let mut current_data = buf;
         while !current_data.is_empty() {
             let space_in_buffer = BATCH_SIZE - self.buffer.len();
             let to_copy = std::cmp::min(space_in_buffer, current_data.len());
@@ -717,7 +715,7 @@ impl<'b, 'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Write
                 FileAttributes::ARCHIVE,
                 self.total_size as u32,
             )
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
 
         // Do NOT drain the async pipeline here. File data is queued in order
         // and the final drain happens once, after all files have been written.
@@ -788,7 +786,7 @@ impl<'b, 'a, W: Write + Seek + Read + hyntix_usb::PhysicalProgress> Fat32FileWri
             total_processed_bytes += to_process;
 
             // If we just finished a cluster, allocate the next one
-            if self.bytes_written % bytes_per_cluster as u64 == 0 {
+            if self.bytes_written.is_multiple_of(bytes_per_cluster as u64) {
                 let next_cluster = self.parent.formatter.allocate_cluster();
                 tracing::debug!(
                     "Fat32FileWriter: Advancing from cluster {} to {}",

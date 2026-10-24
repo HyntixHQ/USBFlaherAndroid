@@ -125,6 +125,75 @@ class AndroidUsbFlasher(private val context: Context) {
         }
     }
 
+    /**
+     * Read a byte range from a USB mass-storage device synchronously. Returns
+     * null when the drive cannot be opened or the read fails. Repeated reads can
+     * be chained by the caller; USB permission is obtained for one read and
+     * released before returning, so use this at reasonable chunk sizes.
+     */
+    fun readDeviceBytes(device: android.hardware.usb.UsbDevice, startByte: Long, length: Long): ByteArray? {
+        val manager = context.getSystemService(Context.USB_SERVICE) as android.hardware.usb.UsbManager
+        var massStorageIface: android.hardware.usb.UsbInterface? = null
+        for (i in 0 until device.interfaceCount) {
+            val iface = device.getInterface(i)
+            if (iface.interfaceClass == android.hardware.usb.UsbConstants.USB_CLASS_MASS_STORAGE) {
+                massStorageIface = iface
+                break
+            }
+        }
+        val iface = massStorageIface ?: run {
+            android.util.Log.e("AndroidUsbFlasher", "No Mass Storage interface found")
+            return null
+        }
+        android.util.Log.d("AndroidUsbFlasher", "Found MS interface ${iface.id} for read")
+
+        var inEp: android.hardware.usb.UsbEndpoint? = null
+        var outEp: android.hardware.usb.UsbEndpoint? = null
+        for (i in 0 until iface.endpointCount) {
+            val ep = iface.getEndpoint(i)
+            if (ep.type == android.hardware.usb.UsbConstants.USB_ENDPOINT_XFER_BULK) {
+                if (ep.direction == android.hardware.usb.UsbConstants.USB_DIR_IN) inEp = ep
+                else outEp = ep
+            }
+        }
+        val inEndpoint = inEp ?: run {
+            android.util.Log.e("AndroidUsbFlasher", "No IN endpoint found")
+            return null
+        }
+        val outEndpoint = outEp ?: run {
+            android.util.Log.e("AndroidUsbFlasher", "No OUT endpoint found")
+            return null
+        }
+
+        return try {
+            val connection = manager.openDevice(device) ?: run {
+                android.util.Log.e("AndroidUsbFlasher", "Failed to openDevice ${device.deviceName}")
+                return null
+            }
+            try {
+                if (connection.claimInterface(iface, true)) {
+                    android.util.Log.d("AndroidUsbFlasher", "Claimed interface ${iface.id} for read")
+                    nativeFlasher.readDeviceBytes(
+                        connection.fileDescriptor,
+                        iface.id.toUByte(),
+                        inEndpoint.address.toUByte(),
+                        outEndpoint.address.toUByte(),
+                        startByte.toULong(),
+                        length.toULong()
+                    )
+                } else {
+                    android.util.Log.e("AndroidUsbFlasher", "Failed to claim interface ${iface.id}")
+                    null
+                }
+            } finally {
+                connection.close()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AndroidUsbFlasher", "Exception in readDeviceBytes", e)
+            null
+        }
+    }
+
     fun flashWindows(
         pfd: ParcelFileDescriptor,
         usbFd: Int,

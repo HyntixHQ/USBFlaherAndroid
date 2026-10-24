@@ -23,9 +23,13 @@ import com.hyntix.android.usbflasher.ui.DownloadViewModel
 import com.hyntix.android.usbflasher.ui.FlashViewModel
 import com.hyntix.android.usbflasher.ui.MainScreen
 import com.hyntix.android.usbflasher.ui.theme.USBFlasherTheme
+import com.hyntix.android.usbflasher.util.ThemePreference
 
 import android.view.WindowManager
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.hyntix.android.usbflasher.data.FlashState
@@ -122,7 +126,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         
         setContent {
-            USBFlasherTheme {
+            val context = this@MainActivity
+            val themeModeState = remember { mutableStateOf(ThemePreference.getThemeMode(context)) }
+            val themeMode = themeModeState.value
+            val isDark = when (themeMode) {
+                ThemePreference.MODE_LIGHT -> false
+                ThemePreference.MODE_DARK -> true
+                else -> androidx.compose.foundation.isSystemInDarkTheme()
+            }
+            USBFlasherTheme(darkThemeOverride = isDark) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -197,6 +209,15 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
+                    val showSettings = rememberSaveable { mutableStateOf(false) }
+                    if (showSettings.value) {
+                        com.hyntix.android.usbflasher.ui.SettingsDialog(
+                            onDismiss = { showSettings.value = false },
+                            onThemeChanged = { newMode ->
+                                themeModeState.value = newMode
+                            }
+                        )
+                    }
                     MainScreen(
                         viewModel = viewModel,
                         downloadViewModel = downloadViewModel,

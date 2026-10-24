@@ -1,4 +1,3 @@
-use blake3;
 use hyntix_common::Result;
 use hyntix_iso::reader::IsoReader;
 use hyntix_usb::async_writer::AsyncUsbWriter;
@@ -36,16 +35,10 @@ impl Flasher {
     /// Check if the provided ISO is a valid Windows installer.
     pub fn is_windows_iso<R: Read + Seek>(&self, reader: R) -> Result<bool> {
         let mut udf = hyntix_udf::UdfReader::new(reader).map_err(|e| {
-            hyntix_common::Error::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
+            hyntix_common::Error::Io(std::io::Error::other(e.to_string()))
         })?;
         let tree = udf.walk().map_err(|e| {
-            hyntix_common::Error::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
+            hyntix_common::Error::Io(std::io::Error::other(e.to_string()))
         })?;
 
         for (path, _) in &tree {
@@ -92,7 +85,7 @@ impl Flasher {
         // Acquire the first buffer from the pool to avoid an extra allocation + memcpy.
         let mut buf = writer
             .acquire_buffer()
-            .map_err(|e| hyntix_common::Error::Io(e))?;
+            .map_err(hyntix_common::Error::Io)?;
         let mut total_written: u64 = 0;
         let mut source_hasher = blake3::Hasher::new();
 
@@ -138,7 +131,7 @@ impl Flasher {
             // no extend_from_slice, the buffer is sent as-is to the worker thread)
             writer
                 .write_buffer(buf)
-                .map_err(|e| hyntix_common::Error::Io(e))?;
+                .map_err(hyntix_common::Error::Io)?;
 
             total_written += bytes_in_buf as u64;
 
@@ -169,7 +162,7 @@ impl Flasher {
         info!("Flushing async writer pipeline...");
         writer
             .flush_with_progress(|phys| progress(FlashPhase::Flashing, phys, total_size))
-            .map_err(|e| hyntix_common::Error::Io(e))?;
+            .map_err(hyntix_common::Error::Io)?;
 
         // Final flush progress
         progress(FlashPhase::Flashing, total_size, total_size);
@@ -184,7 +177,7 @@ impl Flasher {
 
             writer
                 .seek(SeekFrom::Start(0))
-                .map_err(|e| hyntix_common::Error::Io(e))?;
+                .map_err(hyntix_common::Error::Io)?;
 
             let expected_hash = source_hasher.finalize();
             // Using 1MB chunks for verification to match safe SCSI limits and reduce memory pressure
@@ -213,17 +206,14 @@ impl Flasher {
                     let this_chunk = remaining.min(chunk_len);
 
                     let mut buf = recycle_rx.recv().map_err(|_| {
-                        hyntix_common::Error::Io(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            "Recycle channel closed",
-                        ))
+                        hyntix_common::Error::Io(std::io::Error::other("Recycle channel closed"))
                     })?;
 
                     // Important: use storage.read_blocks directly or through reader.read
                     // reader.read is fine as it handles alignment and mutex locking.
                     let n = reader
                         .read(&mut buf[..this_chunk])
-                        .map_err(|e| hyntix_common::Error::Io(e))?;
+                        .map_err(hyntix_common::Error::Io)?;
 
                     if n != this_chunk {
                         return Err(hyntix_common::Error::SizeMismatch {
@@ -254,7 +244,7 @@ impl Flasher {
                 verified_bytes += n as u64;
 
                 // Report progress every 4MB to reduce JNI/UI overhead
-                if verified_bytes % (4 * 1024 * 1024) == 0 || verified_bytes == total_size {
+                if verified_bytes.is_multiple_of(4 * 1024 * 1024) || verified_bytes == total_size {
                     progress(FlashPhase::Verifying, verified_bytes, total_size);
                 }
 
@@ -264,12 +254,9 @@ impl Flasher {
             let _writer = read_handle
                 .join()
                 .map_err(|_| {
-                    hyntix_common::Error::Io(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "Read thread panicked",
-                    ))
+                    hyntix_common::Error::Io(std::io::Error::other("Read thread panicked"))
                 })?
-                .map_err(|e| e)?;
+                ?;
 
             let final_dest_hash = dest_hasher.finalize();
 
@@ -318,10 +305,7 @@ impl Flasher {
                 file_progress,
             )
             .map_err(|e| {
-                hyntix_common::Error::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    e.to_string(),
-                ))
+                hyntix_common::Error::Io(std::io::Error::other(e.to_string()))
             })?;
 
         Ok(())
